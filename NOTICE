@@ -1,0 +1,32 @@
+Linear A Research Workbench
+Copyright 2026 Ryan Pavlicek
+
+This product includes software developed by Ryan Pavlicek
+(https://github.com/ryanpavlicek/linearaworkbench).
+
+----
+
+This product includes data and assets from third-party sources:
+
+* The Linear A inscription corpus (public/corpus/) is derived from the
+  mwenge/lineara.xyz repository (https://github.com/mwenge/lineara.xyz),
+  which transcribes the GORILA volumes by Louis Godart and Jean-Pierre
+  Olivier (École Française d'Athènes, 1976-1985).
+
+* Pre-2024 commentary HTML mirrored in public/upstream/commentary/ derives
+  from John G. Younger's Linear A material, formerly hosted at
+  people.ku.edu/~jyounger/LinearA/ (retired 2024). Younger's current
+  material is published as PDFs at
+  https://www.academia.edu/117949722/Younger_JG_Linear_A_folder_introduction.
+
+* Facsimile drawings and photographs of Linear A inscriptions
+  (public/upstream/images/) are © École Française d'Athènes and are
+  redistributed here for academic reference only under fair-use principles.
+  Image rights remain with the École Française d'Athènes and are NOT
+  granted under the Apache 2.0 license that covers the rest of this work.
+
+* GORILA PDF citations (public/upstream/papers/) are © École Française
+  d'Athènes and are bundled for academic reference only on the same terms.
+
+* The Noto Sans Linear A font, used to render Linear A glyphs in the UI,
+  is licensed under the SIL Open Font License 1.1 by Google.

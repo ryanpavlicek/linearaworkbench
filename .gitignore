@@ -1,0 +1,35 @@
+node_modules
+dist
+.vite
+.corpus-raw.js
+.tree.json
+*.log
+.DS_Store
+*.tsbuildinfo
+.claude
+linear-a-workbench.html
+
+# Generated artifacts the user downloads from the running app — exports,
+# backups, and the on-disk research report. Never source.
+linear_a_research_report.html
+linear_a_workbench_backup_*.json
+linear_a_corpus*.json
+linear_a_HT*.json
+linear_a_*.csv
+
+.env
+.env.local
+.env.production.local
+
+# Internal working/scratch docs — never published to GitHub
+UX_AUDIT.md
+INTERACTIVITY_IDEAS.md
+
+# Optional ignore for fetch failures log inside the upstream mirror
+public/upstream/fetch-failures.log
+
+# NOTE: public/upstream/ IS committed (~500 MB of commentary, images, papers).
+# This makes the GitHub Pages deploy fully self-contained — visitors get
+# everything from your Pages domain with zero dependency on third-party
+# hosting. If you don't want that, gitignore the whole `public/upstream/`
+# directory and the app will fall back to upstream CDNs at runtime.

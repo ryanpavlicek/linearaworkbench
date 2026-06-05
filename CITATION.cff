@@ -1,0 +1,41 @@
+# Citation File Format 1.2.0 — https://citation-file-format.github.io/
+# GitHub reads this file and exposes a "Cite this repository" button on the
+# repo homepage, which produces APA / BibTeX citations in one click. Zotero,
+# Mendeley, and other reference managers also pick this up automatically.
+#
+# Bump `version` and `date-released` on each release; keep them in sync with
+# package.json and src/lib/citations.ts (WORKBENCH_VERSION).
+
+cff-version: 1.2.0
+message: >-
+  If you use this software in academic or published work, please cite it
+  using the metadata below. Primary citations should still go to the
+  underlying corpus sources (GORILA, mwenge/lineara.xyz, John Younger's
+  scholarly material) — see the in-app Research Report's Citation block
+  for one-click pre-formatted entries covering all of them.
+type: software
+title: Linear A Research Workbench
+abstract: >-
+  A browser-based computational research environment for the Linear A
+  corpus — the undeciphered Bronze Age Minoan script (ca. 1800–1450 BCE).
+  Includes 36+ interactive modules covering cross-linguistic phonetic
+  alignment, sign concordances, scribal paleography links, accounting
+  verification, lexical and graphotactic statistics, hypothesis testing,
+  and publication-ready report export.
+authors:
+  - family-names: Pavlicek
+    given-names: Ryan
+version: 1.1.0
+date-released: "2026-06-05"
+url: "https://github.com/ryanpavlicek/linearaworkbench"
+repository-code: "https://github.com/ryanpavlicek/linearaworkbench"
+license: Apache-2.0
+keywords:
+  - Linear A
+  - Minoan
+  - undeciphered scripts
+  - Bronze Age Aegean
+  - corpus linguistics
+  - computational philology
+  - digital humanities
+  - epigraphy
