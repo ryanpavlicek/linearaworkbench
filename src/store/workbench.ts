@@ -133,6 +133,7 @@ interface State {
 
   setTabletCategory: (id: string, category: string) => void;
   clearTabletCategory: (id: string) => void;
+  clearAllTabletCategories: () => void;
 
   addFinding: (finding: Omit<Finding, "id" | "createdAt">) => string;
   deleteFinding: (id: string) => void;
@@ -616,6 +617,10 @@ export const useWorkbench = create<State>((set, get) => ({
     delete next[id];
     set({ tabletCategories: next });
     saveJson(KEYS.tabletCategories, next);
+  },
+  clearAllTabletCategories: () => {
+    set({ tabletCategories: {} });
+    saveJson(KEYS.tabletCategories, {});
   },
 
   // ---- Findings (saved results/views) ----------------------------------
