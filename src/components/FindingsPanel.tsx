@@ -1,21 +1,14 @@
 import { useWorkbench } from "../store/workbench";
 import type { Finding, ModuleId } from "../lib/types";
+import { sanitizeHtmlFragment } from "../lib/sanitizeHtml";
 
 // Findings carry pre-rendered report HTML. In normal use that HTML is
 // app-generated and fully escaped (see lib/reportSnippet). But findings can
 // also arrive from an imported backup file, so a tampered backup could smuggle
-// an auto-executing payload (e.g. <img onerror=…>). Strip active content
+// an auto-executing payload (e.g. <img onerror=…>). Sanitize via the DOM
 // before rendering — defense-in-depth so an untrusted backup can't run script
 // in the session. App-generated report snippets are static table markup with
 // inline styles only, so nothing legitimate is removed.
-function sanitizeStoredHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
-    .replace(/\son\w+\s*=\s*[^\s>]+/gi, "");
-}
 
 interface Props {
   /** Filter to one module's findings (e.g. show only saved comparisons). */
@@ -159,7 +152,7 @@ export function FindingsPanel({
                 maxHeight: 300,
                 overflow: "auto",
               }}
-              dangerouslySetInnerHTML={{ __html: sanitizeStoredHtml(f.report.html) }}
+              dangerouslySetInnerHTML={{ __html: sanitizeHtmlFragment(f.report.html) }}
             />
           )}
           {f.notes && (
