@@ -1,0 +1,1684 @@
+/* ================================================================
+   Linear A Research Workbench — Design Tokens & Base Styles
+   ================================================================
+   Modernized dark IDE aesthetic. Mono for data, serif for prose,
+   sans for chrome. WCAG AA contrast where possible.
+   ============================================================== */
+
+:root {
+  /* Color — surfaces */
+  --bg: #07090d;
+  --surface-0: #0d1117;
+  --surface-1: #131820;
+  --surface-2: #1a2030;
+  --surface-3: #232a3d;
+
+  /* Borders */
+  --border: #232a3d;
+  --border-strong: #2d3550;
+  --border-focus: #4a90e2;
+
+  /* Text */
+  --text: #e4e7ed;
+  --text-dim: #a0a8b8;
+  --text-muted: #6a7286;
+  --text-faint: #454c5e;
+
+  /* Accents */
+  --ac: #5b9eff;
+  --ac-2: #3470c0;
+  --ac-soft: #5b9eff14;
+  --gn: #3ddc91;
+  --am: #f0b14b;
+  --rd: #ef5a5a;
+  --pu: #9b7cf0;
+  --cy: #4ad8d0;
+  --mg: #d568b4;
+
+  /* Type */
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --serif: "Crimson Pro", Georgia, serif;
+  --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
+    sans-serif;
+  --glyph: "Noto Sans Linear A", "Aegean", "Segoe UI Historic", serif;
+
+  /* Map (Findspot) — sea/land tints. Overridden in light theme. */
+  --map-water: #0e1420;
+  --map-land: #1a2540;
+  --map-overlay: rgba(13, 17, 23, 0.85);
+  --map-label-halo: rgba(13, 17, 23, 0.85);
+
+  /* Radii */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+
+  /* Spacing */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+
+  /* Motion */
+  --t-fast: 100ms ease;
+  --t-base: 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+
+  color-scheme: dark;
+}
+
+/* ───────────────── Light theme ─────────────────
+   Opt-in: <html data-theme="light"> swaps the surface/text/border tokens.
+   The accent palette stays the same — already meets ≥4.5:1 contrast on
+   the lighter surfaces. */
+[data-theme="light"] {
+  --bg: #f7f8fa;
+  --surface-0: #ffffff;
+  --surface-1: #f3f4f6;
+  --surface-2: #e8ebf0;
+  --surface-3: #dce0e8;
+
+  --border: #e2e5ea;
+  --border-strong: #cbd2db;
+  --border-focus: #2563eb;
+
+  --text: #1a1d23;
+  --text-dim: #4b5563;
+  --text-muted: #6b7280;
+  --text-faint: #9ca3af;
+
+  --ac: #2563eb;
+  --ac-2: #1d4ed8;
+  --ac-soft: #2563eb14;
+  --gn: #15803d;
+  --am: #b45309;
+  --rd: #b91c1c;
+  --pu: #6d28d9;
+  --cy: #0e7490;
+  --mg: #be185d;
+
+  /* Map: a soft sea-blue with land in a slightly darker tone for legibility */
+  --map-water: #dfeaf5;
+  --map-land: #bcd0e3;
+  --map-overlay: rgba(255, 255, 255, 0.9);
+  --map-label-halo: rgba(255, 255, 255, 0.9);
+
+  color-scheme: light;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font: 13px/1.55 var(--sans);
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+::selection {
+  background: var(--ac-2);
+  color: #fff;
+}
+
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: var(--border-strong);
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #3a4360;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+a {
+  color: var(--ac);
+  text-decoration: none;
+}
+a:hover {
+  text-decoration: underline;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* ============================================================
+   App shell
+   ============================================================ */
+.app {
+  display: grid;
+  grid-template-columns: 224px 1fr;
+  grid-template-rows: 52px 1fr 26px;
+  height: 100vh;
+}
+.app.with-pin-rail {
+  grid-template-columns: 224px 1fr var(--pin-rail-w, 300px);
+}
+.app.with-pin-rail .pin-rail {
+  grid-row: 2;
+  grid-column: 3;
+  position: relative;
+}
+.pin-rail-handle {
+  position: absolute;
+  left: -3px;
+  top: 0;
+  bottom: 0;
+  width: 6px;
+  cursor: ew-resize;
+  z-index: 2;
+  background: transparent;
+  transition: background 120ms ease;
+}
+.pin-rail-handle:hover,
+.pin-rail-handle.dragging {
+  background: var(--ac-soft);
+}
+.pin-rail-handle::after {
+  content: "";
+  position: absolute;
+  left: 2px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2px;
+  height: 28px;
+  background: var(--border-strong);
+  border-radius: 1px;
+}
+
+/* Compact table mode (controlled by display settings) */
+.compact-tables td {
+  padding: 3px 8px;
+  font-size: 11px;
+}
+.compact-tables th {
+  padding: 4px 8px;
+}
+
+.topbar {
+  grid-column: 1 / -1;
+  background: linear-gradient(180deg, var(--surface-1) 0%, var(--surface-0) 100%);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-4);
+  gap: var(--sp-4);
+}
+
+.topbar h1 {
+  font: 400 16px/1 var(--serif);
+  color: var(--text);
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+}
+
+.topbar .meta {
+  font: 11px var(--mono);
+  color: var(--text-muted);
+  flex: 1;
+}
+.topbar .meta b {
+  color: var(--ac);
+  font-weight: 500;
+}
+
+.topbar .actions {
+  display: flex;
+  gap: var(--sp-2);
+}
+
+.sidebar {
+  background: var(--surface-0);
+  border-right: 1px solid var(--border);
+  overflow-y: auto;
+  padding: var(--sp-2) 0;
+}
+
+.sidebar-group {
+  padding: var(--sp-1) 0;
+}
+
+.sidebar-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: 600 9px var(--sans);
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 1.4px;
+  padding: var(--sp-3) var(--sp-4) var(--sp-1);
+  transition: color var(--t-fast);
+}
+.sidebar-label:hover {
+  color: var(--text-dim);
+}
+.sidebar-chevron {
+  font-size: 8px;
+  width: 8px;
+  display: inline-block;
+  color: var(--text-faint);
+}
+
+.sidebar-item {
+  display: block;
+  width: 100%;
+  text-align: left;
+  background: none;
+  color: var(--text-dim);
+  font: 12px var(--sans);
+  padding: 6px var(--sp-4);
+  border-left: 2px solid transparent;
+  transition: background var(--t-fast), color var(--t-fast),
+    border-color var(--t-fast);
+}
+.sidebar-item:hover {
+  background: var(--surface-1);
+  color: var(--text);
+}
+.sidebar-item.active {
+  color: var(--ac);
+  border-left-color: var(--ac);
+  background: var(--surface-1);
+}
+
+.main {
+  overflow-y: auto;
+  padding: var(--sp-5);
+  background: var(--bg);
+}
+
+.footer {
+  grid-column: 1 / -1;
+  background: var(--surface-0);
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  padding: 0 var(--sp-4);
+  font: 11px var(--mono);
+  color: var(--text-muted);
+  gap: var(--sp-3);
+}
+
+/* ============================================================
+   Module panel container
+   ============================================================ */
+.panel {
+  max-width: 1400px;
+}
+
+.panel h2 {
+  font: 400 22px/1.2 var(--serif);
+  color: var(--text);
+  margin-bottom: var(--sp-1);
+}
+.panel .panel-desc {
+  font: 15px/1.6 var(--serif);
+  color: var(--text-dim);
+  margin-bottom: var(--sp-4);
+  max-width: 720px;
+}
+
+.panel-section {
+  margin-top: var(--sp-5);
+}
+
+/* ============================================================
+   Form controls
+   ============================================================ */
+.input,
+.select {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  color: var(--text);
+  font: 12px var(--mono);
+  padding: 6px 10px;
+  border-radius: var(--r-sm);
+  outline: none;
+  transition: border-color var(--t-fast), background var(--t-fast);
+}
+.input:hover,
+.select:hover {
+  border-color: var(--border-strong);
+}
+.input:focus,
+.select:focus {
+  border-color: var(--border-focus);
+  background: var(--surface-2);
+}
+/* Native dropdown option list. Without this, Windows/Chrome renders the
+   open popup on a white background while inheriting the select's light text
+   color — making the options nearly unreadable until hovered. Force a dark
+   popup with readable text to match the rest of the dark palette. */
+select option,
+select optgroup {
+  background-color: var(--surface-1);
+  color: var(--text);
+}
+select optgroup {
+  color: var(--text-muted);
+  font-style: normal;
+}
+.input::placeholder {
+  color: var(--text-faint);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--ac-2);
+  color: #fff;
+  padding: 6px 14px;
+  border-radius: var(--r-sm);
+  font: 500 12px var(--sans);
+  transition: background var(--t-fast), transform var(--t-fast);
+  border: 1px solid transparent;
+}
+.btn:hover {
+  background: var(--ac);
+}
+.btn:active {
+  transform: translateY(1px);
+}
+
+.btn-secondary {
+  background: var(--pu);
+  color: #fff;
+}
+.btn-secondary:hover {
+  background: #ad8df5;
+}
+
+.btn-success {
+  background: var(--gn);
+  color: #042418;
+}
+
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border-strong);
+  color: var(--text-dim);
+}
+.btn-outline:hover {
+  border-color: var(--ac);
+  color: var(--text);
+  background: var(--ac-soft);
+}
+
+.btn-sm {
+  padding: 3px 10px;
+  font-size: 11px;
+}
+
+.btn:focus-visible,
+.input:focus-visible,
+.select:focus-visible,
+.sidebar-item:focus-visible {
+  outline: 2px solid var(--ac);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+   Toolbar (filter row inside panels)
+   ============================================================ */
+.toolbar {
+  display: flex;
+  gap: var(--sp-2);
+  margin-bottom: var(--sp-3);
+  flex-wrap: wrap;
+  align-items: center;
+}
+.toolbar .input {
+  flex: 1;
+  min-width: 200px;
+}
+
+/* ============================================================
+   Tables
+   ============================================================ */
+.table-wrap {
+  overflow: auto;
+  max-height: calc(100vh - 220px);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  background: var(--surface-0);
+}
+
+table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font: 12px var(--mono);
+}
+th {
+  text-align: left;
+  color: var(--text-muted);
+  font: 600 10px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  padding: var(--sp-2) var(--sp-3);
+  background: var(--surface-1);
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  user-select: none;
+}
+td {
+  padding: 6px var(--sp-3);
+  border-bottom: 1px solid #1a1d2480;
+  vertical-align: top;
+}
+tbody tr:hover td {
+  background: var(--surface-1);
+}
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+/* ============================================================
+   Tokens & inline data styles
+   ============================================================ */
+.word-link {
+  color: var(--ac);
+  cursor: pointer;
+  font: 12px var(--mono);
+}
+.word-link:hover {
+  text-decoration: underline;
+}
+
+.numeral {
+  color: var(--am);
+  font-variant-numeric: tabular-nums;
+}
+
+.dim {
+  color: var(--text-muted);
+}
+.site-text {
+  color: var(--cy);
+  font-size: 11px;
+}
+
+.tag {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font: 500 9px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 1px;
+}
+.tag-site {
+  background: #38c8c014;
+  color: var(--cy);
+  border: 1px solid #38c8c030;
+}
+.tag-domain {
+  background: #7c5ce014;
+  color: var(--pu);
+  border: 1px solid #7c5ce030;
+}
+.tag-warn {
+  background: #f0b14b18;
+  color: var(--am);
+  border: 1px solid #f0b14b30;
+}
+.tag-success {
+  background: #3ddc9118;
+  color: var(--gn);
+  border: 1px solid #3ddc9130;
+}
+
+/* Match score chip */
+.score {
+  display: inline-block;
+  min-width: 44px;
+  text-align: center;
+  font: 600 11px var(--mono);
+  padding: 2px 4px;
+  border-radius: 3px;
+}
+.score-hi {
+  background: #2dd47a20;
+  color: var(--gn);
+}
+.score-md {
+  background: #e8a83820;
+  color: var(--am);
+}
+.score-lo {
+  background: #d8484818;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Cards & stat boxes
+   ============================================================ */
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3) var(--sp-4);
+  margin-bottom: var(--sp-2);
+}
+.card h4 {
+  font: 500 13px var(--sans);
+  color: var(--text);
+  margin-bottom: var(--sp-1);
+}
+.card .sub {
+  font: 11px var(--mono);
+  color: var(--text-muted);
+}
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: var(--sp-3);
+  margin-bottom: var(--sp-4);
+}
+.stat-box {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  text-align: center;
+}
+.stat-box .val {
+  font: 600 22px var(--mono);
+  color: var(--ac);
+  display: block;
+  line-height: 1.2;
+}
+.stat-box .lbl {
+  font: 10px var(--sans);
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-top: 2px;
+}
+
+/* ============================================================
+   Hint / info callout
+   ============================================================ */
+/* ============================================================
+   Commentary panel — themed render of Younger's per-tablet
+   commentary HTML (mirrored under public/upstream/commentary/).
+   Uses container-scoped overrides instead of rewriting the
+   legacy <font color="..."> markup the source files contain.
+   ============================================================ */
+.commentary-panel {
+  font: 13px/1.6 var(--serif);
+  color: var(--text);
+}
+.commentary-panel dt {
+  display: block;
+  margin: 0 0 10px;
+}
+.commentary-panel dt b {
+  font-weight: 600;
+}
+.commentary-panel table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 6px 0;
+  font-size: 12px;
+  table-layout: auto;
+}
+.commentary-panel th,
+.commentary-panel td {
+  padding: 3px 8px;
+  vertical-align: top;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.commentary-panel sub {
+  font-size: 75%;
+  vertical-align: sub;
+}
+.commentary-panel sup {
+  font-size: 75%;
+  vertical-align: super;
+}
+/* Re-theme legacy <font color="..."> tags to the app palette. */
+.commentary-panel font[color] {
+  color: var(--text);
+}
+.commentary-panel font[color="magenta"i],
+.commentary-panel font[color="purple"i] {
+  color: var(--pu);
+  font-weight: 500;
+}
+.commentary-panel font[color="blue"i] {
+  color: var(--ac);
+  font-weight: 500;
+}
+.commentary-panel font[color="red"i] {
+  color: var(--rd);
+  font-weight: 500;
+}
+.commentary-panel font[color="green"i] {
+  color: var(--gn);
+}
+.commentary-panel a {
+  color: var(--ac);
+}
+.commentary-panel hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 10px 0;
+}
+.commentary-panel p {
+  margin: 6px 0;
+}
+.commentary-panel ul {
+  padding-left: 22px;
+  margin: 6px 0;
+}
+.commentary-panel img {
+  max-width: 100%;
+  height: auto;
+}
+
+/* ============================================================
+   Module category badge — Descriptive vs Exploratory calibration
+   surfaced at the top of every analytical module.
+   ============================================================ */
+.module-category-row {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 var(--sp-5) 6px;
+  display: flex;
+  justify-content: flex-end;
+}
+.module-category-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 9px;
+  font: 600 10px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border-radius: 10px;
+  border: 1px solid;
+  cursor: help;
+  user-select: none;
+}
+.module-category-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+}
+/* Default (dark) theme: a quiet translucent pill in the accent hue —
+   accent-colored text + dot over a low-alpha tint of the same color, so it
+   reads as a calm tag against the dark surface rather than a bright pastel
+   sticker. */
+.module-category-descriptive {
+  color: #3ddc91;
+  background: rgba(61, 220, 145, 0.1);
+  border-color: rgba(61, 220, 145, 0.32);
+}
+.module-category-descriptive .module-category-dot {
+  background: #3ddc91;
+}
+.module-category-exploratory {
+  color: #f0b14b;
+  background: rgba(240, 177, 75, 0.1);
+  border-color: rgba(240, 177, 75, 0.32);
+}
+.module-category-exploratory .module-category-dot {
+  background: #f0b14b;
+}
+/* Light theme keeps the original higher-contrast pastel pills (dark text on
+   a soft tinted fill), which read well on the light surface. */
+[data-theme="light"] .module-category-descriptive {
+  color: #15803d;
+  background: #d1fae580;
+  border-color: #6ee7b7;
+}
+[data-theme="light"] .module-category-descriptive .module-category-dot {
+  background: #15803d;
+}
+[data-theme="light"] .module-category-exploratory {
+  color: #b45309;
+  background: #fef3c780;
+  border-color: #fcd34d;
+}
+[data-theme="light"] .module-category-exploratory .module-category-dot {
+  background: #b45309;
+}
+@media (max-width: 700px) {
+  .module-category-row {
+    padding: 0 var(--sp-3) 4px;
+  }
+}
+
+/* ============================================================
+   Methodology module (in-app render of docs/METHODOLOGY.md)
+   ============================================================ */
+.methodology-panel { max-width: none; }
+.methodology-layout {
+  display: grid;
+  grid-template-columns: 240px minmax(0, 1fr);
+  gap: 24px;
+  align-items: start;
+}
+.methodology-toc {
+  position: sticky;
+  top: var(--sp-3);
+  align-self: start;
+  max-height: calc(100vh - 80px);
+  overflow-y: auto;
+  padding-right: 8px;
+  border-right: 1px solid var(--border);
+}
+.methodology-toc h4 {
+  font: 600 11px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin: 0 0 8px;
+}
+.methodology-toc nav { display: flex; flex-direction: column; gap: 1px; }
+.methodology-toc-link {
+  display: block;
+  padding: 3px 8px;
+  font: 12px var(--sans);
+  color: var(--text-dim);
+  text-decoration: none;
+  border-left: 2px solid transparent;
+  border-radius: 0 3px 3px 0;
+  line-height: 1.4;
+}
+.methodology-toc-link:hover {
+  background: var(--surface-1);
+  color: var(--text);
+}
+.methodology-toc-link.active {
+  background: var(--surface-2);
+  color: var(--ac);
+  border-left-color: var(--ac);
+  font-weight: 500;
+}
+.methodology-toc-l2 { padding-left: 8px; font-weight: 500; }
+.methodology-toc-l3 { padding-left: 20px; font-size: 11px; }
+.methodology-toc-l4 { padding-left: 32px; font-size: 11px; }
+.methodology-doc {
+  font: 15px/1.7 var(--serif);
+  color: var(--text);
+  max-width: 780px;
+}
+.methodology-doc h1 {
+  font: 600 24px var(--sans);
+  margin: 0 0 12px;
+  border-bottom: 2px solid var(--border);
+  padding-bottom: 8px;
+}
+.methodology-doc h2 {
+  font: 600 19px var(--sans);
+  margin: 32px 0 10px;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 4px;
+  scroll-margin-top: 80px;
+}
+.methodology-doc h3 {
+  font: 600 16px var(--sans);
+  margin: 22px 0 6px;
+  scroll-margin-top: 80px;
+}
+.methodology-doc h4 {
+  font: 600 14px var(--sans);
+  color: var(--text-dim);
+  margin: 16px 0 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.methodology-doc p { margin: 8px 0 14px; }
+.methodology-doc a {
+  color: var(--ac);
+  text-decoration: none;
+  border-bottom: 1px dotted var(--ac);
+}
+.methodology-doc a:hover { border-bottom-style: solid; }
+.methodology-doc ul {
+  margin: 8px 0 14px;
+  padding-left: 24px;
+}
+.methodology-doc li { margin-bottom: 4px; }
+.methodology-doc code {
+  font: 13px var(--mono);
+  background: var(--surface-1);
+  color: var(--text);
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid var(--border);
+}
+.methodology-doc pre {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--ac);
+  border-radius: 4px;
+  padding: 10px 14px;
+  margin: 12px 0;
+  overflow-x: auto;
+  font: 12px/1.6 var(--mono);
+}
+.methodology-doc pre code {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text);
+  font-size: inherit;
+}
+.methodology-doc table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 12px 0;
+  font-size: 13px;
+}
+.methodology-doc th,
+.methodology-doc td {
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+.methodology-doc th {
+  background: var(--surface-1);
+  font: 600 12px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text-dim);
+}
+.methodology-doc hr {
+  border: 0;
+  border-top: 1px solid var(--border);
+  margin: 28px 0;
+}
+.methodology-doc strong { color: var(--text); }
+.methodology-doc em { color: var(--text-dim); font-style: italic; }
+
+/* Corpus Browser's preview-pane layout. The inline grid template only
+   applies on wide viewports; below 1100px the preview stacks below the
+   table so neither pane gets squeezed. Position-sticky also drops here so
+   the preview doesn't fight the table for the same scroll viewport. */
+@media (max-width: 1100px) {
+  .browse-with-preview {
+    grid-template-columns: 1fr !important;
+  }
+  .browse-with-preview > div:last-child {
+    position: static !important;
+    max-height: none !important;
+  }
+}
+
+@media (max-width: 900px) {
+  .methodology-layout {
+    grid-template-columns: 1fr;
+  }
+  .methodology-toc {
+    position: relative;
+    top: auto;
+    max-height: 240px;
+    border-right: none;
+    border-bottom: 1px solid var(--border);
+    padding-right: 0;
+    padding-bottom: 12px;
+    margin-bottom: 8px;
+  }
+}
+
+.callout {
+  margin-top: var(--sp-2);
+  padding: var(--sp-3) var(--sp-4);
+  background: linear-gradient(135deg, #4a90e208, #5b9eff04);
+  border: 1px solid #4a90e220;
+  border-left: 3px solid var(--ac);
+  border-radius: var(--r-md);
+}
+.callout h4 {
+  color: var(--ac);
+  font: 600 11px var(--sans);
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.callout p {
+  font: 15px/1.6 var(--serif);
+  color: var(--text-dim);
+}
+.callout code {
+  font: 13px var(--mono);
+  color: var(--text);
+  background: var(--surface-2);
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+/* ============================================================
+   Hypothesis grid (Sound Shift)
+   ============================================================ */
+.hyp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+  gap: 4px;
+  margin: var(--sp-3) 0;
+}
+.hyp-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 4px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+}
+.hyp-cell label {
+  font: 600 10px var(--mono);
+  color: var(--text-muted);
+  margin-bottom: 2px;
+}
+.hyp-cell .input {
+  width: 56px;
+  text-align: center;
+  font-size: 11px;
+  padding: 3px;
+}
+.hyp-cell.modified {
+  border-color: var(--am);
+  background: #f0b14b0a;
+}
+.hyp-cell.modified label {
+  color: var(--am);
+}
+
+/* ============================================================
+   Position distribution bar
+   ============================================================ */
+.pos-bar {
+  display: flex;
+  height: 12px;
+  border-radius: 2px;
+  overflow: hidden;
+  min-width: 100px;
+  background: var(--surface-2);
+}
+.pos-bar > div {
+  height: 100%;
+  transition: width var(--t-base);
+}
+.pos-first {
+  background: var(--gn);
+}
+.pos-mid {
+  background: var(--ac);
+}
+.pos-last {
+  background: var(--am);
+}
+
+/* ============================================================
+   Tabs
+   ============================================================ */
+.tab-row {
+  display: flex;
+  gap: 4px;
+  margin-bottom: var(--sp-3);
+  border-bottom: 1px solid var(--border);
+}
+.tab-btn {
+  padding: 6px 14px;
+  background: transparent;
+  color: var(--text-dim);
+  font: 500 11px var(--sans);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color var(--t-fast), border-color var(--t-fast);
+}
+.tab-btn:hover {
+  color: var(--text);
+}
+.tab-btn.active {
+  color: var(--ac);
+  border-bottom-color: var(--ac);
+}
+
+/* ============================================================
+   Match row & pattern token chips
+   ============================================================ */
+.match-row {
+  display: flex;
+  gap: var(--sp-2);
+  padding: 6px var(--sp-2);
+  margin-bottom: 3px;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  align-items: center;
+  font: 12px var(--mono);
+}
+
+.pat-tok {
+  display: inline-block;
+  padding: 2px 6px;
+  border-radius: 3px;
+  font: 600 9px var(--sans);
+  letter-spacing: 0.5px;
+}
+.pt-W {
+  background: #5b9eff22;
+  color: var(--ac);
+}
+.pt-N {
+  background: #f0b14b22;
+  color: var(--am);
+}
+.pt-T {
+  background: #3ddc9122;
+  color: var(--gn);
+}
+.pt-I {
+  background: #9b7cf022;
+  color: var(--pu);
+}
+.pt-S {
+  background: #ffffff0a;
+  color: var(--text-muted);
+}
+
+/* ============================================================
+   Hypothesis card
+   ============================================================ */
+.hyp-card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--r-md);
+  padding: var(--sp-3);
+  margin-bottom: var(--sp-2);
+}
+.hyp-card.active {
+  border-color: var(--ac);
+  background: var(--ac-soft);
+}
+.hyp-card h5 {
+  font: 600 12px var(--sans);
+  color: var(--text);
+  margin-bottom: 2px;
+}
+
+/* ============================================================
+   Two-column grid for cards
+   ============================================================ */
+.col2 {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--sp-3);
+}
+@media (max-width: 1100px) {
+  .col2 {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* ============================================================
+   Modal — for word/inscription detail
+   ============================================================ */
+.modal-scrim {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(2px);
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 60px var(--sp-4);
+  animation: fadeIn 120ms ease;
+}
+.modal {
+  background: var(--surface-0);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--r-lg);
+  width: min(840px, 100%);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.5);
+  animation: slideUp 180ms cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.modal-head {
+  padding: var(--sp-4);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--sp-3);
+}
+.modal-head h3 {
+  font: 400 20px var(--serif);
+  color: var(--text);
+}
+.modal-head .meta {
+  font: 11px var(--mono);
+  color: var(--text-muted);
+  margin-top: 4px;
+}
+.modal-body {
+  padding: var(--sp-4);
+  overflow-y: auto;
+}
+.modal-close {
+  color: var(--text-muted);
+  padding: 4px 10px;
+  border-radius: var(--r-sm);
+}
+.modal-close:hover {
+  color: var(--text);
+  background: var(--surface-2);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+   Toast
+   ============================================================ */
+.toast {
+  position: fixed;
+  bottom: 40px;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--surface-2);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 8px 18px;
+  border-radius: var(--r-md);
+  font: 12px var(--sans);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+  z-index: 80;
+  animation: slideUp 180ms ease;
+}
+.toast.error {
+  border-color: var(--rd);
+  color: var(--rd);
+}
+
+/* ============================================================
+   Loading state
+   ============================================================ */
+.loader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 60vh;
+  gap: var(--sp-3);
+  color: var(--text-dim);
+  font: 13px var(--serif);
+}
+.loader-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--surface-2);
+  border-top-color: var(--ac);
+  border-radius: 50%;
+  animation: spin 700ms linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* ============================================================
+   Reduced motion — respect the OS/browser accessibility setting.
+   Collapses CSS transitions and animations (modal slide-in, drawer,
+   toast, hover transitions, spinner). JS-driven motion (the map's
+   smooth pan/zoom and the force-directed graphs) is gated separately
+   in the modules via a matchMedia check.
+   ============================================================ */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ============================================================
+   Inline word/inscription presentation
+   ============================================================ */
+.inscription-content {
+  font: 13px var(--mono);
+  line-height: 2;
+  word-break: break-word;
+}
+.inscription-content .word-link {
+  margin-right: 4px;
+}
+
+/* Frequency-coded word color */
+.word-freq-hi {
+  color: var(--gn);
+}
+.word-freq-md {
+  color: var(--ac);
+}
+.word-freq-lo {
+  color: var(--text-muted);
+}
+
+/* Highlight in search */
+.hl {
+  background: #5b9eff30;
+  padding: 0 3px;
+  border-radius: 2px;
+}
+mark.help-hl {
+  background: #f0b14b40;
+  color: inherit;
+  padding: 0 2px;
+  border-radius: 2px;
+}
+
+/* ============================================================
+   Mobile-only chrome (hidden on desktop)
+   ============================================================ */
+.mobile-nav-toggle {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 6px 10px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  font: 16px/1 var(--sans);
+}
+.mobile-nav-toggle:hover {
+  border-color: var(--ac);
+}
+
+.mobile-nav-backdrop {
+  display: none;
+  position: fixed;
+  inset: 52px 0 26px 0;
+  background: rgba(0, 0, 0, 0.55);
+  z-index: 40;
+  backdrop-filter: blur(2px);
+  animation: fadeIn 180ms ease;
+}
+
+/* ============================================================
+   Responsive — tablet ≤ 900px
+   ============================================================ */
+@media (max-width: 900px) {
+  .app,
+  .app.with-pin-rail {
+    grid-template-columns: 1fr;
+  }
+
+  /* Sidebar becomes a slide-in overlay drawer */
+  .sidebar {
+    position: fixed;
+    top: 52px;
+    bottom: 26px;
+    left: 0;
+    width: 280px;
+    max-width: 80vw;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform var(--t-base);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.45);
+    border-right: 1px solid var(--border-strong);
+  }
+  .app.is-mobile-nav-open .sidebar {
+    transform: translateX(0);
+  }
+  .app.is-mobile-nav-open .mobile-nav-backdrop {
+    display: block;
+  }
+
+  .mobile-nav-toggle {
+    display: inline-flex;
+  }
+
+  /* Pin rail hidden entirely on mobile — pinned items still tracked, but
+     the right rail eats too much screen width to be usable on phones */
+  .app.with-pin-rail .pin-rail {
+    display: none;
+  }
+  .pin-rail-handle {
+    display: none;
+  }
+
+  /* Top bar: drop the wide stats text, tighten action layout */
+  .topbar {
+    padding: 0 var(--sp-3);
+    gap: var(--sp-2);
+  }
+  .topbar h1 {
+    font-size: 14px;
+  }
+  .topbar .meta {
+    display: none;
+  }
+  .topbar .actions {
+    gap: 4px;
+  }
+  .topbar .actions .btn {
+    padding: 4px 8px;
+    font-size: 11px;
+  }
+
+  /* Main area tighter padding */
+  .main {
+    padding: var(--sp-3);
+  }
+  .panel h2 {
+    font-size: 18px;
+  }
+  .panel .panel-desc {
+    font-size: 14px;
+  }
+
+  /* Toolbar items wrap and stretch */
+  .toolbar {
+    gap: var(--sp-1);
+  }
+  .toolbar > .input,
+  .toolbar > .select {
+    flex: 1 1 calc(50% - 4px);
+    min-width: 0;
+  }
+
+  /* Stat grid responsive */
+  .stat-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--sp-2);
+  }
+  .stat-box .val {
+    font-size: 18px;
+  }
+
+  /* Modal becomes near-fullscreen on phones */
+  .modal-scrim {
+    padding: 0;
+    align-items: stretch;
+  }
+  .modal {
+    width: 100%;
+    max-height: 100vh;
+    height: 100vh;
+    border-radius: 0;
+  }
+  .modal-head {
+    padding: var(--sp-3);
+  }
+  .modal-head h3 {
+    font-size: 17px;
+  }
+  .modal-body {
+    padding: var(--sp-3);
+  }
+
+  /* Help module — TOC sidebar collapses; content scrolls naturally */
+  .panel > div[style*="grid-template-columns: 240px"] {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+  /* TOC drops its sticky height cap on mobile so it doesn't dominate the
+     viewport — it becomes a normal short block above the content */
+  .panel > div[style*="grid-template-columns: 240px"] > aside {
+    max-height: 30vh !important;
+    position: relative !important;
+    top: auto !important;
+  }
+  /* Long-scrolling help content also drops its height cap on mobile */
+  .panel > div[style*="grid-template-columns: 240px"] > div {
+    max-height: none !important;
+  }
+
+  .col2 {
+    grid-template-columns: 1fr;
+  }
+
+  /* Tables — keep horizontal scroll, tighter padding */
+  .table-wrap {
+    max-height: none;
+    border-radius: 4px;
+    -webkit-overflow-scrolling: touch;
+  }
+  td {
+    padding: 5px var(--sp-2);
+  }
+  th {
+    padding: var(--sp-1) var(--sp-2);
+    font-size: 9px;
+  }
+
+  /* Footer shrinks on mobile */
+  .footer {
+    padding: 0 var(--sp-2);
+    font-size: 9px;
+  }
+
+  /* Toast positions above the on-screen keyboard */
+  .toast {
+    bottom: 60px;
+    font-size: 11px;
+    max-width: 90vw;
+  }
+}
+
+/* ============================================================
+   Responsive — phone ≤ 640px
+   ============================================================ */
+@media (max-width: 640px) {
+  .footer span:nth-child(2),
+  .footer span:nth-child(3) {
+    display: none;
+  }
+  .topbar h1 {
+    font-size: 13px;
+  }
+  /* Hide the corpus-source link on very narrow screens */
+  .topbar .actions a[href*="github.com"] {
+    display: none;
+  }
+  /* Force single-column toolbar items on phones */
+  .toolbar > .input,
+  .toolbar > .select {
+    flex: 1 1 100%;
+  }
+  /* Touch-friendly minimum heights */
+  .btn,
+  .input,
+  .select,
+  .sidebar-item {
+    min-height: 36px;
+  }
+  .sidebar-item {
+    padding: 10px var(--sp-4);
+    font-size: 13px;
+  }
+  /* Hide compact-tables behavior on phones — already too tight */
+  .compact-tables td {
+    padding: 6px var(--sp-2);
+    font-size: 11px;
+  }
+}
+
+/* ── Inline word tools (WordTools: annotate + collections + pin) ──────── */
+.inline-annot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  vertical-align: middle;
+}
+.inline-annot-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 220px;
+  padding: 1px 5px;
+  margin: 0 2px;
+  font: 11px var(--sans);
+  line-height: 1.4;
+  color: var(--text-muted);
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.4;
+  transition:
+    opacity 0.12s ease,
+    border-color 0.12s ease,
+    background 0.12s ease,
+    color 0.12s ease;
+}
+.inline-annot-trigger:hover {
+  opacity: 1;
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--surface-1);
+}
+.inline-annot-trigger.has {
+  opacity: 1;
+  border-style: solid;
+  border-color: var(--border-strong);
+  color: var(--text-dim);
+  background: var(--surface-1);
+}
+.inline-annot-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 4px;
+  flex: none;
+}
+.inline-annot-txt {
+  max-width: 180px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.inline-annot-pop {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  z-index: 40;
+  width: 300px;
+  max-width: 80vw;
+  padding: 10px;
+  background: var(--surface-0);
+  border: 1px solid var(--border-strong);
+  border-radius: 8px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.45);
+  text-align: left;
+  white-space: normal;
+}
+.inline-annot-head {
+  font: 600 10px var(--sans);
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.inline-annot-head code {
+  text-transform: none;
+  letter-spacing: 0;
+}
+.inline-annot-suggest {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+/* Inline text button styled as a link (used for cross-module jumps). */
+.link-btn {
+  display: inline;
+  padding: 0;
+  margin: 0;
+  font: inherit;
+  color: var(--ac);
+  background: none;
+  border: none;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.link-btn:hover {
+  color: var(--text);
+}
+
+/* Monospace inline glyph helper (e.g. ＋ / ✎ references in prose). */
+.mono {
+  font-family: var(--mono);
+}
+
+/* Tab bar for consolidated (multi-view) modules — sits above the sub-panel. */
+.module-tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  max-width: 1400px;
+  margin-bottom: 16px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--border);
+}

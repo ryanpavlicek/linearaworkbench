@@ -1,0 +1,434 @@
+import { useMemo, useState } from "react";
+import { useWorkbench, getAllLanguages } from "../store/workbench";
+import { useMultiWords } from "../lib/helpers";
+import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
+import { PHONETIC_MAP } from "../data/phoneticMap";
+import { WordToken } from "../components/WordToken";
+
+export default function HypothesisWorkspace() {
+  const hyp = useWorkbench((s) => s.hypothesis);
+  const saved = useWorkbench((s) => s.savedHypotheses);
+  const save = useWorkbench((s) => s.saveHypothesis);
+  const load = useWorkbench((s) => s.loadHypothesis);
+  const remove = useWorkbench((s) => s.deleteHypothesis);
+  const toast = useWorkbench((s) => s.toast_show);
+  const custom = useWorkbench((s) => s.customLanguages);
+  const allLangs = useMemo(() => getAllLanguages(custom), [custom]);
+  const words = useMultiWords();
+
+  const [name, setName] = useState("");
+  const [compare, setCompare] = useState(false);
+  const [diff, setDiff] = useState(false);
+  const [aIdx, setAIdx] = useState(0);
+  const [bIdx, setBIdx] = useState(1);
+
+  const top10 = useMemo(() => words.slice(0, 10), [words]);
+
+  // Pairwise diff of two saved snapshots: which sign values differ, and how the
+  // top words' best cross-linguistic match score changes from A to B.
+  const diffData = useMemo(() => {
+    if (saved.length < 2) return null;
+    const A = saved[Math.min(aIdx, saved.length - 1)];
+    const B = saved[Math.min(bIdx, saved.length - 1)];
+    if (!A || !B || A === B) return null;
+
+    const keys = new Set([
+      ...Object.keys(A.overrides),
+      ...Object.keys(B.overrides),
+    ]);
+    const signDiffs: { sign: string; a: string; b: string }[] = [];
+    for (const s of keys) {
+      const av = A.overrides[s] ?? PHONETIC_MAP[s] ?? "?";
+      const bv = B.overrides[s] ?? PHONETIC_MAP[s] ?? "?";
+      if (av !== bv) signDiffs.push({ sign: s, a: av, b: bv });
+    }
+    signDiffs.sort((x, y) => x.sign.localeCompare(y.sign));
+
+    const bestScore = (ph: string) => {
+      let best = Infinity;
+      for (const entries of Object.values(allLangs))
+        for (const e of entries) {
+          const d = phoneticDistance(ph, e.p!);
+          if (d < best) best = d;
+        }
+      return best === Infinity ? 0 : 1 - best;
+    };
+    const wordDiffs = top10.map(({ word }) => {
+      const pa = wordToPhonetic(word, A.overrides);
+      const pb = wordToPhonetic(word, B.overrides);
+      const sa = bestScore(pa);
+      const sb = bestScore(pb);
+      return { word, pa, pb, sa, sb, delta: sb - sa };
+    });
+    const avg = (xs: number[]) =>
+      xs.reduce((s, x) => s + x, 0) / (xs.length || 1);
+    return {
+      A,
+      B,
+      signDiffs,
+      wordDiffs,
+      avgA: avg(wordDiffs.map((w) => w.sa)),
+      avgB: avg(wordDiffs.map((w) => w.sb)),
+    };
+  }, [saved, aIdx, bIdx, allLangs, top10]);
+
+  return (
+    <div className="panel">
+      <h2>Hypothesis Workspace</h2>
+      <div className="callout">
+        <h4>Save and compare phonetic readings</h4>
+        <p>
+          Save multiple sets of sign-value assignments from{" "}
+          <code>Sound Shift</code>. Compare how each hypothesis affects
+          cross-linguistic match quality on the top words.
+        </p>
+      </div>
+      <div className="toolbar">
+        <input
+          className="input"
+          placeholder="Hypothesis name…"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          style={{ flex: 1 }}
+        />
+        <button
+          className="btn"
+          onClick={() => {
+            save(name);
+            setName("");
+            toast(`Saved hypothesis`);
+          }}
+        >
+          Save current
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setCompare((c) => !c)}
+          disabled={saved.length < 2}
+        >
+          {compare ? "Hide" : "Compare all"}
+        </button>
+        <button
+          className="btn btn-secondary"
+          onClick={() => setDiff((d) => !d)}
+          disabled={saved.length < 2}
+          title="Diff two snapshots — which signs differ and how scores change"
+        >
+          {diff ? "Hide diff" : "Diff two"}
+        </button>
+      </div>
+
+      {saved.length === 0 ? (
+        <div className="card">
+          <div className="dim">
+            No saved hypotheses. Modify signs in <b>Sound Shift</b>, then save
+            here.
+          </div>
+        </div>
+      ) : (
+        <div>
+          {saved.map((h, i) => {
+            const isActive =
+              JSON.stringify(h.overrides) === JSON.stringify(hyp);
+            return (
+              <div
+                key={i}
+                className={`hyp-card${isActive ? " active" : ""}`}
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                  }}
+                >
+                  <h5>{h.name}</h5>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => load(i)}
+                    >
+                      Load
+                    </button>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      style={{ color: "var(--rd)" }}
+                      onClick={() => remove(i)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                </div>
+                <div className="sub">
+                  {Object.keys(h.overrides).length} changes ·{" "}
+                  {h.notes || "(default values)"} ·{" "}
+                  {new Date(h.timestamp).toLocaleString()}
+                </div>
+                {h.evidence && Object.keys(h.evidence).length > 0 && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      padding: 8,
+                      background: "var(--surface-0)",
+                      borderRadius: 4,
+                      fontSize: 11,
+                    }}
+                  >
+                    <div
+                      className="dim"
+                      style={{
+                        font: "600 9px var(--sans)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.6,
+                        marginBottom: 4,
+                      }}
+                    >
+                      Reasoning
+                    </div>
+                    {Object.entries(h.evidence)
+                      .filter(([, e]) => e.note?.trim())
+                      .map(([sign, e]) => (
+                        <div key={sign} style={{ margin: "2px 0" }}>
+                          <b style={{ color: "var(--am)" }}>{sign}</b>
+                          <span className="dim">
+                            {" "}
+                            → /{h.overrides[sign]}/:
+                          </span>{" "}
+                          <span style={{ fontFamily: "var(--serif)" }}>
+                            {e.note}
+                          </span>
+                        </div>
+                      ))}
+                  </div>
+                )}
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {compare && saved.length >= 2 && (
+        <div className="panel-section">
+          <h4
+            style={{
+              font: "600 10px var(--sans)",
+              color: "var(--text-muted)",
+              textTransform: "uppercase",
+              letterSpacing: 0.6,
+              marginBottom: 8,
+            }}
+          >
+            Top-10 best matches by hypothesis
+          </h4>
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>Word</th>
+                  {saved.map((h, i) => (
+                    <th key={i}>{h.name}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {top10.map(({ word }) => (
+                  <tr key={word}>
+                    <td>
+                      <WordToken word={word} />
+                    </td>
+                    {saved.map((h, i) => {
+                      const ph = wordToPhonetic(word, h.overrides);
+                      let best: { w: string; lang: string; dist: number } | null = null;
+                      for (const [ln, entries] of Object.entries(allLangs)) {
+                        for (const e of entries) {
+                          const d = phoneticDistance(ph, e.p!);
+                          if (d < 0.5 && (!best || d < best.dist))
+                            best = { w: e.w, lang: ln, dist: d };
+                        }
+                      }
+                      return (
+                        <td key={i}>
+                          <span className="dim">{ph}</span>
+                          {best && (
+                            <>
+                              {" "}
+                              →{" "}
+                              <span
+                                className={`score ${
+                                  best.dist < 0.3 ? "score-hi" : "score-md"
+                                }`}
+                              >
+                                {((1 - best.dist) * 100).toFixed(0)}%
+                              </span>{" "}
+                              {best.w}
+                            </>
+                          )}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {diff && saved.length >= 2 && (
+        <div className="panel-section">
+          <div
+            className="toolbar"
+            style={{ flexWrap: "wrap", alignItems: "center" }}
+          >
+            <span
+              className="dim"
+              style={{
+                font: "600 9px var(--sans)",
+                textTransform: "uppercase",
+                letterSpacing: 0.6,
+              }}
+            >
+              Diff
+            </span>
+            <select
+              className="select"
+              value={aIdx}
+              onChange={(e) => setAIdx(+e.target.value)}
+              style={{ fontSize: 11, padding: "3px 6px" }}
+            >
+              {saved.map((h, i) => (
+                <option key={i} value={i}>
+                  A: {h.name}
+                </option>
+              ))}
+            </select>
+            <span className="dim">vs</span>
+            <select
+              className="select"
+              value={bIdx}
+              onChange={(e) => setBIdx(+e.target.value)}
+              style={{ fontSize: 11, padding: "3px 6px" }}
+            >
+              {saved.map((h, i) => (
+                <option key={i} value={i}>
+                  B: {h.name}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {!diffData ? (
+            <div className="dim" style={{ fontSize: 12, padding: 8 }}>
+              Pick two different snapshots to compare.
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  font: "600 10px var(--sans)",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                  margin: "10px 0 6px",
+                }}
+              >
+                Sign differences ({diffData.signDiffs.length})
+              </div>
+              {diffData.signDiffs.length === 0 ? (
+                <div className="dim" style={{ fontSize: 12 }}>
+                  These two snapshots assign the same value to every sign.
+                </div>
+              ) : (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: 6 }}>
+                  {diffData.signDiffs.map((d) => (
+                    <span
+                      key={d.sign}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 4,
+                        padding: "2px 8px",
+                        background: "var(--surface-1)",
+                        border: "1px solid var(--border)",
+                        borderRadius: 4,
+                        fontFamily: "var(--mono)",
+                        fontSize: 11,
+                      }}
+                    >
+                      <b style={{ color: "var(--text)" }}>{d.sign}</b>
+                      <span className="dim">{d.a}</span>
+                      <span className="dim">→</span>
+                      <span style={{ color: "var(--am)" }}>{d.b}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+
+              <div
+                style={{
+                  font: "600 10px var(--sans)",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                  margin: "12px 0 6px",
+                }}
+              >
+                Top-word match: {diffData.A.name} ({(diffData.avgA * 100).toFixed(0)}%)
+                → {diffData.B.name} ({(diffData.avgB * 100).toFixed(0)}%)
+              </div>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Word</th>
+                      <th>{diffData.A.name}</th>
+                      <th>{diffData.B.name}</th>
+                      <th>Δ</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {diffData.wordDiffs.map((w) => (
+                      <tr key={w.word}>
+                        <td>
+                          <WordToken word={w.word} />
+                        </td>
+                        <td className="dim">
+                          {w.pa}{" "}
+                          <span className="score score-md">
+                            {(w.sa * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                        <td style={{ color: w.pa !== w.pb ? "var(--am)" : undefined }}>
+                          {w.pb}{" "}
+                          <span className="score score-md">
+                            {(w.sb * 100).toFixed(0)}%
+                          </span>
+                        </td>
+                        <td
+                          className="numeral"
+                          style={{
+                            color:
+                              w.delta > 0.005
+                                ? "var(--gn)"
+                                : w.delta < -0.005
+                                  ? "var(--rd)"
+                                  : "var(--text-muted)",
+                          }}
+                        >
+                          {w.delta > 0.005 ? "+" : ""}
+                          {Math.abs(w.delta) < 0.005
+                            ? "0"
+                            : (w.delta * 100).toFixed(0)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
