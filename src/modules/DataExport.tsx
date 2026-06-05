@@ -8,6 +8,7 @@ import { PHONETIC_MAP } from "../data/phoneticMap";
 import {
   applyBackup,
   buildBackup,
+  clearAllWorkbenchData,
   isBackupFile,
   summarizeBackup,
   type BackupFile,
@@ -246,6 +247,18 @@ export default function DataExport() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<BackupFile | null>(null);
 
+  // ── Reset to baseline ─────────────────────────────────────────────────────
+  // Two-step destructive action: arm the panel, then require the user to type
+  // CLEAR so it can't be triggered by a stray click.
+  const [resetArmed, setResetArmed] = useState(false);
+  const [resetText, setResetText] = useState("");
+
+  function doReset() {
+    const n = clearAllWorkbenchData();
+    toast(`Reset complete — ${n} stored items cleared. Reloading…`);
+    setTimeout(() => location.reload(), 700);
+  }
+
   function downloadBackup() {
     const file = buildBackup();
     const stamp = file.exportedAt.replace(/[-:T]/g, "").slice(0, 13);
@@ -476,6 +489,91 @@ export default function DataExport() {
       </div>
 
       <FolderSyncCard onLoadBackup={setPending} />
+
+      <div
+        className="card"
+        style={{ borderLeft: "3px solid var(--rd)", marginTop: 12 }}
+      >
+        <h4 style={{ color: "var(--rd)" }}>Reset to baseline — start over</h4>
+        <p className="sub" style={{ marginTop: 4 }}>
+          Wipe <b>all</b> of your workbench data and return to a clean install:
+          annotations, collections, findings, saved hypotheses, saved queries,
+          pinned items, tablet reclassifications, notes, report &amp; sidebar
+          layout, and display settings. This <b>cannot be undone</b> — if
+          there's any chance you'll want this work back, <b>download a backup
+          first</b> (above). A connected sync folder stays paired.
+        </p>
+        {!resetArmed ? (
+          <button
+            className="btn btn-sm"
+            style={{
+              marginTop: 8,
+              background: "var(--rd)",
+              borderColor: "var(--rd)",
+            }}
+            onClick={() => {
+              setResetArmed(true);
+              setResetText("");
+            }}
+          >
+            Reset everything…
+          </button>
+        ) : (
+          <div
+            style={{
+              marginTop: 10,
+              padding: 12,
+              border: "1px solid var(--rd)",
+              borderRadius: 6,
+              background: "var(--surface-1)",
+            }}
+          >
+            <div style={{ fontSize: 13, marginBottom: 8 }}>
+              Type <b style={{ fontFamily: "var(--mono)" }}>CLEAR</b> to confirm
+              you want to erase everything and start over:
+            </div>
+            <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
+              <input
+                className="input"
+                value={resetText}
+                onChange={(e) => setResetText(e.target.value)}
+                placeholder="CLEAR"
+                autoFocus
+                style={{ width: 120, fontFamily: "var(--mono)", letterSpacing: 1 }}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && resetText === "CLEAR") doReset();
+                }}
+              />
+              <button
+                className="btn btn-sm"
+                disabled={resetText !== "CLEAR"}
+                style={
+                  resetText === "CLEAR"
+                    ? { background: "var(--rd)", borderColor: "var(--rd)" }
+                    : undefined
+                }
+                onClick={doReset}
+                title={
+                  resetText === "CLEAR"
+                    ? "Erase all workbench data and reload"
+                    : "Type CLEAR to enable"
+                }
+              >
+                Erase everything &amp; reload
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  setResetArmed(false);
+                  setResetText("");
+                }}
+              >
+                Cancel
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
 
       {pending && summary && (
         <div

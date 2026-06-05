@@ -112,6 +112,27 @@ export function applyBackup(
   return { applied, skipped, cleared };
 }
 
+/**
+ * Factory reset: remove every workbench-namespaced localStorage key, wiping
+ * all researcher-generated state and preferences back to a clean install —
+ * annotations, collections, findings, saved hypotheses, queries, pins, tablet
+ * reclassifications, notes, report/sidebar layout, display settings, and the
+ * remembered active module. Returns the number of keys removed. The caller
+ * should reload afterwards so the store re-hydrates from the clean slate.
+ *
+ * Note: keys NOT under the workbench prefix (e.g. the folder-sync pairing)
+ * are left untouched, so a reset doesn't unpair a connected backup folder.
+ */
+export function clearAllWorkbenchData(): number {
+  const toRemove: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const k = localStorage.key(i);
+    if (k && k.startsWith(PREFIX)) toRemove.push(k);
+  }
+  for (const k of toRemove) localStorage.removeItem(k);
+  return toRemove.length;
+}
+
 /** Summarize what a backup contains, for the confirm-before-restore UI. */
 export function summarizeBackup(file: BackupFile): {
   keys: number;

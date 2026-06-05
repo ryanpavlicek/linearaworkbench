@@ -77,6 +77,9 @@ export default function TabletStructure() {
   const tabletCategories = useWorkbench((s) => s.tabletCategories);
   const setTabletCategory = useWorkbench((s) => s.setTabletCategory);
   const clearTabletCategory = useWorkbench((s) => s.clearTabletCategory);
+  const clearAllTabletCategories = useWorkbench(
+    (s) => s.clearAllTabletCategories,
+  );
   const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const createCollectionWithItems = useWorkbench(
     (s) => s.createCollectionWithItems,
@@ -504,9 +507,27 @@ export default function TabletStructure() {
           always get the full data without clearing the filter. */}
       <div className="toolbar" style={{ flexWrap: "wrap" }}>
         {reclassifiedCount > 0 && (
-          <span className="dim" style={{ fontSize: 11 }}>
-            {reclassifiedCount} reclassified by you
-          </span>
+          <>
+            <span className="dim" style={{ fontSize: 11 }}>
+              {reclassifiedCount} reclassified by you
+            </span>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                if (
+                  window.confirm(
+                    `Revert all ${reclassifiedCount} of your tablet reclassifications back to the automatic categories? This can't be undone.`,
+                  )
+                ) {
+                  clearAllTabletCategories();
+                  toast("All reclassifications reverted to auto.");
+                }
+              }}
+              title="Revert every tablet you've reclassified back to its automatic category"
+            >
+              ↺ Reset all reclassifications
+            </button>
+          </>
         )}
         <span style={{ flex: 1 }} />
         <button className="btn btn-outline btn-sm" onClick={exportFullCsv}>
@@ -881,13 +902,23 @@ export default function TabletStructure() {
                       {ins.words.length > 8 ? " …" : ""}
                     </span>
                     {overridden && (
-                      <span
-                        className="tag tag-warn"
-                        title={`Reclassified from “${hk}”`}
-                        style={{ fontSize: 9 }}
-                      >
-                        ✎
-                      </span>
+                      <>
+                        <span
+                          className="tag tag-warn"
+                          title={`Reclassified from “${hk}”`}
+                          style={{ fontSize: 9 }}
+                        >
+                          ✎
+                        </span>
+                        <button
+                          className="btn btn-outline btn-sm"
+                          style={{ padding: "1px 5px", fontSize: 9, flex: "none" }}
+                          onClick={() => clearTabletCategory(ins.id)}
+                          title={`Revert ${ins.id} to its automatic category (${hk})`}
+                        >
+                          ↺ Revert
+                        </button>
+                      </>
                     )}
                     <button
                       className="btn btn-outline btn-sm"

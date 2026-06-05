@@ -1744,8 +1744,12 @@ const SECTIONS: Section[] = [
           tablet moves to your chosen category, the counts update, a{" "}
           <span className="mono">✎</span> marks it as moved, and your override
           persists and appears under "Reclassified tablets" in your{" "}
-          <ModuleLink to="annot">research report</ModuleLink>. Set it back to
-          the "(auto)" option to clear the override.
+          <ModuleLink to="annot">research report</ModuleLink>. To undo a single
+          change, click the <Btn>↺ Revert</Btn> button that appears on any
+          reclassified row (or pick the "(auto)" option in its dropdown). To
+          undo them all at once, <Btn>↺ Reset all reclassifications</Btn> next
+          to the "{`{n}`} reclassified by you" count reverts every tablet back
+          to its automatic category.
         </P>
       </>
     ),
@@ -2651,6 +2655,19 @@ const SECTIONS: Section[] = [
           the workbench tab is open. On Firefox / Safari the card explains the
           feature isn't available and points you back to manual backup.
         </Note>
+        <H3>Reset to baseline — start over</H3>
+        <P>
+          A <b>Reset to baseline</b> card wipes <em>all</em> of your
+          workbench data and returns to a clean install — annotations,
+          collections, findings, saved hypotheses, queries, pinned items,
+          tablet reclassifications, notes, report &amp; sidebar layout, and
+          display settings. It's deliberately hard to trigger by accident:{" "}
+          <Btn>Reset everything…</Btn> reveals a confirmation where you must
+          type <code>CLEAR</code> before the erase button activates. The
+          action can't be undone, so download a backup first if there's any
+          chance you'll want the work back. A connected sync folder stays
+          paired.
+        </P>
       </>
     ),
   },
