@@ -1,0 +1,18 @@
+name: "Linear A Workbench — CodeQL"
+
+# Scope analysis to first-party application + build code. The bundled upstream
+# mirror (public/upstream, ~500 MB of HTML / images / PDFs), the pre-built
+# corpus JSON, node_modules, and the build output are not our code and would
+# only add noise and slow extraction.
+paths:
+  - src
+  - scripts
+paths-ignore:
+  - public
+  - dist
+  - node_modules
+
+# security-extended = the standard security suite plus additional,
+# higher-recall security queries (a more thorough vulnerability sweep).
+queries:
+  - uses: security-extended
