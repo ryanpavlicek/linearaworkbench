@@ -7,6 +7,7 @@
 // Anything that ought to behave identically across both surfaces lives here.
 
 import { COMMENTARY_BASE } from "./helpers";
+import { sanitizeHtmlFragment } from "./sanitizeHtml";
 
 export const YOUNGER_ACADEMIA_URL =
   "https://www.academia.edu/117949722/Younger_JG_Linear_A_folder_introduction";
@@ -21,15 +22,9 @@ export const COMMENTARY_INDEX_URL = (() => {
 /** Belt-and-suspenders sanitizer for the bundled commentary HTML. The source
  *  files are our own vetted mirror so this is defense-in-depth, not the
  *  primary trust boundary. Strips scripts, styles, event handlers, and the
- *  outer <html>/<body> wrappers (some files have them, some don't). */
+ *  outer <html>/<body> wrappers via the DOM (see sanitizeHtmlFragment). */
 export function sanitizeCommentaryHtml(html: string): string {
-  return html
-    .replace(/<script[\s\S]*?<\/script>/gi, "")
-    .replace(/<style[\s\S]*?<\/style>/gi, "")
-    .replace(/\son\w+\s*=\s*"[^"]*"/gi, "")
-    .replace(/\son\w+\s*=\s*'[^']*'/gi, "")
-    .replace(/^[\s\S]*?<body[^>]*>/i, "")
-    .replace(/<\/body>[\s\S]*$/i, "");
+  return sanitizeHtmlFragment(html);
 }
 
 /** Fetch the raw HTML of a commentary file by its bundled filename
