@@ -38,3 +38,5 @@ public/upstream/fetch-failures.log
 # everything from your Pages domain with zero dependency on third-party
 # hosting. If you don't want that, gitignore the whole `public/upstream/`
 # directory and the app will fall back to upstream CDNs at runtime.
+.stryker-tmp
+reports

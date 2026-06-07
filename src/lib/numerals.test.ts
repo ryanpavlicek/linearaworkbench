@@ -104,3 +104,98 @@ describe("parseAccountLines + checkBalances", () => {
     expect(lines[0].role).toBe("header");
   });
 });
+
+// ── Mutation-hardening: exact values across the parsing/format/balance paths ──
+
+describe("parseValue — exhaustive forms", () => {
+  it("maps every precomposed vulgar fraction to its exact value", () => {
+    const cases: [string, number][] = [
+      ["½", 0.5],
+      ["⅓", 1 / 3],
+      ["⅔", 2 / 3],
+      ["¼", 0.25],
+      ["¾", 0.75],
+      ["⅕", 0.2],
+      ["⅙", 1 / 6],
+      ["⅚", 5 / 6],
+      ["⅛", 0.125],
+      ["⅝", 0.625],
+      ["⅞", 0.875],
+    ];
+    for (const [g, v] of cases) expect(parseValue(g)).toBeCloseTo(v, 10);
+  });
+
+  it("parses an ASCII-slash fraction and rejects a zero denominator", () => {
+    expect(parseValue("3/4")).toBeCloseTo(0.75, 10);
+    expect(parseValue("5/0")).toBeNull();
+    expect(parseValue("x/2")).toBeNull();
+  });
+});
+
+describe("formatValue — exact glyph rendering", () => {
+  it("renders bare and whole-prefixed metrological fractions exactly", () => {
+    expect(formatValue(0.5)).toBe("½");
+    expect(formatValue(2.5)).toBe("2½");
+    expect(formatValue(1 / 3)).toBe("⅓");
+    expect(formatValue(3 + 2 / 3)).toBe("3⅔");
+    expect(formatValue(0.25)).toBe("¼");
+    expect(formatValue(1 / 16)).toBe("¹⁄₁₆");
+  });
+
+  it("falls back to a trimmed decimal for an unrecognized fraction", () => {
+    expect(formatValue(1.234)).toBe("1.234");
+    expect(formatValue(2.51)).toBe("2.51");
+    expect(formatValue(7)).toBe("7");
+  });
+});
+
+describe("parseAccountLines — role tagging", () => {
+  it("tags grand totals, subtotals, and deficits distinctly", () => {
+    const lines = parseAccountLines([
+      ["GRA", "5"],
+      ["KU-RO", "5"],
+      ["KI-RO", "2"],
+      ["PO-TO-KU-RO", "7"],
+    ]);
+    expect(lines.map((l) => l.role)).toEqual([
+      "item",
+      "total",
+      "deficit",
+      "grand-total",
+    ]);
+  });
+
+  it("classifies commodity ideograms apart from syllabic terms", () => {
+    const [line] = parseAccountLines([["GRA", "VINa", "KU-RO", "10"]]);
+    expect(line.ideograms).toContain("GRA");
+    expect(line.terms).toContain("KU-RO");
+    expect(line.terms).not.toContain("GRA");
+  });
+});
+
+describe("checkBalances — sectioning and deficits", () => {
+  it("excludes KI-RO deficit lines from the summed total", () => {
+    const lines = parseAccountLines([
+      ["GRA", "10"],
+      ["KI-RO", "3"], // deficit — must NOT be added to the items
+      ["KU-RO", "10"],
+    ]);
+    const [check] = checkBalances(lines);
+    expect(check.computedSum).toBe(10);
+    expect(check.balances).toBe(true);
+  });
+
+  it("resets the running items after each total (independent sections)", () => {
+    const lines = parseAccountLines([
+      ["GRA", "4"],
+      ["KU-RO", "4"], // section 1 closes
+      ["VINa", "9"],
+      ["KU-RO", "9"], // section 2 sums only the post-reset item
+    ]);
+    const checks = checkBalances(lines);
+    expect(checks).toHaveLength(2);
+    expect(checks[0].computedSum).toBe(4);
+    expect(checks[1].computedSum).toBe(9);
+    expect(checks.every((c) => c.balances)).toBe(true);
+  });
+});

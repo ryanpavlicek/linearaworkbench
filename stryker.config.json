@@ -1,0 +1,16 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "_comment": "Mutation testing proves the unit tests actually catch bugs (kill mutants), not just execute lines. Scoped to pure, fast-to-test modules; uses a trimmed Vitest config so each mutant evaluates quickly. Run with `npm run test:mutation`.",
+  "testRunner": "vitest",
+  "vitest": { "configFile": "vitest.mutation.config.ts" },
+  "mutate": [
+    "src/lib/numerals.ts",
+    "src/lib/signPattern.ts",
+    "src/lib/compareAlign.ts"
+  ],
+  "reporters": ["progress", "clear-text", "html"],
+  "coverageAnalysis": "perTest",
+  "concurrency": 2,
+  "_thresholds_comment": "break=60 is an honest floor: numerals (70%) and signPattern (82%) carry the logic; compareAlign sits lower because its captured-report builder is mostly presentational HTML string literals, which resist mutation testing without brittle markup assertions. Raise as logic hardening continues.",
+  "thresholds": { "high": 85, "low": 65, "break": 60 }
+}
