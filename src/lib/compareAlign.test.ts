@@ -97,3 +97,78 @@ describe("buildCompareReport", () => {
     expect(html).not.toContain("<1>");
   });
 });
+
+// ── Mutation-hardening: exact alignment + report structure ──────────────────
+
+describe("alignSequences — exact substitution behavior", () => {
+  it("aligns differing middle words as a substitution column (both present)", () => {
+    const aln = alignSequences([
+      ["A-B", "X-Y", "C-D"],
+      ["A-B", "Z-Z", "C-D"],
+    ]);
+    expect(aln).toEqual([
+      ["A-B", "A-B"],
+      ["X-Y", "Z-Z"],
+      ["C-D", "C-D"],
+    ]);
+  });
+
+  it("progressively aligns three sequences into 2-or-3-wide positions", () => {
+    const aln = alignSequences([
+      ["A-B", "C-D"],
+      ["A-B", "C-D"],
+      ["A-B", "C-D"],
+    ]);
+    expect(aln).toEqual([
+      ["A-B", "A-B", "A-B"],
+      ["C-D", "C-D", "C-D"],
+    ]);
+  });
+});
+
+describe("buildCompareReport — exact structure", () => {
+  const a = ins("HT1", ["A-B", "C-D"]);
+  const b = ins("HT2", ["A-B", "E-F"]);
+
+  it("states the exact compared-count / aligned-positions summary", () => {
+    const alignment = alignSequences([a.words, b.words]);
+    const { html, markdown } = buildCompareReport([a, b], alignment, new Map());
+    expect(html).toContain("2 inscriptions compared · 2 aligned positions");
+    expect(markdown).toContain("2 inscriptions compared · 2 aligned positions");
+    // Per-tablet metadata line in the markdown.
+    expect(markdown).toContain("- **HT1** — HT · LMIB · S1");
+  });
+
+  it("shades rows where the same word aligns across columns", () => {
+    // First position (A-B / A-B) matches; it gets the shaded background.
+    const { html } = buildCompareReport(
+      [a, b],
+      alignSequences([a.words, b.words]),
+      new Map(),
+    );
+    expect(html).toContain("background:#f3f4f6");
+  });
+
+  it("renders a gap marker where a column has no word", () => {
+    const longer = ins("HT3", ["A-B", "X-Y", "C-D"]);
+    const shorter = ins("HT4", ["A-B", "C-D"]);
+    const { html } = buildCompareReport(
+      [longer, shorter],
+      alignSequences([longer.words, shorter.words]),
+      new Map(),
+    );
+    expect(html).toContain(">·<"); // gap cell content
+  });
+
+  it("truncates the markdown alignment listing past 50 positions", () => {
+    const words = Array.from({ length: 51 }, (_, i) => `W${i}-X`);
+    const p = ins("HT5", words);
+    const q = ins("HT6", words);
+    const { markdown } = buildCompareReport(
+      [p, q],
+      alignSequences([p.words, q.words]),
+      new Map(),
+    );
+    expect(markdown).toContain("more aligned positions");
+  });
+});
