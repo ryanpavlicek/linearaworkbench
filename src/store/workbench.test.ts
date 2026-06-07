@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { describe, it, expect, beforeEach } from "vitest";
+import { describe, it, expect, beforeEach, vi } from "vitest";
 import {
   useWorkbench,
   buildIndex,
@@ -285,6 +285,144 @@ describe("selectors", () => {
     expect(merged.Klingon).toHaveLength(1);
     // built-ins are still present alongside the custom entry
     expect(Object.keys(merged).length).toBeGreaterThan(1);
+  });
+});
+
+describe("corpus loading", () => {
+  it("loadCorpusFromInscriptions builds the index and flips loaded", () => {
+    store().loadCorpusFromInscriptions(
+      [blank("HT1", "HT", ["KU-RO"])],
+      [sign("KU")],
+    );
+    expect(store().loaded).toBe(true);
+    expect(store().corpus.byId.get("HT1")).toBeDefined();
+    expect(store().corpus.signsByLabel.get("KU")).toBeDefined();
+  });
+
+  it("loadCorpusFromUrl fetches both files and loads them", async () => {
+    const inscriptions = [blank("ZA1", "ZA", ["PA-I-TO"])];
+    const signs = [sign("PA")];
+    const fetchMock = vi.fn(async (url: string) =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () => (url.includes("signs") ? signs : inscriptions),
+      }) as unknown as Response,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await store().loadCorpusFromUrl("/corpus/");
+    expect(store().loaded).toBe(true);
+    expect(store().corpus.byId.get("ZA1")).toBeDefined();
+    vi.unstubAllGlobals();
+  });
+
+  it("loadCorpusFromUrl records an error on a failed response", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => ({ ok: false, status: 500 }) as unknown as Response),
+    );
+    await store().loadCorpusFromUrl("/corpus/");
+    expect(store().loaded).toBe(false);
+    expect(store().loadError).toBeTruthy();
+    vi.unstubAllGlobals();
+  });
+});
+
+describe("findings", () => {
+  const draft = {
+    module: "compare" as const,
+    moduleLabel: "Compare",
+    title: "HT1 vs HT2",
+    summary: "two tablets",
+  };
+
+  it("adds (newest first), updates, deletes, and undoes a delete", () => {
+    store().addFinding(draft);
+    const id = store().addFinding({ ...draft, title: "second" });
+    expect(store().findings[0].title).toBe("second"); // prepended
+
+    store().updateFinding(id, { title: "renamed" });
+    expect(store().findings[0].title).toBe("renamed");
+
+    store().deleteFinding(id);
+    expect(store().findings).toHaveLength(1);
+    store().undoLast();
+    expect(store().findings.map((f) => f.title)).toContain("renamed");
+  });
+});
+
+describe("research notes", () => {
+  it("creates (newest first), updates, and deletes", () => {
+    store().createNote("First");
+    const id = store().createNote("Second");
+    expect(store().notes[0].title).toBe("Second");
+
+    store().updateNote(id, { body: "hello" });
+    expect(store().notes[0].body).toBe("hello");
+
+    store().deleteNote(id);
+    expect(store().notes.map((n) => n.title)).toEqual(["First"]);
+  });
+
+  it("defaults an empty title to 'Untitled note'", () => {
+    store().createNote("   ");
+    expect(store().notes[0].title).toBe("Untitled note");
+  });
+});
+
+describe("settings & custom languages", () => {
+  it("updateSettings patches and setPinRailVisible flips the flag", () => {
+    store().updateSettings({ theme: "light", compactTables: true });
+    expect(store().settings.theme).toBe("light");
+    expect(store().settings.compactTables).toBe(true);
+
+    store().setPinRailVisible(true);
+    expect(store().settings.pinRailVisible).toBe(true);
+  });
+
+  it("adds and removes a custom comparison language", () => {
+    store().addCustomLanguage("Etruscan", [{ w: "mi", m: "I", d: "pron" }]);
+    expect(store().customLanguages.Etruscan).toHaveLength(1);
+    store().removeCustomLanguage("Etruscan");
+    expect(store().customLanguages.Etruscan).toBeUndefined();
+  });
+});
+
+describe("saved hypotheses & detail/module navigation", () => {
+  it("deletes a saved hypothesis by index", () => {
+    store().setOverride("KU", "gu");
+    store().saveHypothesis("h1");
+    store().setOverride("RO", "lo");
+    store().saveHypothesis("h2");
+    expect(store().savedHypotheses).toHaveLength(2);
+    store().deleteHypothesis(0);
+    expect(store().savedHypotheses.map((h) => h.name)).toEqual(["h2"]);
+  });
+
+  it("opens and closes word / inscription detail", () => {
+    store().showWord("KU-RO");
+    expect(store().detail).toEqual({ kind: "word", value: "KU-RO" });
+    store().showInscription("HT1");
+    expect(store().detail).toEqual({ kind: "inscription", value: "HT1" });
+    store().closeDetail();
+    expect(store().detail).toBeNull();
+  });
+
+  it("setActiveModule sets the module, clears detail, and persists", () => {
+    store().showWord("X");
+    store().setActiveModule("freq");
+    expect(store().activeModule).toBe("freq");
+    expect(store().detail).toBeNull();
+    expect(localStorage.getItem("linear-a-workbench:active-module")).toContain(
+      "freq",
+    );
+  });
+
+  it("toast show/clear", () => {
+    store().toast_show("hi", "error");
+    expect(store().toast).toEqual({ message: "hi", tone: "error" });
+    store().toast_clear();
+    expect(store().toast).toBeNull();
   });
 });
 

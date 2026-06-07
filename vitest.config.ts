@@ -13,12 +13,14 @@ export default defineConfig({
     include: ["src/**/*.test.ts"],
     coverage: {
       provider: "v8",
-      // Gate the analytical/serialization core. The store has its own
-      // dedicated tests (store/workbench.test.ts) but isn't under the numeric
-      // gate yet — several actions remain uncovered.
-      include: ["src/lib/**"],
+      // Gate the analytical/serialization core (src/lib) and the Zustand store
+      // (src/store) — the app's logic layer. The React UI is smoke-tested for
+      // crash-free mount (see modules.smoke.test.tsx) but isn't under the
+      // numeric line/branch gate; that's the job of the E2E layer.
+      include: ["src/lib/**", "src/store/**"],
       exclude: [
-        "src/lib/**/*.test.ts",
+        "src/**/*.test.ts",
+        "src/**/*.test.tsx",
         "src/lib/types.ts", // type declarations only — nothing to execute
         // Browser/IO-bound glue: File System Access, DOM download, fetch
         // loaders, React hooks, SVG rasterization. These need integration /
