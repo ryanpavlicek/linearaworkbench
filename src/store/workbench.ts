@@ -491,9 +491,18 @@ export const useWorkbench = create<State>((set, get) => ({
       pinnedAt: new Date().toISOString(),
     };
     const next = [...state.pins, newPin];
+    // The inverse mutates the pins slice directly rather than calling the
+    // public unpin() action — calling unpin() would record its OWN undo entry,
+    // so undoing a pin would leave a "re-pin" on the stack and the next undo
+    // would redo it instead of continuing back through history. Mirrors how
+    // the annotation inverses are written.
     const undoStack = pushUndo(
       state,
-      () => get().unpin(newPin.id),
+      () => {
+        const cur = get().pins.filter((p) => p.id !== newPin.id);
+        set({ pins: cur });
+        saveJson(KEYS.pins, cur);
+      },
       `pin ${value}`,
     );
     set({ pins: next, undoStack });
@@ -501,10 +510,22 @@ export const useWorkbench = create<State>((set, get) => ({
   },
   unpin: (id) => {
     const state = get();
-    const removed = state.pins.find((p) => p.id === id);
+    const idx = state.pins.findIndex((p) => p.id === id);
+    const removed = idx >= 0 ? state.pins[idx] : undefined;
     const next = state.pins.filter((p) => p.id !== id);
     const undoStack = removed
-      ? pushUndo(state, () => get().pin(removed.kind, removed.value), `unpin ${removed.value}`)
+      ? pushUndo(
+          state,
+          // Restore the removed pin at its original index, mutating directly so
+          // the inverse doesn't re-record an undo entry (see pin() above).
+          () => {
+            const cur = [...get().pins];
+            cur.splice(Math.min(idx, cur.length), 0, removed);
+            set({ pins: cur });
+            saveJson(KEYS.pins, cur);
+          },
+          `unpin ${removed.value}`,
+        )
       : state.undoStack;
     set({ pins: next, undoStack });
     saveJson(KEYS.pins, next);
