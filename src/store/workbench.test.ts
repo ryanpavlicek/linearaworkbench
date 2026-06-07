@@ -242,17 +242,29 @@ describe("undo stack ordering", () => {
     expect(store().toast?.message).toBe("Nothing to undo");
   });
 
-  // CHARACTERIZATION — documents a real quirk, not desired behavior. Unlike the
-  // annotation inverses, pin/unpin inverses call the *public* unpin()/pin()
-  // actions, which each push their own undo entry. So undoing a pin records a
-  // fresh "re-pin" inverse: a second undo REDOES the pin instead of continuing
-  // to unwind history. Flagged for the maintainer — see the test report.
-  it("[known quirk] undoing a pin re-records onto the undo stack", () => {
+  it("undoing pins unwinds cleanly without re-recording (regression)", () => {
+    // Pin inverses now mutate the slice directly, so the stack unwinds in pure
+    // LIFO order rather than the inverse re-pushing a "re-pin" entry. (Guards
+    // the bug the earlier characterization test had documented.)
     store().pin("word", "A");
-    store().undoLast(); // unpin() removes A but pushes a re-pin inverse
-    expect(store().pins).toHaveLength(0);
-    store().undoLast(); // re-adds A rather than unwinding further
+    store().pin("word", "B");
+    store().undoLast(); // removes B
     expect(store().pins.map((p) => p.value)).toEqual(["A"]);
+    store().undoLast(); // removes A — does NOT re-add anything
+    expect(store().pins).toHaveLength(0);
+    store().undoLast(); // genuinely empty now
+    expect(store().toast?.message).toBe("Nothing to undo");
+  });
+
+  it("undo of an unpin restores the pin at its original position", () => {
+    store().pin("word", "A");
+    store().pin("word", "B");
+    store().pin("word", "C");
+    const bId = store().pins[1].id;
+    store().unpin(bId); // remove from the middle
+    expect(store().pins.map((p) => p.value)).toEqual(["A", "C"]);
+    store().undoLast(); // restore B at index 1, not appended at the end
+    expect(store().pins.map((p) => p.value)).toEqual(["A", "B", "C"]);
   });
 });
 
