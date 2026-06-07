@@ -5,7 +5,13 @@ import {
   normalizeSignLabel,
   canonicalCommentaryId,
   siglaDocumentId,
+  commentaryUrl,
+  siglaUrl,
+  siglaSignListUrl,
+  upstreamAsset,
+  describeInscription,
 } from "./helpers";
+import type { Inscription } from "./types";
 
 describe("csvEscape", () => {
   it("leaves plain values untouched", () => {
@@ -55,5 +61,43 @@ describe("siglaDocumentId", () => {
     expect(siglaDocumentId("HT1")).toBe("HT 1");
     expect(siglaDocumentId("HTWa1001")).toBe("HT Wa 1001");
     expect(siglaDocumentId("ARKH1a")).toBe("ARKH 1a");
+  });
+});
+
+describe("external link builders", () => {
+  it("commentaryUrl points at the canonical parent .html under the mirror", () => {
+    const url = commentaryUrl("HT6a");
+    expect(url).toContain("/commentary/");
+    expect(url).toContain("HT6.html");
+  });
+
+  it("siglaUrl encodes the spaced document id", () => {
+    expect(siglaUrl("HT1")).toBe("https://sigla.phis.me/document/HT%201/");
+  });
+
+  it("siglaSignListUrl targets the sign's row via a text fragment", () => {
+    expect(siglaSignListUrl()).toBe("https://sigla.phis.me/sign-list.html");
+    expect(siglaSignListUrl("KU")).toContain("#:~:text=");
+    // A-only star signs are coded A### in SigLA.
+    expect(siglaSignListUrl("*301")).toContain("A301");
+  });
+
+  it("upstreamAsset resolves relative paths and passes through absolute URLs", () => {
+    expect(upstreamAsset("images/HT1.jpg")).toContain("/upstream/images/HT1.jpg");
+    expect(upstreamAsset("https://example.com/x.jpg")).toBe(
+      "https://example.com/x.jpg",
+    );
+    expect(upstreamAsset("")).toBe("");
+  });
+});
+
+describe("describeInscription", () => {
+  it("joins the present metadata fields, skipping blanks", () => {
+    const ins = {
+      support: "tablet",
+      scribe: "S1",
+      findspot: "",
+    } as Inscription;
+    expect(describeInscription(ins)).toBe("tablet · S1");
   });
 });
