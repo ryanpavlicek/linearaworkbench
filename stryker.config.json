@@ -4,6 +4,7 @@
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.mutation.config.ts" },
   "mutate": [
+    "src/lib/algorithms.ts",
     "src/lib/numerals.ts",
     "src/lib/signPattern.ts",
     "src/lib/compareAlign.ts"
