@@ -7,6 +7,8 @@ export default defineConfig({
   test: {
     environment: "node",
     include: [
+      "src/lib/algorithms.test.ts",
+      "src/lib/algorithms.properties.test.ts",
       "src/lib/numerals.test.ts",
       "src/lib/signPattern.test.ts",
       "src/lib/compareAlign.test.ts",
