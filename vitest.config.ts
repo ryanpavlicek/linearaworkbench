@@ -11,6 +11,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // Headroom for jsdom component/integration tests under coverage
+    // instrumentation (which slows renders) so CI can't flake on a timeout.
+    testTimeout: 20000,
     coverage: {
       provider: "v8",
       // Gate the analytical/serialization core (src/lib) and the Zustand store

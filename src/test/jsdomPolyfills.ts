@@ -2,6 +2,11 @@
 // (charts, force-graphs, maps, scroll-spy). Stubbed just enough that a module
 // can render without throwing; behavior is exercised properly by the E2E layer.
 import { vi } from "vitest";
+import { configure } from "@testing-library/react";
+
+// Coverage instrumentation slows jsdom renders; give async helpers (waitFor,
+// findBy*) generous headroom so an instrumented run can't flake on a timeout.
+configure({ asyncUtilTimeout: 5000 });
 
 const w = window as unknown as Record<string, unknown>;
 const g = globalThis as unknown as Record<string, unknown>;
