@@ -6,10 +6,16 @@ import { test, expect } from "@playwright/test";
 test("boot → search → open a tablet detail", async ({ page }) => {
   await page.goto("/");
 
+  // A fresh browser always shows the first-run Welcome modal; its scrim covers
+  // the page, so dismiss it the way a new user would before interacting.
+  await page
+    .getByRole("button", { name: /got it — let me explore/i })
+    .click({ timeout: 30_000 });
+
   // App boots by fetching the corpus, then renders the default Corpus Search.
   await expect(
     page.getByRole("heading", { name: /corpus search/i }),
-  ).toBeVisible({ timeout: 30_000 });
+  ).toBeVisible();
 
   // Type a securely-attested term and confirm results render.
   await page.getByPlaceholder(/search words or inscription ids/i).fill("KU-RO");
