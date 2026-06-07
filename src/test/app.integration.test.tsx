@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 import "./jsdomPolyfills";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
-import { render, screen, cleanup, waitFor, within } from "@testing-library/react";
+import { render, screen, cleanup, waitFor, within, fireEvent } from "@testing-library/react";
 import { App } from "../App";
 import { useWorkbench } from "../store/workbench";
 import { realCorpus } from "./corpusFixture";
@@ -89,6 +89,27 @@ describe("App integration — boot, search, open a tablet", () => {
       expect(screen.getByRole("dialog")).toBeTruthy();
     });
     expect(useWorkbench.getState().detail?.kind).toBe("inscription");
+  });
+
+  it("navigates to another module via the Ctrl+K command palette", async () => {
+    render(<App />);
+    await screen.findByRole("heading", { name: /corpus search/i });
+    screen
+      .queryByRole("button", { name: /got it — let me explore/i })
+      ?.click();
+
+    // Open the command palette and jump to the Accounting module by name.
+    fireEvent.keyDown(window, { key: "k", ctrlKey: true });
+    const palette = screen.getByPlaceholderText(/jump to module/i);
+    fireEvent.change(palette, { target: { value: "Accounting" } });
+    fireEvent.keyDown(palette, { key: "Enter" });
+
+    await waitFor(() =>
+      expect(
+        screen.getByRole("heading", { name: /accounting & metrology/i }),
+      ).toBeTruthy(),
+    );
+    expect(useWorkbench.getState().activeModule).toBe("arith");
   });
 });
 
