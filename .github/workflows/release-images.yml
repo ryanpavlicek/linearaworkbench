@@ -1,0 +1,40 @@
+name: Release Linear A images
+
+# Builds a single tar.gz of public/upstream/images and publishes it as the
+# `lineara-images-v1` release asset, so pyaegean's aegean.data.fetch() can
+# download (never re-host) it. Run manually from the Actions tab.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build images tarball
+        run: |
+          tar -czf lineara-images.tar.gz -C public/upstream images
+          ls -lh lineara-images.tar.gz
+          sha256sum lineara-images.tar.gz | tee sha256.txt
+          {
+            echo '### lineara-images.tar.gz'
+            echo '```'
+            cat sha256.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          notes="Facsimiles/photographs of Linear A inscriptions. © École Française d'Athènes and other rightsholders; redistributed for academic reference only. Fetched (not re-hosted) by pyaegean via aegean.data.fetch('lineara-images')."
+          if gh release view lineara-images-v1 >/dev/null 2>&1; then
+            gh release upload lineara-images-v1 lineara-images.tar.gz --clobber
+          else
+            gh release create lineara-images-v1 lineara-images.tar.gz \
+              --title "Linear A imagery" --notes "$notes"
+          fi
