@@ -151,33 +151,62 @@ export interface BalanceCheck {
   totalLineIndex: number;
 }
 
-// Verify each total line on a tablet against the sum of the item lines that
-// precede it (since the previous total / start). Deficit (KI-RO) and header
-// lines are excluded from the sum. This mirrors the standard reading of
-// Linear A accounts; section boundaries are heuristic.
+// Verify each total line on a tablet. A KU-RO subtotal is checked against
+// the item lines since the previous total; a PO-TO-KU-RO grand total is
+// checked against the stated KU-RO subtotals that precede it (plus any
+// trailing items that never got their own subtotal) — the standard reading
+// of Linear A accounts. Deficit (KI-RO) and header lines are excluded from
+// the sums. A total with nothing to check against (no preceding items or
+// subtotals — leading totals on damaged tablets) yields no check at all
+// rather than a spurious zero-sum discrepancy.
 export function checkBalances(lines: AccountLine[]): BalanceCheck[] {
   const checks: BalanceCheck[] = [];
   let runningItems: AccountLine[] = [];
+  let subtotals: number[] = [];
+  const push = (
+    line: AccountLine,
+    computedSum: number,
+    itemCount: number,
+  ) => {
+    const difference = computedSum - line.value;
+    checks.push({
+      statedTotal: line.value,
+      computedSum,
+      itemCount,
+      difference,
+      balances: Math.abs(difference) < 1e-6,
+      marker: line.terms.find(
+        (t) => TOTAL_MARKERS.has(t) || GRAND_TOTAL_MARKERS.has(t),
+      )!,
+      totalLineIndex: line.index,
+    });
+  };
   for (const line of lines) {
     if (line.role === "item" && line.hasNumber) {
       runningItems.push(line);
-    } else if (line.role === "total" || line.role === "grand-total") {
-      const computedSum = runningItems.reduce((s, l) => s + l.value, 0);
-      const difference = computedSum - line.value;
-      checks.push({
-        statedTotal: line.value,
-        computedSum,
-        itemCount: runningItems.length,
-        difference,
-        balances: Math.abs(difference) < 1e-6,
-        marker: line.terms.find(
-          (t) => TOTAL_MARKERS.has(t) || GRAND_TOTAL_MARKERS.has(t),
-        )!,
-        totalLineIndex: line.index,
-      });
-      // A subtotal resets the running items; a grand total does not consume
-      // the section (it sums the subtotals conceptually) but for v1 we reset
-      // after any total to keep section sums independent.
+    } else if (line.role === "total") {
+      if (runningItems.length > 0) {
+        push(
+          line,
+          runningItems.reduce((s, l) => s + l.value, 0),
+          runningItems.length,
+        );
+      }
+      // The stated subtotal feeds any later grand total regardless of
+      // whether it was checkable itself.
+      subtotals.push(line.value);
+      runningItems = [];
+    } else if (line.role === "grand-total") {
+      const parts = subtotals.length + runningItems.length;
+      if (parts > 0) {
+        push(
+          line,
+          subtotals.reduce((s, v) => s + v, 0) +
+            runningItems.reduce((s, l) => s + l.value, 0),
+          parts,
+        );
+      }
+      subtotals = [];
       runningItems = [];
     }
   }

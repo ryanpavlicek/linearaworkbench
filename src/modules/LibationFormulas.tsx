@@ -12,18 +12,7 @@ import {
   snippetWrap,
   type SnippetColumn,
 } from "../lib/reportSnippet";
-
-const LIB_WORDS = [
-  "A-TA-I-*301-WA-JA",
-  "JA-SA-SA-RA-ME",
-  "A-DI-KI-TE-TE-DU",
-  "TA-NA-TE",
-  "I-DA-MA-TE",
-  "SI-RU-TE",
-  "DI-KI-SE",
-  "A-SA-SA-RA-ME",
-  "PI-TE-RI",
-];
+import { LIBATION_WORDS as LIB_WORDS } from "../data/libation";
 
 export default function LibationFormulas() {
   const scoped = useScopedCorpus();

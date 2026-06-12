@@ -310,6 +310,12 @@ export default function ArithmeticCheck() {
             })}
           </tbody>
         </table>
+        {filtered.length > 200 && (
+          <div className="dim" style={{ fontSize: 11, padding: "6px 4px" }}>
+            Showing 200 of {filtered.length} tablets — use the filters to
+            narrow, or export CSV for the full set.
+          </div>
+        )}
       </div>
     </div>
   );

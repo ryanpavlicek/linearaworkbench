@@ -198,4 +198,63 @@ describe("checkBalances — sectioning and deficits", () => {
     expect(checks[1].computedSum).toBe(9);
     expect(checks.every((c) => c.balances)).toBe(true);
   });
+
+  it("checks a grand total against the stated subtotals, not an empty section", () => {
+    const lines = parseAccountLines([
+      ["GRA", "4"],
+      ["KU-RO", "4"],
+      ["VINa", "9"],
+      ["KU-RO", "9"],
+      ["PO-TO-KU-RO", "13"], // 4 + 9 — restates the subtotals
+    ]);
+    const checks = checkBalances(lines);
+    expect(checks).toHaveLength(3);
+    const grand = checks[2];
+    expect(grand.marker).toBe("PO-TO-KU-RO");
+    expect(grand.computedSum).toBe(13);
+    expect(grand.itemCount).toBe(2); // two subtotals feed it
+    expect(grand.balances).toBe(true);
+  });
+
+  it("a grand total also absorbs trailing items without their own subtotal", () => {
+    const lines = parseAccountLines([
+      ["GRA", "4"],
+      ["KU-RO", "4"],
+      ["VINa", "2"], // no closing KU-RO for this section
+      ["PO-TO-KU-RO", "6"],
+    ]);
+    const checks = checkBalances(lines);
+    const grand = checks[checks.length - 1];
+    expect(grand.computedSum).toBe(6); // subtotal 4 + trailing item 2
+    expect(grand.itemCount).toBe(2);
+    expect(grand.balances).toBe(true);
+  });
+
+  it("yields no check for a total with nothing to check against", () => {
+    // Leading KU-RO (items lost to damage) — previously produced a spurious
+    // 0-vs-stated discrepancy.
+    const lines = parseAccountLines([
+      ["KU-RO", "12"],
+      ["GRA", "3"],
+      ["KU-RO", "3"],
+    ]);
+    const checks = checkBalances(lines);
+    expect(checks).toHaveLength(1);
+    expect(checks[0].computedSum).toBe(3);
+    expect(checks[0].balances).toBe(true);
+  });
+
+  it("an unverifiable leading subtotal still feeds the grand total", () => {
+    const lines = parseAccountLines([
+      ["KU-RO", "5"], // items lost, but the stated value remains usable
+      ["GRA", "2"],
+      ["KU-RO", "2"],
+      ["PO-TO-KU-RO", "7"],
+    ]);
+    const checks = checkBalances(lines);
+    const grand = checks[checks.length - 1];
+    expect(grand.marker).toBe("PO-TO-KU-RO");
+    expect(grand.computedSum).toBe(7); // 5 + 2
+    expect(grand.balances).toBe(true);
+  });
 });

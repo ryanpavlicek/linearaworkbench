@@ -20,10 +20,12 @@ import type {
   SignData,
 } from "./types";
 import { wordToPhonetic } from "./algorithms";
+import { LIBATION_WORD_SET } from "../data/libation";
 import {
   parseAccountLines,
   checkBalances,
   formatValue,
+  hasValue,
 } from "./numerals";
 import type { PhoneticOverrides, WordEntry } from "./types";
 
@@ -33,12 +35,6 @@ export const TOOL_REPO = "https://github.com/ryanpavlicek/linearaworkbench";
 export const METHODOLOGY_URL =
   "https://github.com/ryanpavlicek/linearaworkbench/blob/main/docs/METHODOLOGY.md";
 
-// Match TabletStructure.tsx's heuristic. Kept in lockstep with that module.
-const LIBATION_WORDS = new Set([
-  "A-TA-I-*301-WA-JA",
-  "JA-SA-SA-RA-ME",
-  "A-DI-KI-TE-TE-DU",
-]);
 export type StructCategory =
   | "accounting"
   | "libation"
@@ -47,9 +43,11 @@ export type StructCategory =
   | "other";
 export function heuristicCategory(ins: Inscription): StructCategory {
   const ws = ins.words;
-  const hasNums = ws.some((w) => /^[0-9]/.test(w));
+  // hasValue catches fractions too — a tablet of fraction-only quantities
+  // is still an accounting document.
+  const hasNums = hasValue(ws);
   const hasKuro = ws.includes("KU-RO");
-  const hasLib = ws.some((w) => LIBATION_WORDS.has(w));
+  const hasLib = ws.some((w) => LIBATION_WORD_SET.has(w));
   const multi = ws.filter((w) => w.includes("-")).length;
   const sep = ws.filter((w) => w === "𐄁").length;
   if (hasKuro || (hasNums && multi > 2)) return "accounting";
