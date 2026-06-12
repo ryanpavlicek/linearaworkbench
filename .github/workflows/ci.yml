@@ -55,9 +55,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # GitHub runners can reach the Playwright browser CDN (the sandbox the
-      # tests were authored in cannot, so this job is the first place the
-      # browser-level smoke actually executes).
+      # Playwright browsers are installed here in CI; for a local run,
+      # `npx playwright install chromium` first.
       - name: Install Playwright browser
         run: npx playwright install --with-deps chromium
 

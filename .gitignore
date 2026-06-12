@@ -11,7 +11,6 @@ blob-report
 *.log
 .DS_Store
 *.tsbuildinfo
-.claude
 linear-a-workbench.html
 
 # Generated artifacts the user downloads from the running app — exports,
@@ -25,10 +24,6 @@ linear_a_*.csv
 .env
 .env.local
 .env.production.local
-
-# Internal working/scratch docs — never published to GitHub
-UX_AUDIT.md
-INTERACTIVITY_IDEAS.md
 
 # Optional ignore for fetch failures log inside the upstream mirror
 public/upstream/fetch-failures.log

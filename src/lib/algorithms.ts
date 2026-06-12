@@ -6,7 +6,7 @@ import type { PhoneticOverrides } from "./types";
 // or same-consonant-class) or expensive ("far"). WHICH phonemes count as
 // vowels / same-class is partly a linguistic judgment call, so the genuinely
 // ambiguous groupings are exposed to the researcher as a PhoneticScheme. The
-// defaults reproduce the audited behavior exactly; the Cross-Linguistic
+// defaults reproduce the original behavior exactly; the Cross-Linguistic
 // module lets a user change them and re-rank live.
 
 export interface PhoneticClasses {
@@ -46,7 +46,7 @@ export interface PhoneticScheme {
   stripNotation: boolean; // strip * ₁₂₃ ʰ ʷ ◌̥ from reference forms
 }
 
-// Default = the audited behavior. Changing nothing leaves results identical.
+// Default = the original behavior. Changing nothing leaves results identical.
 export const DEFAULT_PHONETIC_SCHEME: PhoneticScheme = {
   interdentals: "dental",
   pharyngealH: "velar",

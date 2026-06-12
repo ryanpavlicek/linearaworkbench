@@ -92,7 +92,7 @@ export default function CrossLinguistic() {
     ...DEFAULT_WEIGHTS,
   });
   // Researcher-configurable phonetic class scheme (the genuinely-ambiguous
-  // groupings). Default reproduces the audited behavior exactly.
+  // groupings). Default reproduces the original behavior exactly.
   const [scheme, setScheme] = useState<PhoneticScheme>({
     ...DEFAULT_PHONETIC_SCHEME,
   });
@@ -873,7 +873,7 @@ export default function CrossLinguistic() {
 }
 
 // Researcher-facing controls for the four genuinely-ambiguous phoneme
-// groupings. Defaults reproduce the audited behavior; a linguist who
+// groupings. Defaults reproduce the original behavior; a linguist who
 // disagrees with a grouping can re-rank live. Lives inline in the module
 // (next to the weight sliders) rather than in a separate settings surface.
 function PhoneticSchemeControls({
