@@ -192,6 +192,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "scribe school practice exercise balance kuro total compute numerals fractions compose ledger sandbox game quiz",
       },
+      {
+        id: "write",
+        name: "Write in Linear A",
+        group: "Learn",
+        keywords:
+          "write your name linear a glyphs syllables transliterate convert render fun",
+      },
     ],
   },
   {
@@ -297,5 +304,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   timeline: lazy(() => import("./Timeline")),
   reader: lazy(() => import("./GuidedReader")),
   school: lazy(() => import("./ScribeSchool")),
+  write: lazy(() => import("./WriteLinearA")),
   help: lazy(() => import("./Help")),
 };

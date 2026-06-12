@@ -1606,6 +1606,26 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-write",
+    group: "Interpretation modules",
+    title: "Write in Linear A",
+    keywords: "write your name linear a glyphs syllables convert fun",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="write">Write in Linear A</ModuleLink> renders
+          any name or word in Linear A signs — and teaches by what it has
+          to change. The syllabary writes open CV syllables, so the
+          adapter applies the conventions Mycenaean scribes used for
+          Greek (echo vowels in clusters, dropped final consonants, r for
+          l, p for b) and lists every liberty it took. Values without a
+          sign show as honest gaps, and the footer reminds you these are
+          the conventional sound values, not Minoan certainty.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-school",
     group: "Interpretation modules",
     title: "Scribe School",

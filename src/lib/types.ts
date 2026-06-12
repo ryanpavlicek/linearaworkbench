@@ -233,6 +233,7 @@ export type ModuleId =
   | "timeline"
   | "reader"
   | "school"
+  | "write"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the
