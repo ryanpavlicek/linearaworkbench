@@ -4,6 +4,19 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## Unreleased
+
+- **Python Toolkit page**: a new sidebar entry (under *Programmatic*)
+  that puts pyaegean front and center — install line, copyable
+  quick-start and round-trip snippets, PyPI / API-reference / Colab
+  links, and the site's other programmatic doors (data API, embeds,
+  bring-your-own corpus). 39 modules now.
+- **Map zoom is Shift+scroll**: a plain wheel over the Geography map
+  used to zoom the map *and* scroll the page at once on smaller
+  screens. Plain scrolling now belongs to the page; hold Shift to zoom
+  (the hint overlay and screen-reader label say so), or use the
+  + / − keys with the map focused.
+
 ## 1.3.0 — 2026-06-12
 
 - **Bring your own corpus**: `?corpus=<url>` (or *Data Export → Load

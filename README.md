@@ -53,7 +53,7 @@ for the count distinction. We can read most of the *sounds* (the script
 shares ~60% of its signs with the deciphered Linear B), but not the
 language. The corpus is small, fragmentary, and mostly administrative.
 
-This workbench gives you **38 interactive modules** for analyzing that
+This workbench gives you **39 interactive modules** for analyzing that
 corpus: searching, browsing, statistics, sign concordances, accounting verification,
 cross-language phonetic alignment, hypothesis testing, annotation, mapping,
 comparison. Everything is keyboard-accessible, mostly works offline, and
@@ -74,7 +74,7 @@ the browser.
 | **Your research** | Annotate any word or tablet, build collections, save findings with their actual result tables, write cross-referenced Markdown notes, watch My Lexicon aggregate it all into a working glossary, and compile everything into an interactive single-file report with one-click citations. |
 | **Data in & out** | Permalinks to everything, CSV export on every table, a versioned full-corpus JSON export, a [static data API](docs/API.md), [live embeds](#embedding), one-file backup/restore, and folder auto-backup. Annotations export and re-import with a merge mode, so two researchers can swap and combine their readings. Take it further with an [Obsidian vault or NotebookLM bundle export](docs/FEATURES.md), or [bring your own corpus](#bring-your-own-corpus). |
 
-The complete module-by-module tour — all 38 — is in
+The complete module-by-module tour — all 39 — is in
 [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Run it locally

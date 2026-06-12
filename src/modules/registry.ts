@@ -137,6 +137,18 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
     ],
   },
   {
+    group: "Programmatic",
+    items: [
+      {
+        id: "pyaegean",
+        name: "Python Toolkit",
+        group: "Programmatic",
+        keywords:
+          "python pyaegean pip code api jupyter pandas notebook programmatic snippets data round-trip",
+      },
+    ],
+  },
+  {
     group: "Help",
     items: [
       { id: "help", name: "How to Use", group: "Help" },
@@ -219,5 +231,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   methodology: lazy(() => import("./Methodology")),
   signpat: lazy(() => import("./SignPatterns")),
   commentary: lazy(() => import("./CommentaryBrowser")),
+  pyaegean: lazy(() => import("./PythonToolkit")),
   help: lazy(() => import("./Help")),
 };
