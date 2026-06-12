@@ -11,6 +11,7 @@ import {
   snippetWrap,
   type SnippetColumn,
 } from "../lib/reportSnippet";
+import { siteSimilarities, siteWordSets } from "../lib/siteSimilarity";
 
 type Tab = "sites" | "jaccard" | "exclusive";
 
@@ -27,21 +28,7 @@ export default function SiteDistribution() {
         : "sites";
   const [tab, setTab] = useState<Tab>(initialTab);
 
-  const siteWords = useMemo(() => {
-    const map = new Map<string, Set<string>>();
-    for (const [w, e] of wordIndex) {
-      if (!w.includes("-")) continue;
-      for (const s of e.sites) {
-        let set = map.get(s);
-        if (!set) {
-          set = new Set();
-          map.set(s, set);
-        }
-        set.add(w);
-      }
-    }
-    return map;
-  }, [wordIndex]);
+  const siteWords = useMemo(() => siteWordSets(wordIndex), [wordIndex]);
 
   const sortedSites = useMemo(
     () => [...siteIndex.entries()].sort((a, b) => b[1].count - a[1].count),
@@ -51,22 +38,16 @@ export default function SiteDistribution() {
   const topSites = sortedSites.slice(0, 24);
   const maxIns = topSites[0]?.[1].count ?? 1;
 
-  const jaccard = useMemo(() => {
-    const jSites = sortedSites.slice(0, 10).map(([s]) => s);
-    const out: { a: string; b: string; sim: number; shared: number }[] = [];
-    for (let i = 0; i < jSites.length; i++) {
-      for (let j = i + 1; j < jSites.length; j++) {
-        const a = siteWords.get(jSites[i]) ?? new Set();
-        const b = siteWords.get(jSites[j]) ?? new Set();
-        const inter = [...a].filter((w) => b.has(w)).length;
-        const union = new Set([...a, ...b]).size;
-        if (union > 0)
-          out.push({ a: jSites[i], b: jSites[j], sim: inter / union, shared: inter });
-      }
-    }
-    out.sort((x, y) => y.sim - x.sim);
-    return out;
-  }, [sortedSites, siteWords]);
+  // Shared-vocabulary Jaccard over the ten biggest sites — the same shared
+  // implementation the Findspot Map's site-links arcs draw from.
+  const jaccard = useMemo(
+    () =>
+      siteSimilarities(
+        wordIndex,
+        sortedSites.slice(0, 10).map(([s]) => s),
+      ),
+    [sortedSites, wordIndex],
+  );
 
   const exclusive = useMemo(
     () =>

@@ -39,13 +39,13 @@ const LIBATION_WORDS = new Set([
   "JA-SA-SA-RA-ME",
   "A-DI-KI-TE-TE-DU",
 ]);
-type StructCategory =
+export type StructCategory =
   | "accounting"
   | "libation"
   | "list"
   | "text"
   | "other";
-function heuristicCategory(ins: Inscription): StructCategory {
+export function heuristicCategory(ins: Inscription): StructCategory {
   const ws = ins.words;
   const hasNums = ws.some((w) => /^[0-9]/.test(w));
   const hasKuro = ws.includes("KU-RO");
