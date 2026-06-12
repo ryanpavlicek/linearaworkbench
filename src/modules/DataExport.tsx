@@ -19,6 +19,7 @@ import {
   SCHEMA_VERSION,
 } from "../lib/corpusExport";
 import { FolderSyncCard } from "../components/FolderSyncCard";
+import { VaultExportCard } from "../components/VaultExportCard";
 
 export default function DataExport() {
   const wordIndex = useWorkbench((s) => s.corpus.wordIndex);
@@ -489,6 +490,8 @@ export default function DataExport() {
       </div>
 
       <FolderSyncCard onLoadBackup={setPending} />
+
+      <VaultExportCard />
 
       <div
         className="card"

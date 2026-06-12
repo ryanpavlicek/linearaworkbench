@@ -6,6 +6,15 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+- **Obsidian vault export**: Data Export can write your research straight
+  into a folder as a linked Markdown vault — notes with wikilinks, a
+  Lexicon page, stub pages for every tablet and word your work touches
+  (each linking back to the live app), collections, and findings.
+  Chromium browsers only (File System Access API); re-exporting
+  overwrites just the generated files.
+- **Research bundle**: the same content as one self-contained Markdown
+  document with live links — built for NotebookLM or any tool that takes
+  a text source, and it downloads in every browser.
 - **My Lexicon**: a new Research module that aggregates every annotation
   into a working glossary — proposed meaning, confidence, evidence, and
   live corpus attestation counts — with filters, CSV export, and
