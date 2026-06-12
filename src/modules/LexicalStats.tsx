@@ -394,6 +394,8 @@ export default function LexicalStats() {
               ref={zipfSvgRef}
               viewBox={`0 0 ${chart.W} ${chart.H}`}
               style={{ width: "100%", height: "auto" }}
+              role="img"
+              aria-label="Zipf rank–frequency chart on log–log axes: word frequency against frequency rank for the current view, with a dashed ideal-Zipf reference line"
             >
               {/* axes */}
               <line

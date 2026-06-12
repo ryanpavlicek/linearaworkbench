@@ -399,6 +399,8 @@ export default function ScribeNetwork() {
           data-render={renderVersion}
           viewBox="-400 -400 800 800"
           style={{ width: "100%", height: "75vh", display: "block" }}
+          role="img"
+          aria-label={`Scribal network: ${nodesRef.current.length} scribe nodes joined by ${edgesRef.current.length} edges, edges weighted by shared-vocabulary similarity`}
         >
           {edgesRef.current.map((e, i) => {
             const a = nodesRef.current[e.a];

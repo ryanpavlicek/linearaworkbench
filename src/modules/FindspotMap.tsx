@@ -680,6 +680,8 @@ export default function FindspotMap() {
               touchAction: "none",
               outline: "none",
             }}
+            role="img"
+            aria-label="Interactive map of Linear A find-sites across Crete and the Aegean, each site marked at its coordinates and sized by inscription count; pan with drag or arrow keys, zoom with the wheel"
             tabIndex={0}
             onWheel={onWheel}
             onPointerDown={onPointerDown}
@@ -1152,6 +1154,8 @@ function Minimap({
           cursor: "crosshair",
           touchAction: "none",
         }}
+        role="img"
+        aria-label="Overview minimap of the whole map area; the rectangle marks the current viewport — click or drag to move it"
         onPointerDown={(e) => {
           draggingRef.current = true;
           (e.target as Element).setPointerCapture?.(e.pointerId);
