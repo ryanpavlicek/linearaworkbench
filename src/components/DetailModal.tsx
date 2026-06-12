@@ -19,6 +19,7 @@ import { PinButton } from "./PinRail";
 import { CollectionPicker } from "./CollectionPicker";
 import { CopyLinkButton } from "./CopyLinkButton";
 import { CiteButton } from "./CiteButton";
+import { WhatLinksHere } from "./WhatLinksHere";
 import { inscriptionSnippet } from "../lib/pyaegean";
 import { CommentaryPanel } from "./CommentaryPanel";
 import {
@@ -732,6 +733,8 @@ function InscriptionDetailBody({ id }: { id: string }) {
             )}
           </div>
         )}
+
+        <WhatLinksHere inscriptionId={ins.id} />
 
         <CommentaryPanel inscriptionId={ins.id} />
 
