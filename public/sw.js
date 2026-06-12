@@ -5,7 +5,7 @@
 // NOT precached (~500 MB); those load network-first and simply need a
 // connection the first time each is viewed.
 const CACHE = "workbench-v1";
-const RUNTIME = [/\/assets\//, /\/corpus\//, /\/fonts\//];
+const RUNTIME = [/\/assets\//, /\/corpus\//, /\/fonts\//, /\/icons\//];
 
 self.addEventListener("install", () => {
   self.skipWaiting();

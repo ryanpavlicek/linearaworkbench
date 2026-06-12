@@ -1,0 +1,13 @@
+{
+  "name": "Linear A Research Workbench",
+  "short_name": "Linear A",
+  "description": "A browser-based research environment for the undeciphered Linear A script: the full corpus, scholarly commentary, accounting verification, and cross-linguistic hypothesis testing.",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#11151c",
+  "theme_color": "#11151c",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png" }
+  ]
+}
