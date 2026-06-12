@@ -10,7 +10,7 @@ import {
   type CommentaryIndex,
 } from "../lib/commentary";
 import { upstreamAsset } from "../lib/helpers";
-import { highlightHtml } from "../lib/highlight";
+import { highlightHtml, linkifyTabletRefs } from "../lib/highlight";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
   esc,
@@ -634,9 +634,30 @@ export default function CommentaryBrowser() {
                 <div
                   className="commentary-panel"
                   // Trusted: bundled mirror + sanitized in lib/commentary.
-                  // An active search gets its hits marked in the text.
+                  // Tablet references that resolve to loaded corpus ids
+                  // become clickable (delegated below); an active search
+                  // gets its hits marked in the text.
+                  onClick={(e) => {
+                    const a = (e.target as HTMLElement).closest(
+                      "[data-ins]",
+                    );
+                    const id = a?.getAttribute("data-ins");
+                    if (id) {
+                      e.preventDefault();
+                      showInscription(id);
+                    }
+                  }}
                   dangerouslySetInnerHTML={{
-                    __html: highlightHtml(html, query),
+                    __html: highlightHtml(
+                      linkifyTabletRefs(html, (cand) => {
+                        if (inscriptionIds.has(cand)) return cand;
+                        const base = cand.replace(/[a-z]$/, "");
+                        return base !== cand && inscriptionIds.has(base)
+                          ? base
+                          : null;
+                      }),
+                      query,
+                    ),
                   }}
                 />
               )}
