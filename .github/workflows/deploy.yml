@@ -37,9 +37,10 @@ jobs:
       - run: npm ci
       - run: npm run build
         env:
-          # GH Pages serves project sites at /<repo>/ — Vite needs to know
-          # so asset URLs resolve correctly. The repo name is read from the
-          # workflow context.
+          # The site is served at the domain root (linearaworkbench.xyz,
+          # configured in Settings → Pages), so Vite asset URLs resolve
+          # from /. If the custom domain is ever dropped, this must go back
+          # to /<repo>/ for the github.io project path.
           BASE_URL: /
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5

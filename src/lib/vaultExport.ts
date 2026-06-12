@@ -25,7 +25,7 @@ import type {
   ResearchNote,
 } from "./types";
 
-export const LIVE_SITE = "https://ryanpavlicek.github.io/linearaworkbench/";
+export const LIVE_SITE = "https://linearaworkbench.xyz/";
 
 export interface VaultFile {
   path: string; // forward-slash relative path, e.g. "Notes/On KU-RO.md"

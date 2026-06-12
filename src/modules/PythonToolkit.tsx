@@ -40,7 +40,7 @@ to_workbench(my_corpus, "my_corpus.json")
 # and the reverse: load this site's Data Export (or api/v1) in Python
 corpus = from_workbench_export("linear_a_corpus.json")`;
 
-const API_CURL = `curl -s https://ryanpavlicek.github.io/linearaworkbench/api/v1/inscriptions/HT13.json \\
+const API_CURL = `curl -s https://linearaworkbench.xyz/api/v1/inscriptions/HT13.json \\
   | jq '.derived.balance'`;
 
 function CodeCard({

@@ -5,7 +5,7 @@ same enriched export the in-app **Data Export › Full corpus JSON** button
 builds, regenerated on every deploy. No server, no keys, no rate limits
 beyond GitHub Pages itself; `curl` it, load it in pandas, cache it freely.
 
-Base URL: `https://ryanpavlicek.github.io/linearaworkbench/api/v1/`
+Base URL: `https://linearaworkbench.xyz/api/v1/`
 
 | Path | Contents |
 | --- | --- |
@@ -26,7 +26,7 @@ derived blocks is [docs/METHODOLOGY.md](METHODOLOGY.md).
 One tablet:
 
 ```bash
-curl -s https://ryanpavlicek.github.io/linearaworkbench/api/v1/inscriptions/HT13.json | jq '.derived.balance'
+curl -s https://linearaworkbench.xyz/api/v1/inscriptions/HT13.json | jq '.derived.balance'
 ```
 
 Word frequencies into pandas:
@@ -35,7 +35,7 @@ Word frequencies into pandas:
 import pandas as pd, requests
 
 corpus = requests.get(
-    "https://ryanpavlicek.github.io/linearaworkbench/api/v1/corpus.json"
+    "https://linearaworkbench.xyz/api/v1/corpus.json"
 ).json()
 words = pd.DataFrame(corpus["wordFrequencies"])
 print(words.head())
@@ -44,7 +44,7 @@ print(words.head())
 Every inscription id:
 
 ```bash
-curl -s https://ryanpavlicek.github.io/linearaworkbench/api/v1/index.json | jq '.files | keys | length'
+curl -s https://linearaworkbench.xyz/api/v1/index.json | jq '.files | keys | length'
 ```
 
 If you'd rather work against the raw upstream-shaped data the app itself

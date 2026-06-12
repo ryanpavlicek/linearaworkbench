@@ -166,7 +166,7 @@ export function buildInscriptionCitation(
 ): string {
   const date = snapshotDate || new Date().toISOString().slice(0, 10);
   const v = WORKBENCH_VERSION;
-  const link = `https://ryanpavlicek.github.io/linearaworkbench/#/i/${encodeURIComponent(ins.id)}`;
+  const link = `https://linearaworkbench.xyz/#/i/${encodeURIComponent(ins.id)}`;
   const site = ins.site ? `, ${ins.site}` : "";
   switch (style) {
     case "bibtex": {

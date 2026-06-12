@@ -6,6 +6,11 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+- **A domain of its own**: the workbench now lives at
+  <https://linearaworkbench.xyz> — citations, the data API, embeds, and
+  the social-preview metadata all point there. Old github.io links
+  redirect.
+
 Deeper analysis in the existing modules:
 
 - **Word Frequency** learns dispersion (Gries' DP across find-sites),

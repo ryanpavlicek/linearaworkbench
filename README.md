@@ -16,7 +16,7 @@ locally, or fork and extend.
 
 ## Use it right now
 
-**▶ <https://ryanpavlicek.github.io/linearaworkbench/>** — nothing to
+**▶ <https://linearaworkbench.xyz/>** — nothing to
 install; it runs in any modern browser and keeps working offline after
 your first visit.
 
@@ -80,7 +80,7 @@ The complete module-by-module tour — all 39 — is in
 ## Run it locally
 
 You only need this to develop, customize, or run from source — the
-[live site](https://ryanpavlicek.github.io/linearaworkbench/) is the same
+[live site](https://linearaworkbench.xyz/) is the same
 app and already works offline after your first visit.
 
 1. **Install Node.js** (the JavaScript runtime the build tools need):
@@ -182,7 +182,7 @@ versioned URLs — the full schema-v1 export with derived analyses, one file
 per inscription, and an id manifest:
 
 ```bash
-curl -s https://ryanpavlicek.github.io/linearaworkbench/api/v1/inscriptions/HT13.json | jq '.derived.balance'
+curl -s https://linearaworkbench.xyz/api/v1/inscriptions/HT13.json | jq '.derived.balance'
 ```
 
 See [`docs/API.md`](docs/API.md) for the endpoints, schema stability
@@ -195,7 +195,7 @@ facsimile thumbnail, and a link back to the full workbench:
 
 ```html
 <iframe
-  src="https://ryanpavlicek.github.io/linearaworkbench/?embed=1#/i/HT13"
+  src="https://linearaworkbench.xyz/?embed=1#/i/HT13"
   width="420" height="380" loading="lazy"
   title="Linear A tablet HT13">
 </iframe>
