@@ -1328,7 +1328,8 @@ tbody tr:last-child td {
   padding: 0 3px;
   border-radius: 2px;
 }
-mark.help-hl {
+mark.help-hl,
+.commentary-panel mark {
   background: #f0b14b40;
   color: inherit;
   padding: 0 2px;

@@ -10,6 +10,7 @@ import {
   type CommentaryIndex,
 } from "../lib/commentary";
 import { upstreamAsset } from "../lib/helpers";
+import { highlightHtml } from "../lib/highlight";
 import type { Inscription, WordEntry } from "../lib/types";
 
 // 4-state imagery toggle for the right pane. Off is the default — keeps the
@@ -573,8 +574,11 @@ export default function CommentaryBrowser() {
               {html !== undefined && html !== null && (
                 <div
                   className="commentary-panel"
-                  // Trusted: bundled mirror + sanitized in lib/commentary
-                  dangerouslySetInnerHTML={{ __html: html }}
+                  // Trusted: bundled mirror + sanitized in lib/commentary.
+                  // An active search gets its hits marked in the text.
+                  dangerouslySetInnerHTML={{
+                    __html: highlightHtml(html, query),
+                  }}
                 />
               )}
 
