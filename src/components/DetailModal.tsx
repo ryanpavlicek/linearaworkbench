@@ -19,6 +19,7 @@ import { PinButton } from "./PinRail";
 import { CollectionPicker } from "./CollectionPicker";
 import { CopyLinkButton } from "./CopyLinkButton";
 import { CiteButton } from "./CiteButton";
+import { inscriptionSnippet } from "../lib/pyaegean";
 import { CommentaryPanel } from "./CommentaryPanel";
 import {
   buildInscriptionExport,
@@ -527,6 +528,22 @@ function InscriptionDetailBody({ id }: { id: string }) {
             JSON ↓
           </button>
           <CiteButton id={ins.id} site={ins.site} />
+          <button
+            className="btn btn-outline btn-sm"
+            title="Copy a pyaegean snippet that loads this inscription in Python (pip install pyaegean — the toolkit that ports this workbench's analysis)"
+            onClick={() => {
+              if (!navigator.clipboard) {
+                toast("Copying needs a secure (https) context", "error");
+                return;
+              }
+              navigator.clipboard.writeText(inscriptionSnippet(ins.id)).then(
+                () => toast("pyaegean snippet copied"),
+                () => toast("Couldn't copy the snippet", "error"),
+              );
+            }}
+          >
+            Py ⧉
+          </button>
           <PinButton kind="inscription" value={ins.id} />
           <CollectionPicker kind="inscription" value={ins.id} />
           <CopyLinkButton />

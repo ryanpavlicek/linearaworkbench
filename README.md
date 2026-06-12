@@ -181,6 +181,19 @@ curl -s https://ryanpavlicek.github.io/linearaworkbench/api/v1/inscriptions/HT13
 See [`docs/API.md`](docs/API.md) for the endpoints, schema stability
 guarantees, and pandas examples.
 
+## Embedding
+
+Any tablet embeds as a live, chromeless card — glyphs, transliteration,
+facsimile thumbnail, and a link back to the full workbench:
+
+```html
+<iframe
+  src="https://ryanpavlicek.github.io/linearaworkbench/?embed=1#/i/HT13"
+  width="420" height="380" loading="lazy"
+  title="Linear A tablet HT13">
+</iframe>
+```
+
 ## Keyboard
 
 - `Ctrl + K` — Command palette (jump to any module by name)
@@ -297,6 +310,16 @@ full third-party attribution list.
 - **[mwenge/lineara.xyz](https://github.com/mwenge/lineara.xyz)** —
   visual catalog with tablet imagery and zoom. The workbench bundles their
   corpus transcription and commentary mirror; complementary tool overall.
+- **[pyaegean](https://github.com/ryanpavlicek/pyaegean)** — if you'd
+  rather work in Python, I also maintain pyaegean
+  (`pip install pyaegean`). It ports this workbench's Linear A analysis —
+  sign-pattern search, phonetic distance and alignment, collocation
+  statistics, the query engine — tested against the same expected values,
+  and adds what a browser app can't: scriptable corpus access, pandas
+  DataFrames, Ancient Greek NLP, and citation/provenance output for
+  papers. The two tools stay on the same data (the corpus manifest is
+  checked on both sides), and the Query Builder and tablet views can copy
+  ready-to-run pyaegean code.
 - **[SigLA](https://sigla.phis.me)** — paleographic database of Linear A
   signs by scribe. Use this for sign-variant analysis.
 - **[DAMOS](https://damos.hf.uio.no)** — the Mycenaean (Linear B) corpus

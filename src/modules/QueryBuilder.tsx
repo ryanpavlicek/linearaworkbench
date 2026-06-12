@@ -6,6 +6,7 @@ import { WordAutocomplete } from "../components/WordAutocomplete";
 import { Glyph } from "../components/Glyph";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { KEYS, loadJson, saveJson } from "../lib/persistence";
+import { querySnippet } from "../lib/pyaegean";
 import type { Inscription, ModuleId } from "../lib/types";
 import {
   esc,
@@ -557,6 +558,23 @@ export default function QueryBuilder() {
         >
           <button className="btn btn-outline btn-sm" onClick={addFilter}>
             + Add filter
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            title="Copy this query as runnable pyaegean code — the Python toolkit that ports this workbench's analysis (pip install pyaegean)"
+            onClick={() => {
+              const code = querySnippet(filters, output);
+              if (!navigator.clipboard) {
+                toast("Copying needs a secure (https) context", "error");
+                return;
+              }
+              navigator.clipboard.writeText(code).then(
+                () => toast("pyaegean code copied"),
+                () => toast("Couldn't copy the code", "error"),
+              );
+            }}
+          >
+            Copy pyaegean code
           </button>
           <span style={{ flex: 1 }} />
           <span className="dim" style={{ fontSize: 10 }}>

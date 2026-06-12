@@ -2900,6 +2900,25 @@ export const SECTIONS: Section[] = [
           want to <em>see</em> the tablets rather than analyze them
           computationally, go there.
         </P>
+        <H3>Working in Python</H3>
+        <P>
+          If you'd rather script your analysis, I also maintain{" "}
+          <a
+            href="https://github.com/ryanpavlicek/pyaegean"
+            target="_blank"
+            rel="noreferrer"
+          >
+            pyaegean
+          </a>{" "}
+          (<code>pip install pyaegean</code>). It ports this workbench's
+          Linear A analysis — sign-pattern search, phonetic distance and
+          alignment, collocation statistics, the query engine — tested
+          against the same expected values, and adds scriptable corpus
+          access, pandas DataFrames, Ancient Greek NLP, and
+          citation/provenance output for papers. The two tools stay on the
+          same data; the Query Builder and each tablet's detail view can
+          copy ready-to-run pyaegean code.
+        </P>
         <H3>Facsimile and photograph images</H3>
         <P>
           © École Française d'Athènes. Loaded on demand from the upstream
