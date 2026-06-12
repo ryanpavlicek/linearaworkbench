@@ -144,6 +144,46 @@ function siglaCitation(style: CitationStyle): string {
   }
 }
 
+/**
+ * Per-inscription citation — the unit a paper actually cites. GORILA is the
+ * printed edition of record; the workbench permalink is the digital point of
+ * access, pinned to version + access date. No volume/page numbers: GORILA's
+ * volume split is the researcher's to confirm against the physical edition,
+ * and the inscription id is the stable scholarly handle either way.
+ */
+export function buildInscriptionCitation(
+  ins: { id: string; site?: string },
+  style: CitationStyle,
+  snapshotDate?: string,
+): string {
+  const date = snapshotDate || new Date().toISOString().slice(0, 10);
+  const v = WORKBENCH_VERSION;
+  const link = `https://ryanpavlicek.github.io/linearaworkbench/#/i/${encodeURIComponent(ins.id)}`;
+  const site = ins.site ? `, ${ins.site}` : "";
+  switch (style) {
+    case "bibtex": {
+      const key = ins.id.replace(/[^A-Za-z0-9]+/g, "");
+      return [
+        `@misc{lineara_${key},`,
+        "  author       = {Godart, Louis and Olivier, Jean-Pierre},",
+        `  title        = {Linear A inscription ${ins.id}${site}},`,
+        "  howpublished = {Recueil des inscriptions en lin{\\'e}aire A",
+        "                  ({\\'E}tudes Cr{\\'e}toises 21). Paris: {\\'E}cole",
+        "                  Fran{\\c{c}}aise d'Ath{\\`e}nes, 1976--1985},",
+        `  note         = {Viewed in the Linear A Research Workbench v${v},`,
+        `                  ${link}, accessed ${date}}`,
+        "}",
+      ].join("\n");
+    }
+    case "apa":
+      return `Godart, L., & Olivier, J.-P. (1976–1985). Linear A inscription ${ins.id}${site}. In *Recueil des inscriptions en linéaire A* (Études Crétoises 21). École Française d'Athènes. Viewed in the Linear A Research Workbench (v${v}), ${link} (accessed ${date}).`;
+    case "chicago":
+      return `Godart, Louis, and Jean-Pierre Olivier. 1976–1985. Linear A inscription ${ins.id}${site}. In *Recueil des inscriptions en linéaire A*, Études Crétoises 21. Paris: École Française d'Athènes. Viewed in the Linear A Research Workbench, version ${v}, ${link}, accessed ${date}.`;
+    case "mla":
+      return `Godart, Louis, and Jean-Pierre Olivier. "Linear A inscription ${ins.id}${site}." *Recueil des inscriptions en linéaire A*, École Française d'Athènes, 1976–1985. *Linear A Research Workbench*, version ${v}, ${link}. Accessed ${date}.`;
+  }
+}
+
 export interface CitationOptions {
   style: CitationStyle;
   /** Snapshot date the researcher is citing — YYYY-MM-DD. Defaults to today. */
