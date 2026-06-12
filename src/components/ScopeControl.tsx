@@ -8,7 +8,16 @@ import {
   useScopedCorpus,
 } from "../store/scope";
 import { anchoredPopoverPos } from "../lib/popover";
+import { KEYS, loadJson, saveJson } from "../lib/persistence";
 import type { CorpusScope } from "../lib/types";
+
+// A named, reusable scope ("HT LM IB", "roundels only") — apply in one click
+// instead of re-picking the dropdowns every session.
+interface ScopePreset {
+  id: string;
+  name: string;
+  scope: CorpusScope;
+}
 
 const DIMENSIONS: {
   key: keyof Omit<CorpusScope, "collectionId">;
@@ -32,8 +41,34 @@ export function ScopeControl() {
 
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState({ top: 0, left: 0 });
+  const [presets, setPresets] = useState<ScopePreset[]>(() =>
+    loadJson<ScopePreset[]>(KEYS.scopePresets, []),
+  );
+  const [presetName, setPresetName] = useState("");
   const triggerRef = useRef<HTMLButtonElement>(null);
   const popRef = useRef<HTMLDivElement>(null);
+
+  function savePreset() {
+    const name = presetName.trim();
+    if (!name) return;
+    const next = [
+      ...presets,
+      {
+        id: Math.random().toString(36).slice(2),
+        name,
+        scope: { ...scope },
+      },
+    ];
+    setPresets(next);
+    saveJson(KEYS.scopePresets, next);
+    setPresetName("");
+  }
+
+  function deletePreset(id: string) {
+    const next = presets.filter((p) => p.id !== id);
+    setPresets(next);
+    saveJson(KEYS.scopePresets, next);
+  }
 
   const active = isScopeActive(scope);
   const scopedCount = scoped.inscriptions.length;
@@ -156,6 +191,63 @@ export function ScopeControl() {
                 ))}
               </select>
             </label>
+
+            {(presets.length > 0 || active) && (
+              <div
+                style={{
+                  borderTop: "1px solid var(--border)",
+                  paddingTop: 8,
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: 6,
+                }}
+              >
+                <span className="dim" style={{ fontSize: 10, textTransform: "uppercase", letterSpacing: 0.5 }}>
+                  Presets
+                </span>
+                {presets.map((p) => (
+                  <div key={p.id} style={{ display: "flex", gap: 4, alignItems: "center" }}>
+                    <button
+                      className="btn btn-sm btn-outline"
+                      style={{ flex: 1, textAlign: "left" }}
+                      title={scopeSummary(p.scope)}
+                      onClick={() => setScope({ ...p.scope })}
+                    >
+                      {p.name}
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline"
+                      aria-label={`Delete preset ${p.name}`}
+                      title="Delete preset"
+                      onClick={() => deletePreset(p.id)}
+                    >
+                      ✕
+                    </button>
+                  </div>
+                ))}
+                {active && (
+                  <div style={{ display: "flex", gap: 4 }}>
+                    <input
+                      className="input"
+                      placeholder="Save current scope as…"
+                      value={presetName}
+                      onChange={(e) => setPresetName(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") savePreset();
+                      }}
+                      style={{ flex: 1, fontSize: 11, padding: "4px 6px" }}
+                    />
+                    <button
+                      className="btn btn-sm btn-outline"
+                      disabled={!presetName.trim()}
+                      onClick={savePreset}
+                    >
+                      Save
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
 
             <div style={{ display: "flex", gap: 6, marginTop: 2 }}>
               <button

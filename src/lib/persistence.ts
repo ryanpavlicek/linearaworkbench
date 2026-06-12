@@ -38,6 +38,7 @@ export const KEYS = {
   collections: "collections",
   tabletCategories: "tablet-categories",
   customLanguages: "custom-languages",
+  scopePresets: "scope-presets",
   findings: "findings",
   sidebarCollapsed: "sidebar-collapsed",
   reportLayout: "report-layout",
