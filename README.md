@@ -297,4 +297,5 @@ interesting engineering problem to tackle.
 If something here is wrong, please open an issue on github.
 
 **Email**: 'ryan [dot] pavlicek [dot] github [at] gmail [dot] com'
+
 *(Replace `[at]` with `@` and `[dot]` with `.`)*
