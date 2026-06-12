@@ -10,9 +10,19 @@ import { Welcome } from "./components/Welcome";
 import { CommandPalette } from "./components/CommandPalette";
 import { CategoryBadge } from "./components/CategoryBadge";
 import { ModuleErrorBoundary } from "./components/ModuleErrorBoundary";
+import { EmbedCard } from "./components/EmbedCard";
 import { MODULE_COMPONENTS } from "./modules/registry";
 import { loadJson, saveJson } from "./lib/persistence";
 import { WORKBENCH_VERSION } from "./lib/citations";
+import { parsePermalink } from "./lib/permalink";
+
+// ?embed=1#/i/<id> renders a chromeless single-tablet card for iframes.
+// Resolved once at boot — an embed never becomes the full app or vice versa.
+const EMBED_ID: string | null = (() => {
+  if (!new URLSearchParams(window.location.search).has("embed")) return null;
+  const p = parsePermalink(window.location.hash);
+  return p?.detail?.kind === "inscription" ? p.detail.value : null;
+})();
 
 export function App() {
   const loaded = useWorkbench((s) => s.loaded);
@@ -50,7 +60,11 @@ export function App() {
   }, [loaded, loadCorpus]);
 
   // URL ↔ store sync: module / detail / scope are shareable permalinks.
-  useEffect(() => initUrlSync(), []);
+  // Embeds skip it — the card is read-only and owns no navigation.
+  useEffect(() => {
+    if (EMBED_ID) return;
+    return initUrlSync();
+  }, []);
 
   // One-shot what's-new note when the version changes underneath a
   // returning user. A fresh install stays quiet — the Welcome modal owns
@@ -108,6 +122,17 @@ export function App() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [setActive, closeDetail, undoLast]);
+
+  // Chromeless embed: just the card once the corpus is in.
+  if (EMBED_ID) {
+    return loaded ? (
+      <EmbedCard id={EMBED_ID} />
+    ) : (
+      <div className="loader">
+        <div className="loader-spinner" />
+      </div>
+    );
+  }
 
   // Fall back to the default module if a persisted activeModule id is no
   // longer valid (e.g. restored from a prior version that had a module since
