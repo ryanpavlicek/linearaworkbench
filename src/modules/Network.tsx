@@ -3,6 +3,7 @@ import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { cooccurrencePairs } from "../lib/algorithms";
+import { labelPropagation } from "../lib/multivariate";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
   esc,
@@ -48,6 +49,19 @@ const REST_LENGTH = 80;
 const CENTER = 0.001;
 const DAMPING = 0.85;
 
+// Distinguishable fills for the community coloring; communities beyond
+// the palette wrap (by then they're singletons anyway).
+const COMMUNITY_PALETTE = [
+  "#5b9eff",
+  "#ff8c42",
+  "#3ecf8e",
+  "#e05c84",
+  "#b08bf5",
+  "#e7c54b",
+  "#46c3d6",
+  "#a3a3a3",
+];
+
 export default function Network() {
   const scoped = useScopedCorpus();
   const inscriptions = scoped.inscriptions;
@@ -64,6 +78,7 @@ export default function Network() {
   const [nodeQuery, setNodeQuery] = useState(
     initialIntent?.focus?.toUpperCase().trim() ?? "",
   );
+  const [colorByCommunity, setColorByCommunity] = useState(false);
 
   const svgRef = useRef<SVGSVGElement>(null);
   const nodesRef = useRef<Node[]>([]);
@@ -88,6 +103,25 @@ export default function Network() {
       words.add(p.b);
     }
     return { nodeCount: words.size, edgeCount: pairs.length };
+  }, [pairs]);
+
+  // Label-propagation communities over the displayed graph (PMI-weighted,
+  // seeded so the coloring is stable across reloads). Cheap enough to
+  // keep always-on; the toggle only controls the coloring.
+  const communities = useMemo(() => {
+    const words = new Set<string>();
+    for (const p of pairs) {
+      words.add(p.a);
+      words.add(p.b);
+    }
+    const com = labelPropagation(
+      [...words].sort(),
+      pairs.map((p) => ({ a: p.a, b: p.b, w: Math.max(0.1, p.pmi) })),
+      { seed: 7 },
+    );
+    let count = 0;
+    for (const c of com.values()) count = Math.max(count, c + 1);
+    return { byWord: com, count };
   }, [pairs]);
 
   const findingSummary =
@@ -339,6 +373,18 @@ export default function Network() {
             style={{ width: 60 }}
           />
         </label>
+        <label
+          className="dim"
+          style={{ display: "flex", alignItems: "center", gap: 6 }}
+          title={`Color nodes by label-propagation community (${communities.count} found in the current graph; PMI-weighted, deterministic seed). Communities are clusters of words that co-occur with each other more than with the rest — candidate topical or formulaic groups. The partition depends on the Top-N/min-joint filters, so read it as exploratory.`}
+        >
+          <input
+            type="checkbox"
+            checked={colorByCommunity}
+            onChange={(e) => setColorByCommunity(e.target.checked)}
+          />
+          communities ({communities.count})
+        </label>
         <button
           className="btn btn-outline btn-sm"
           onClick={reloadLayout}
@@ -512,7 +558,18 @@ export default function Network() {
               >
                 <circle
                   r={r}
-                  fill={isPivot ? "var(--ac)" : freq > 20 ? "var(--gn)" : "var(--pu)"}
+                  fill={
+                    isPivot
+                      ? "var(--ac)"
+                      : colorByCommunity
+                        ? COMMUNITY_PALETTE[
+                            (communities.byWord.get(n.word) ?? 0) %
+                              COMMUNITY_PALETTE.length
+                          ]
+                        : freq > 20
+                          ? "var(--gn)"
+                          : "var(--pu)"
+                  }
                   stroke="var(--surface-0)"
                   strokeWidth={2}
                 />

@@ -20,6 +20,7 @@ import {
   isUndecipheredLogogram,
   type CommodityCategory,
 } from "../data/commodities";
+import { correspondenceAnalysis } from "../lib/multivariate";
 
 type AggCategory = CommodityCategory | "undeciphered";
 
@@ -649,6 +650,189 @@ export default function Commodities() {
           )}
         </div>
       </div>
+
+      <CommodityCA inscriptions={inscriptions} />
+    </div>
+  );
+}
+
+// Correspondence analysis of the place/hand/period × commodity table: a
+// biplot where a row sits in the direction of the commodities it
+// over-records. Rows below a minimum token count are dropped, since CA
+// coordinates for near-empty rows are noise dressed up as geometry.
+function CommodityCA({
+  inscriptions,
+}: {
+  inscriptions: {
+    site?: string;
+    scribe?: string;
+    context?: string;
+    words: string[];
+  }[];
+}) {
+  const [rowMode, setRowMode] = useState<"site" | "scribe" | "period">("site");
+
+  const ca = useMemo(() => {
+    const rowOf = (ins: (typeof inscriptions)[number]) =>
+      rowMode === "site"
+        ? ins.site || null
+        : rowMode === "scribe"
+          ? ins.scribe || null
+          : ins.context || null;
+    const table = new Map<string, Map<string, number>>();
+    for (const ins of inscriptions) {
+      const row = rowOf(ins);
+      if (!row) continue;
+      for (const w of ins.words) {
+        const head =
+          commodityHead(w) ?? (isUndecipheredLogogram(w) ? w : null);
+        if (!head) continue;
+        let m = table.get(row);
+        if (!m) {
+          m = new Map();
+          table.set(row, m);
+        }
+        m.set(head, (m.get(head) ?? 0) + 1);
+      }
+    }
+    // Keep rows with ≥ 12 commodity tokens and columns attested ≥ 5 times.
+    const colTotals = new Map<string, number>();
+    for (const m of table.values())
+      for (const [c, v] of m) colTotals.set(c, (colTotals.get(c) ?? 0) + v);
+    const cols = [...colTotals.entries()]
+      .filter(([, v]) => v >= 5)
+      .map(([c]) => c)
+      .sort();
+    const rows = [...table.entries()]
+      .filter(([, m]) => {
+        let s = 0;
+        for (const c of cols) s += m.get(c) ?? 0;
+        return s >= 12;
+      })
+      .map(([r]) => r)
+      .sort();
+    if (rows.length < 3 || cols.length < 3) return null;
+    const counts = rows.map((r) => cols.map((c) => table.get(r)?.get(c) ?? 0));
+    return correspondenceAnalysis(rows, cols, counts);
+  }, [inscriptions, rowMode]);
+
+  const plot = useMemo(() => {
+    if (!ca) return null;
+    const pts = [...ca.rows, ...ca.cols];
+    const maxAbs = Math.max(
+      0.05,
+      ...pts.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y))),
+    );
+    const W = 620;
+    const H = 420;
+    const PAD = 34;
+    const sx = (x: number) => W / 2 + (x / maxAbs) * (W / 2 - PAD);
+    const sy = (y: number) => H / 2 - (y / maxAbs) * (H / 2 - PAD);
+    return { W, H, sx, sy };
+  }, [ca]);
+
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <h4>
+        Correspondence analysis — what patterns with what{" "}
+        {ca && (
+          <span className="dim">
+            (axes carry {(ca.inertia[0] * 100).toFixed(0)}% +{" "}
+            {(ca.inertia[1] * 100).toFixed(0)}% of the table's inertia)
+          </span>
+        )}
+      </h4>
+      <div className="sub" style={{ marginBottom: 8 }}>
+        One picture of the whole {rowMode === "site" ? "find-site" : rowMode}{" "}
+        × commodity table: rows (blue) and commodity logograms (amber)
+        share a plane, and a row lies in the direction of the commodities
+        it records more than the corpus average. Distance from the center
+        is deviation from the average profile — points near the origin are
+        unremarkable. Rows with under 12 commodity tokens are dropped
+        rather than plotted as fake geometry.
+      </div>
+      <div className="toolbar">
+        <label
+          className="dim"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
+        >
+          rows
+          <select
+            className="select"
+            value={rowMode}
+            onChange={(e) => setRowMode(e.target.value as typeof rowMode)}
+            style={{ fontSize: 11, padding: "3px 6px" }}
+          >
+            <option value="site">find-sites</option>
+            <option value="scribe">scribal hands</option>
+            <option value="period">periods</option>
+          </select>
+        </label>
+      </div>
+      {!ca || !plot ? (
+        <div className="dim" style={{ fontSize: 12 }}>
+          Not enough data for this view — fewer than 3 qualifying rows or
+          commodities (try a different row mode or a wider Scope).
+        </div>
+      ) : (
+        <svg
+          viewBox={`0 0 ${plot.W} ${plot.H}`}
+          style={{ width: "100%", height: "auto", maxWidth: 720 }}
+          role="img"
+          aria-label={`Correspondence analysis biplot of ${rowMode}s against commodities`}
+        >
+          <line
+            x1={plot.sx(0)}
+            y1={0}
+            x2={plot.sx(0)}
+            y2={plot.H}
+            stroke="var(--border)"
+          />
+          <line
+            x1={0}
+            y1={plot.sy(0)}
+            x2={plot.W}
+            y2={plot.sy(0)}
+            stroke="var(--border)"
+          />
+          {ca.cols.map((c) => (
+            <text
+              key={`c-${c.label}`}
+              x={plot.sx(c.x)}
+              y={plot.sy(c.y)}
+              fontSize={10}
+              fontFamily="var(--mono)"
+              fill="var(--am)"
+              textAnchor="middle"
+            >
+              {c.label}
+              <title>{`${c.label} — ${(c.mass * 100).toFixed(1)}% of commodity tokens`}</title>
+            </text>
+          ))}
+          {ca.rows.map((r) => (
+            <g key={`r-${r.label}`}>
+              <circle
+                cx={plot.sx(r.x)}
+                cy={plot.sy(r.y)}
+                r={3 + Math.sqrt(r.mass) * 14}
+                fill="var(--ac)"
+                opacity={0.35}
+              >
+                <title>{`${r.label} — ${(r.mass * 100).toFixed(1)}% of commodity tokens`}</title>
+              </circle>
+              <text
+                x={plot.sx(r.x)}
+                y={plot.sy(r.y) - 7 - Math.sqrt(r.mass) * 14}
+                fontSize={10}
+                fill="var(--text)"
+                textAnchor="middle"
+              >
+                {r.label}
+              </text>
+            </g>
+          ))}
+        </svg>
+      )}
     </div>
   );
 }

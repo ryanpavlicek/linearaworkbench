@@ -26,6 +26,7 @@ analysis the tool produces.
 - [Word frequency: dispersion and keyness](#word-frequency-dispersion-and-keyness)
 - [Sign transitions (graphotactics)](#sign-transitions-graphotactics)
 - [Linear A vs Linear B sign frequencies](#linear-a-vs-linear-b-sign-frequencies)
+- [Multivariate exploration (CA, dendrograms, communities)](#multivariate-exploration-ca-dendrograms-communities)
 - [Scribe sign-frequency comparison](#scribe-sign-frequency-comparison)
 - [Site distribution (Jaccard)](#site-distribution-jaccard)
 - [Commentary archive index](#commentary-archive-index)
@@ -882,6 +883,42 @@ known.
 **Implementation**: [`linearB.ts`](../src/lib/linearB.ts) (parser, join,
 Spearman — unit-tested), card in
 [`SignInventory.tsx`](../src/modules/SignInventory.tsx).
+
+## Multivariate exploration (CA, dendrograms, communities)
+
+Three structure-finding tools share
+[`multivariate.ts`](../src/lib/multivariate.ts) (unit-tested) and a
+common honesty rule: each display carries the number that says how much
+to trust it.
+
+- **Correspondence analysis** (Commodity Catalog): classic CA of the
+  site/hand/period × commodity contingency table — SVD of the
+  standardized residuals (computed by deterministic power iteration with
+  deflation; the tables are tens × tens), keeping two axes whose
+  **inertia shares** are printed in the title. Rows and columns share a
+  plane: a row lies in the direction of the commodities it over-records
+  relative to the average profile. Rows under 12 commodity tokens are
+  dropped — CA happily assigns confident-looking coordinates to
+  near-empty rows, which is how these biplots usually lie. CA is
+  descriptive: it optimizes a picture of THIS table, and the axes have no
+  meaning beyond it.
+- **Dendrograms with bootstrap support** (Site Distribution, Scribes):
+  average-linkage (UPGMA) clustering of word-count profiles under cosine
+  distance, with **bootstrap support** at every internal node — the share
+  of 100 seeded feature-resampled replicates in which exactly that member
+  set reappears. A dendrogram always produces a tree, however random the
+  data; the support values are what separate findings from arrangement
+  (nodes under 50% render dimmed). Thin rows (sites < 30, hands < 20 word
+  tokens) are excluded rather than placed at random. Clustering by shared
+  vocabulary is a statement about administrative content, not letterforms.
+- **Communities** (Network graph): weighted label propagation (Raghavan
+  et al. 2007) over the displayed PMI graph, with seeded visit order and
+  deterministic tie-breaks so colors are stable across reloads. Label
+  propagation has no resolution parameter and is fast, but the partition
+  depends on the Top-N/min-joint display filters — change the filters and
+  the communities legitimately change. Read the coloring as exploratory
+  grouping (formulaic and topical clusters), not as a fixed taxonomy of
+  the vocabulary.
 
 ## Scribe sign-frequency comparison
 

@@ -14,6 +14,8 @@ import {
 } from "../lib/reportSnippet";
 import { csvEscape, downloadFile, normalizeSignLabel } from "../lib/helpers";
 import { keynessG2 } from "../lib/algorithms";
+import { upgmaWithBootstrap } from "../lib/multivariate";
+import { Dendrogram } from "../components/Dendrogram";
 
 interface ScribeProfile {
   scribe: string;
@@ -169,6 +171,23 @@ export default function ScribeComparison() {
       ),
     [profiles],
   );
+
+  // Hands clustered by vocabulary profile (cosine distance over word
+  // counts) with bootstrap support. Hands with under 20 word tokens are
+  // left out — too thin to place honestly.
+  const dendro = useMemo(() => {
+    const items = [...profiles.values()]
+      .filter((p) => {
+        let t = 0;
+        for (const c of p.wordCounts.values()) t += c;
+        return t >= 20;
+      })
+      .map((p) => ({ label: p.scribe, counts: p.wordCounts }))
+      .sort((x, y) => x.label.localeCompare(y.label));
+    const excluded = profiles.size - items.length;
+    const result = upgmaWithBootstrap(items, { iters: 100, seed: 42 });
+    return result ? { result, excluded, included: items.length } : null;
+  }, [profiles]);
 
   const a = scribeA ? profiles.get(scribeA) : null;
   // scribeB can be a real scribe id, "" (corpus baseline), or "__site__"
@@ -821,6 +840,32 @@ export default function ScribeComparison() {
             </div>
           </div>
         </>
+      )}
+
+      {dendro && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h4>
+            Hand clustering — vocabulary-profile dendrogram{" "}
+            <span className="dim">
+              ({dendro.included} hands · 100 bootstrap replicates
+              {dendro.excluded > 0
+                ? ` · ${dendro.excluded} hands under 20 tokens left out`
+                : ""}
+              )
+            </span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Average-linkage clustering of each hand's word profile (cosine
+            distance, token-weighted). The number at each junction is
+            bootstrap support — how often that exact grouping survives
+            resampling the vocabulary; merges in dim gray under 50 are
+            arrangement, not evidence. Hands that cluster with strong
+            support share working vocabulary, which can mean shared
+            assignment or training — it is not a paleographic claim about
+            letterforms (SigLA owns that).
+          </div>
+          <Dendrogram result={dendro.result} />
+        </div>
       )}
     </div>
   );

@@ -13,6 +13,8 @@ import {
 } from "../lib/reportSnippet";
 import { siteSimilarities, siteWordSets } from "../lib/siteSimilarity";
 import { useSort, SortHeader } from "../components/sort";
+import { upgmaWithBootstrap } from "../lib/multivariate";
+import { Dendrogram } from "../components/Dendrogram";
 
 type Tab = "sites" | "jaccard" | "exclusive";
 
@@ -30,6 +32,37 @@ export default function SiteDistribution() {
   const [tab, setTab] = useState<Tab>(initialTab);
 
   const siteWords = useMemo(() => siteWordSets(wordIndex), [wordIndex]);
+
+  // Average-linkage dendrogram over per-site word profiles (cosine
+  // distance, token-weighted) with seeded bootstrap support. Sites under
+  // 30 word tokens are left out — their profiles are too thin to cluster
+  // honestly, and they'd attach essentially at random.
+  const dendro = useMemo(() => {
+    const tallies = new Map<string, Map<string, number>>();
+    for (const ins of scoped.inscriptions) {
+      if (!ins.site) continue;
+      let m = tallies.get(ins.site);
+      if (!m) {
+        m = new Map();
+        tallies.set(ins.site, m);
+      }
+      for (const w of ins.words) {
+        if (!w.includes("-")) continue;
+        m.set(w, (m.get(w) ?? 0) + 1);
+      }
+    }
+    const items = [...tallies.entries()]
+      .filter(([, m]) => {
+        let t = 0;
+        for (const c of m.values()) t += c;
+        return t >= 30;
+      })
+      .map(([label, counts]) => ({ label, counts }))
+      .sort((a, b) => a.label.localeCompare(b.label));
+    const excluded = tallies.size - items.length;
+    const result = upgmaWithBootstrap(items, { iters: 100, seed: 42 });
+    return result ? { result, excluded, included: items.length } : null;
+  }, [scoped.inscriptions]);
 
   // Vocabulary diversity per site: Shannon entropy over the site's word-
   // token frequencies, normalized by log₂(types) to a 0–1 evenness. High =
@@ -421,6 +454,32 @@ export default function SiteDistribution() {
               ))}
             </tbody>
           </table>
+        </div>
+      )}
+
+      {dendro && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h4>
+            Site clustering — vocabulary-profile dendrogram{" "}
+            <span className="dim">
+              ({dendro.included} sites · 100 bootstrap replicates
+              {dendro.excluded > 0
+                ? ` · ${dendro.excluded} sites under 30 tokens left out`
+                : ""}
+              )
+            </span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Average-linkage clustering of per-site word profiles (cosine
+            distance, token-weighted). The number at each junction is{" "}
+            <b>bootstrap support</b>: the share of 100 word-resampled
+            replicates in which exactly that grouping reappears. A merge at
+            60+ is a finding; a merge in dim gray under 50 is just where
+            the algorithm had to put something — without the support
+            numbers, every dendrogram looks equally confident, which is the
+            usual way these figures mislead.
+          </div>
+          <Dendrogram result={dendro.result} />
         </div>
       )}
     </div>
