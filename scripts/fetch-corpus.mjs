@@ -13,8 +13,11 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const rawPath = resolve(root, ".corpus-raw.js");
 
-const URL =
-  "https://raw.githubusercontent.com/mwenge/lineara.xyz/master/LinearAInscriptions.js";
+// Pinned to the upstream commit the bundled corpus was built from, so a
+// re-fetch is reproducible and an upstream change is a deliberate bump
+// (update the SHA, rebuild, and review the diff) rather than a silent drift.
+const UPSTREAM_SHA = "568f452c7a5ec80fa292cb307ead2fc6f65d07fb"; // 2025-11-12
+const URL = `https://raw.githubusercontent.com/mwenge/lineara.xyz/${UPSTREAM_SHA}/LinearAInscriptions.js`;
 
 console.log(`Fetching ${URL}…`);
 const res = await fetch(URL);
