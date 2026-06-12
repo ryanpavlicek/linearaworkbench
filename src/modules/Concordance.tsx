@@ -14,13 +14,15 @@ import {
   type SnippetColumn,
 } from "../lib/reportSnippet";
 
-type SortMode = "source" | "left" | "right";
+type SortMode = "source" | "left" | "right" | "position";
 
 interface Row {
   inscriptionId: string;
   site: string;
   period: string;
+  word: string; // the matched word (differs from the input under wildcards)
   position: number; // index in the inscription's word list
+  total: number; // the inscription's word-token count (for relative position)
   ordinal: number; // index in the corpus inscription order
   leftCtx: string[];
   rightCtx: string[];
@@ -64,19 +66,40 @@ export default function Concordance() {
   const rows = useMemo<Row[]>(() => {
     if (!target.trim()) return [];
     const upper = target.toUpperCase().trim();
+    // Wildcards: `?` matches one sign, `*` any run of signs —
+    // "KU-?-RO" finds every KU-x-RO; "*-RE" every word ending in RE.
+    const isPattern = /[?*]/.test(upper);
+    let rx: RegExp | null = null;
+    if (isPattern) {
+      try {
+        rx = new RegExp(
+          "^" +
+            upper
+              .replace(/[.+^${}()|[\]\\]/g, "\\$&")
+              .replace(/\*/g, ".*")
+              .replace(/\?/g, "[^-]+") +
+            "$",
+        );
+      } catch {
+        rx = null;
+      }
+    }
     const out: Row[] = [];
     inscriptions.forEach((ins, idx) => {
       if (siteFilter && ins.site !== siteFilter) return;
       if (periodFilter && ins.context !== periodFilter) return;
       ins.words.forEach((w, i) => {
-        if (w.toUpperCase() !== upper) return;
+        const wu = w.toUpperCase();
+        if (isPattern ? !(rx && rx.test(wu)) : wu !== upper) return;
         const leftStart = Math.max(0, i - windowSize);
         const rightEnd = Math.min(ins.words.length, i + windowSize + 1);
         out.push({
           inscriptionId: ins.id,
           site: ins.site,
           period: ins.context,
+          word: w,
           position: i,
+          total: ins.words.length,
           ordinal: idx,
           leftCtx: ins.words.slice(leftStart, i),
           rightCtx: ins.words.slice(i + 1, rightEnd),
@@ -85,6 +108,19 @@ export default function Concordance() {
     });
     return out;
   }, [inscriptions, target, windowSize, siteFilter, periodFilter]);
+
+  // The most frequent multi-sign companions inside the visible windows —
+  // a one-glance summary; the "Collocates →" button gives the
+  // significance-tested view.
+  const windowCompanions = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const r of rows) {
+      for (const w of [...r.leftCtx, ...r.rightCtx]) {
+        if (w.includes("-")) m.set(w, (m.get(w) ?? 0) + 1);
+      }
+    }
+    return [...m.entries()].sort((a, b) => b[1] - a[1]).slice(0, 10);
+  }, [rows]);
 
   const sortedRows = useMemo(() => {
     const copy = [...rows];
@@ -98,6 +134,10 @@ export default function Concordance() {
       copy.sort((a, b) =>
         a.rightCtx.join("\t").localeCompare(b.rightCtx.join("\t")),
       );
+    } else if (sort === "position") {
+      // Relative position within the inscription: document-openers first.
+      const rel = (r: Row) => r.position / Math.max(1, r.total - 1);
+      copy.sort((a, b) => rel(a) - rel(b) || a.ordinal - b.ordinal);
     } else {
       copy.sort((a, b) => a.ordinal - b.ordinal || a.position - b.position);
     }
@@ -208,6 +248,8 @@ export default function Concordance() {
                 "left_context",
                 "keyword",
                 "right_context",
+                "position",
+                "of_words",
                 "inscription_id",
                 "site",
                 "period",
@@ -217,8 +259,10 @@ export default function Concordance() {
                 rowsCsv.push(
                   [
                     r.leftCtx.join(" "),
-                    target.toUpperCase(),
+                    r.word,
                     r.rightCtx.join(" "),
+                    r.position + 1,
+                    r.total,
                     r.inscriptionId,
                     r.site,
                     r.period,
@@ -362,11 +406,44 @@ export default function Concordance() {
 
       {target.trim() && rows.length > 0 && (
         <>
+          {windowCompanions.length > 0 && (
+            <div
+              style={{
+                display: "flex",
+                alignItems: "baseline",
+                gap: 6,
+                flexWrap: "wrap",
+                marginBottom: 6,
+                fontSize: 11,
+              }}
+            >
+              <span
+                className="dim"
+                style={{
+                  font: "600 9px var(--sans)",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                }}
+                title="The most frequent multi-sign words inside the visible context windows — raw counts. The Collocates → button gives the significance-tested tablet-level view."
+              >
+                In-window companions:
+              </span>
+              {windowCompanions.map(([w, c]) => (
+                <span key={w} style={{ whiteSpace: "nowrap" }}>
+                  <WordToken word={w} />
+                  <span className="dim" style={{ fontSize: 10 }}>
+                    ×{c}
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
           <div
             className="dim"
             style={{ fontSize: 11, marginBottom: 6 }}
           >
-            Click a column header to sort.
+            Click a column header to sort. Wildcards in the target: ? = one
+            sign, * = any run (e.g. KU-?-RO, *-RE).
           </div>
           <div className="table-wrap">
             <table>
@@ -395,6 +472,16 @@ export default function Concordance() {
                     }}
                   >
                     Right context {sort === "right" ? "▾" : ""}
+                  </th>
+                  <th
+                    onClick={() => setSort("position")}
+                    style={{
+                      cursor: "pointer",
+                      color: sort === "position" ? "var(--ac)" : undefined,
+                    }}
+                    title="The keyword's slot within its inscription — sort to group document-openers, closers, and everything between"
+                  >
+                    Pos {sort === "position" ? "▾" : ""}
                   </th>
                   <th
                     onClick={() => setSort("source")}
@@ -438,7 +525,7 @@ export default function Concordance() {
                         fontWeight: 600,
                       }}
                     >
-                      <b style={{ color: "var(--ac)" }}>{target.toUpperCase()}</b>
+                      <b style={{ color: "var(--ac)" }}>{r.word}</b>
                     </td>
                     <td
                       style={{
@@ -459,6 +546,13 @@ export default function Concordance() {
                           </span>
                         ),
                       )}
+                    </td>
+                    <td
+                      className="dim"
+                      style={{ fontSize: 10, whiteSpace: "nowrap" }}
+                      title={`Word ${r.position + 1} of ${r.total} on ${r.inscriptionId}`}
+                    >
+                      {r.position + 1}/{r.total}
                     </td>
                     <td style={{ whiteSpace: "nowrap" }}>
                       <InscriptionLink id={r.inscriptionId} />

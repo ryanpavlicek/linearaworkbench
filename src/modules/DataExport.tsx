@@ -152,6 +152,49 @@ export default function DataExport() {
     toast("Exported inscriptions");
   }
 
+  // One row per word TOKEN with full positional metadata — the long/tidy
+  // format statistical tools (pandas, R) want, so positional analyses
+  // don't have to re-derive line and slot indices from the joined text.
+  function tokensCsv() {
+    const rows: (string | number)[][] = [
+      [
+        "inscription",
+        "site",
+        "period",
+        "scribe",
+        "support",
+        "line",
+        "slot",
+        "token",
+        "is_word",
+        "sign_count",
+      ],
+    ];
+    for (const i of inscriptions) {
+      i.lines.forEach((line, li) => {
+        line.forEach((tok, ti) => {
+          rows.push([
+            i.id,
+            i.site,
+            i.context,
+            i.scribe,
+            i.support,
+            li + 1,
+            ti + 1,
+            tok,
+            tok.includes("-") ? "yes" : "",
+            tok.includes("-") ? tok.split("-").length : "",
+          ]);
+        });
+      });
+    }
+    downloadFile(
+      "linear_a_tokens_long.csv",
+      rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+    );
+    toast(`Exported ${rows.length - 1} tokens (long format)`);
+  }
+
   function insJson() {
     downloadFile(
       "linear_a_inscriptions.json",
@@ -472,6 +515,18 @@ export default function DataExport() {
             </button>
             <button className="btn btn-outline btn-sm" onClick={insJson}>
               JSON
+            </button>
+          </div>
+        </div>
+        <div className="card">
+          <h4>Tokens (long format)</h4>
+          <div className="sub">
+            One row per word token with line and slot indices — tidy data
+            for pandas / R
+          </div>
+          <div style={{ marginTop: 10, display: "flex", gap: 6 }}>
+            <button className="btn btn-sm" onClick={tokensCsv}>
+              CSV
             </button>
           </div>
         </div>

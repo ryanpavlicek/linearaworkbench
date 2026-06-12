@@ -31,6 +31,43 @@ export default function SiteDistribution() {
 
   const siteWords = useMemo(() => siteWordSets(wordIndex), [wordIndex]);
 
+  // Vocabulary diversity per site: Shannon entropy over the site's word-
+  // token frequencies, normalized by log₂(types) to a 0–1 evenness. High =
+  // varied vocabulary (many words, none dominating); low = a few formulas
+  // repeated. Distinguishes archive sites from single-formula findspots
+  // beyond what the raw unique-word count shows.
+  const siteDiversity = useMemo(() => {
+    const tallies = new Map<string, Map<string, number>>();
+    for (const ins of scoped.inscriptions) {
+      if (!ins.site) continue;
+      let m = tallies.get(ins.site);
+      if (!m) {
+        m = new Map();
+        tallies.set(ins.site, m);
+      }
+      for (const w of ins.words) {
+        if (!w.includes("-")) continue;
+        m.set(w, (m.get(w) ?? 0) + 1);
+      }
+    }
+    const out = new Map<string, { h: number; evenness: number }>();
+    for (const [site, m] of tallies) {
+      let total = 0;
+      for (const c of m.values()) total += c;
+      if (total === 0 || m.size < 2) {
+        out.set(site, { h: 0, evenness: 0 });
+        continue;
+      }
+      let h = 0;
+      for (const c of m.values()) {
+        const p = c / total;
+        h -= p * Math.log2(p);
+      }
+      out.set(site, { h, evenness: h / Math.log2(m.size) });
+    }
+    return out;
+  }, [scoped.inscriptions]);
+
   const sortedSites = useMemo(
     () => [...siteIndex.entries()].sort((a, b) => b[1].count - a[1].count),
     [siteIndex],
@@ -45,6 +82,7 @@ export default function SiteDistribution() {
       site: ([s]) => s,
       count: ([, d]) => d.count,
       words: ([s]) => siteWords.get(s)?.size ?? 0,
+      diversity: ([s]) => siteDiversity.get(s)?.h ?? 0,
     },
   );
   const maxIns = sortedSites[0]?.[1].count ?? 1;
@@ -219,6 +257,13 @@ export default function SiteDistribution() {
                 <SortHeader label="Site" sortKey="site" sort={sort} onToggle={toggle} />
                 <SortHeader label="Inscriptions" sortKey="count" sort={sort} onToggle={toggle} />
                 <SortHeader label="Unique words" sortKey="words" sort={sort} onToggle={toggle} />
+                <SortHeader
+                  label="Diversity H"
+                  sortKey="diversity"
+                  sort={sort}
+                  onToggle={toggle}
+                  title="Shannon entropy (bits) over the site's word-token frequencies; the parenthesized figure is evenness (H normalized by log₂ of the site's vocabulary). High = a varied working archive; low = a few formulas repeated."
+                />
                 <th>Distribution</th>
               </tr>
             </thead>
@@ -226,6 +271,7 @@ export default function SiteDistribution() {
               {topSites.map(([s, d]) => {
                 const wc = siteWords.get(s)?.size ?? 0;
                 const pct = (d.count / maxIns) * 100;
+                const div = siteDiversity.get(s);
                 return (
                   <tr key={s}>
                     <td>
@@ -233,6 +279,18 @@ export default function SiteDistribution() {
                     </td>
                     <td className="numeral">{d.count}</td>
                     <td className="dim">{wc}</td>
+                    <td
+                      className="dim"
+                      title={
+                        div && div.h > 0
+                          ? `H = ${div.h.toFixed(2)} bits, evenness ${div.evenness.toFixed(2)}`
+                          : "Fewer than two distinct words — diversity undefined"
+                      }
+                    >
+                      {div && div.h > 0
+                        ? `${div.h.toFixed(1)} (${div.evenness.toFixed(2)})`
+                        : "—"}
+                    </td>
                     <td>
                       <div
                         style={{

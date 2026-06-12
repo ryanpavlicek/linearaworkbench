@@ -61,6 +61,18 @@ export default function Notes() {
     () => notes[0]?.id ?? null,
   );
   const [showPreview, setShowPreview] = useState(true);
+  const [q, setQ] = useState("");
+
+  // Full-text filter over titles and bodies — case-insensitive substring.
+  const visibleNotes = useMemo(() => {
+    const u = q.trim().toLowerCase();
+    if (!u) return notes;
+    return notes.filter(
+      (n) =>
+        n.title.toLowerCase().includes(u) ||
+        n.body.toLowerCase().includes(u),
+    );
+  }, [notes, q]);
 
   // Keep the selection on a surviving note.
   useEffect(() => {
@@ -114,9 +126,17 @@ export default function Notes() {
             </button>
             <span style={{ flex: 1 }} />
             <span className="dim" style={{ fontSize: 11 }}>
-              {notes.length}
+              {q.trim() ? `${visibleNotes.length}/${notes.length}` : notes.length}
             </span>
           </div>
+          <input
+            className="input"
+            placeholder="Search notes…"
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            style={{ width: "100%", fontSize: 12, marginBottom: 6 }}
+            title="Case-insensitive search over note titles and bodies"
+          />
           <div
             style={{
               display: "flex",
@@ -131,7 +151,12 @@ export default function Notes() {
                 No notes yet — click <b>+ New note</b> to start one.
               </div>
             )}
-            {notes.map((n) => (
+            {notes.length > 0 && visibleNotes.length === 0 && (
+              <div className="dim" style={{ fontSize: 12, padding: 8 }}>
+                No notes match “{q.trim()}”.
+              </div>
+            )}
+            {visibleNotes.map((n) => (
               <button
                 key={n.id}
                 onClick={() => setSelectedId(n.id)}
