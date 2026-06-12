@@ -74,7 +74,7 @@ the browser.
 | **Your research** | Annotate any word or tablet, build collections, save findings with their actual result tables, write cross-referenced Markdown notes, watch My Lexicon aggregate it all into a working glossary, and compile everything into an interactive single-file report with one-click citations. |
 | **Data in & out** | Permalinks to everything, CSV export on every table, a versioned full-corpus JSON export, a [static data API](docs/API.md), [live embeds](#embedding), one-file backup/restore, and folder auto-backup. Annotations export and re-import with a merge mode, so two researchers can swap and combine their readings. Take it further with an [Obsidian vault or NotebookLM bundle export](docs/FEATURES.md), or [bring your own corpus](#bring-your-own-corpus). |
 
-The complete module-by-module tour — all 39 — is in
+The complete module-by-module tour — all 50 — is in
 [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Run it locally

@@ -71,7 +71,8 @@ export const SECTIONS: Section[] = [
           Lists every module, grouped by category — <b>Research</b> (your
           workspace, including Corpus Search and Corpus Browser) at the top,
           then Vocabulary, Signs &amp; structure, Accounts &amp; content,
-          Hypothesis testing, and Distribution. Above each module's content
+          Hypothesis testing, Distribution, <b>Learn</b> (the guided and
+          practice modules), Programmatic, and Help. Above each module's content
           you'll see a small <b>Descriptive</b> (green) or <b>Exploratory</b>{" "}
           (amber) badge — descriptive modules report direct counts and
           structural observations from the corpus; exploratory modules
