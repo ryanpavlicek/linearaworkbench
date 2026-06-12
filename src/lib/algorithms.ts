@@ -351,6 +351,31 @@ export function keynessG2(
   );
 }
 
+// Gries' DP (deviation of proportions): how unevenly an item is spread
+// across corpus parts, given how big each part is.
+//
+//   DP = ½ · Σᵢ | vᵢ − sᵢ |
+//
+// where sᵢ is part i's share of all tokens and vᵢ is the share of the
+// item's occurrences that fall in part i. 0 = the item is distributed
+// exactly as the part sizes predict; values near 1 = concentrated in one
+// small part. Pairs naturally with raw frequency: KU-RO is frequent AND
+// evenly spread; a scribal idiosyncrasy is frequent in one place only.
+// Gries (2008), "Dispersions and adjusted frequencies in corpora".
+// Returns 0 when the item or the corpus is empty.
+export function griesDP(counts: number[], partSizes: number[]): number {
+  const itemTotal = counts.reduce((s, c) => s + c, 0);
+  const sizeTotal = partSizes.reduce((s, c) => s + c, 0);
+  if (itemTotal <= 0 || sizeTotal <= 0) return 0;
+  let sum = 0;
+  for (let i = 0; i < partSizes.length; i++) {
+    const v = (counts[i] ?? 0) / itemTotal;
+    const s = partSizes[i] / sizeTotal;
+    sum += Math.abs(v - s);
+  }
+  return sum / 2;
+}
+
 // p-value for chi-squared with 1 degree of freedom: P(X² ≥ x) = erfc(√(x/2)).
 // Returns a value in [0, 1].
 export function chiSquaredPValue(x: number): number {

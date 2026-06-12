@@ -1,9 +1,10 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { logLikelihoodRatio2x2 } from "../lib/algorithms";
 import { WordToken } from "../components/WordToken";
+import { InscriptionLink } from "../components/InscriptionLink";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { useSort, SortHeader } from "../components/sort";
 import {
@@ -24,24 +25,36 @@ export default function Ngrams() {
   );
   const [minCount, setMinCount] = useState(2);
   const [q, setQ] = useState("");
+  const [expanded, setExpanded] = useState<string | null>(null);
   const { sort, toggle, sortRows } = useSort("count", "desc");
 
   // Full bigram/trigram tallies (every sequence attested at least once),
-  // plus the marginals needed to test bigram association: how often each
+  // plus the marginals needed to test bigram association (how often each
   // word fills the left or right slot of an adjacent pair, and the total
-  // number of pairs.
-  const { bigrams, trigrams, leftCounts, rightCounts, pairTotal } =
+  // number of pairs) and the distinct tablets carrying each sequence (for
+  // the expandable rows).
+  const { bigrams, trigrams, leftCounts, rightCounts, pairTotal, sources } =
     useMemo(() => {
       const bi = new Map<string, number>();
       const tri = new Map<string, number>();
       const left = new Map<string, number>();
       const right = new Map<string, number>();
+      const src = new Map<string, Set<string>>();
+      const note = (k: string, id: string) => {
+        let s = src.get(k);
+        if (!s) {
+          s = new Set();
+          src.set(k, s);
+        }
+        s.add(id);
+      };
       let pairs = 0;
       for (const ins of inscriptions) {
         const ws = ins.words.filter((w) => w.includes("-"));
         for (let i = 0; i < ws.length - 1; i++) {
           const k = `${ws[i]} ${ws[i + 1]}`;
           bi.set(k, (bi.get(k) ?? 0) + 1);
+          note(k, ins.id);
           left.set(ws[i], (left.get(ws[i]) ?? 0) + 1);
           right.set(ws[i + 1], (right.get(ws[i + 1]) ?? 0) + 1);
           pairs++;
@@ -49,6 +62,7 @@ export default function Ngrams() {
         for (let i = 0; i < ws.length - 2; i++) {
           const k = `${ws[i]} ${ws[i + 1]} ${ws[i + 2]}`;
           tri.set(k, (tri.get(k) ?? 0) + 1);
+          note(k, ins.id);
         }
       }
       return {
@@ -57,6 +71,7 @@ export default function Ngrams() {
         leftCounts: left,
         rightCounts: right,
         pairTotal: pairs,
+        sources: src,
       };
     }, [inscriptions]);
 
@@ -294,34 +309,77 @@ export default function Ngrams() {
           <tbody>
             {display.map(([k, c], i) => {
               const a = mode === "bi" ? assoc.get(k) : undefined;
+              const isOpen = expanded === k;
+              const ids = isOpen
+                ? [...(sources.get(k) ?? [])].sort((x, y) =>
+                    x.localeCompare(y),
+                  )
+                : [];
               return (
-                <tr key={k}>
-                  <td className="dim">{i + 1}</td>
-                  <td>
-                    {k.split(" ").map((w, j) => (
-                      <WordToken key={j} word={w} />
-                    ))}
-                  </td>
-                  <td className="numeral">{c}</td>
-                  {mode === "bi" && (
-                    <>
-                      <td className="numeral">
-                        {a ? a.pmi.toFixed(2) : "—"}
-                      </td>
-                      <td
-                        className="numeral"
-                        style={{
-                          color:
-                            a && a.g2 >= 3.84
-                              ? "var(--gn)"
-                              : "var(--text-muted)",
-                        }}
+                <Fragment key={k}>
+                  <tr
+                    style={{ cursor: "pointer" }}
+                    onClick={() => setExpanded(isOpen ? null : k)}
+                    title="Click to list the tablets carrying this sequence"
+                  >
+                    <td className="dim">
+                      <span
+                        style={{ marginRight: 4, color: "var(--text-muted)" }}
                       >
-                        {a ? a.g2.toFixed(1) : "—"}
+                        {isOpen ? "▾" : "▸"}
+                      </span>
+                      {i + 1}
+                    </td>
+                    <td>
+                      {k.split(" ").map((w, j) => (
+                        <WordToken key={j} word={w} />
+                      ))}
+                    </td>
+                    <td className="numeral">{c}</td>
+                    {mode === "bi" && (
+                      <>
+                        <td className="numeral">
+                          {a ? a.pmi.toFixed(2) : "—"}
+                        </td>
+                        <td
+                          className="numeral"
+                          style={{
+                            color:
+                              a && a.g2 >= 3.84
+                                ? "var(--gn)"
+                                : "var(--text-muted)",
+                          }}
+                        >
+                          {a ? a.g2.toFixed(1) : "—"}
+                        </td>
+                      </>
+                    )}
+                  </tr>
+                  {isOpen && (
+                    <tr>
+                      <td
+                        colSpan={mode === "bi" ? 5 : 3}
+                        style={{ padding: "6px 12px" }}
+                      >
+                        <span
+                          className="dim"
+                          style={{ fontSize: 11, marginRight: 8 }}
+                        >
+                          On {ids.length} tablet{ids.length === 1 ? "" : "s"}:
+                        </span>
+                        {ids.slice(0, 30).map((id, j) => (
+                          <span key={id} style={{ fontSize: 12 }}>
+                            {j > 0 ? ", " : ""}
+                            <InscriptionLink id={id} />
+                          </span>
+                        ))}
+                        {ids.length > 30 && (
+                          <span className="dim"> +{ids.length - 30} more</span>
+                        )}
                       </td>
-                    </>
+                    </tr>
                   )}
-                </tr>
+                </Fragment>
               );
             })}
             {display.length === 0 && (

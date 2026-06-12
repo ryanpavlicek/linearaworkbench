@@ -1,7 +1,11 @@
 import { useMemo, useRef, useState } from "react";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import type { MultiWordEntry } from "../lib/helpers";
-import { useScopedMultiWords, useScopeOptions } from "../store/scope";
+import {
+  useScopedCorpus,
+  useScopedMultiWords,
+  useScopeOptions,
+} from "../store/scope";
 import { useWorkbench, buildIndex } from "../store/workbench";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
@@ -23,6 +27,8 @@ interface LexStats {
   hapax: number;
   dis: number;
   ttr: number;
+  yuleK: number;
+  herdanC: number;
   zipf: { rank: number; freq: number; word: string }[];
   spectrum: [number, number][];
 }
@@ -38,19 +44,69 @@ function computeLexStats(words: MultiWordEntry[]): LexStats {
   const hapax = freqSpectrum.get(1) ?? 0;
   const dis = freqSpectrum.get(2) ?? 0;
   const ttr = tokens > 0 ? types / tokens : 0;
+  // Yule's K — repeat-rate of vocabulary, much less sensitive to corpus
+  // size than raw TTR: K = 10⁴ · (Σ m²·V(m) − N) / N², where V(m) is the
+  // number of types occurring m times. Higher = more repetitive.
+  let m2v = 0;
+  for (const [m, v] of freqSpectrum) m2v += m * m * v;
+  const yuleK = tokens > 0 ? (10_000 * (m2v - tokens)) / (tokens * tokens) : 0;
+  // Herdan's C — log-scaled type-token ratio (log V / log N), the classic
+  // size-robust vocabulary-richness constant.
+  const herdanC =
+    tokens > 1 && types > 0 ? Math.log(types) / Math.log(tokens) : 0;
   const zipf = words.map((w, i) => ({
     rank: i + 1,
     freq: w.entry.count,
     word: w.word,
   }));
   const spectrum = [...freqSpectrum.entries()].sort((a, b) => a[0] - b[0]);
-  return { types, tokens, hapax, dis, ttr, zipf, spectrum };
+  return { types, tokens, hapax, dis, ttr, yuleK, herdanC, zipf, spectrum };
+}
+
+// Zipf–Mandelbrot fit: log f = log C − s·log(rank + β). For each candidate
+// β on a small grid, the best s and intercept come from ordinary least
+// squares in log space; keep the β with the highest R². β=0 reduces to a
+// plain Zipf power-law fit, so the fit can only match or beat it.
+function fitZipfMandelbrot(
+  zipf: { rank: number; freq: number }[],
+): { s: number; beta: number; r2: number; logC: number } | null {
+  if (zipf.length < 5) return null;
+  let best: { s: number; beta: number; r2: number; logC: number } | null =
+    null;
+  for (let beta = 0; beta <= 10; beta += 0.25) {
+    let sx = 0;
+    let sy = 0;
+    let sxx = 0;
+    let sxy = 0;
+    let syy = 0;
+    const n = zipf.length;
+    for (const p of zipf) {
+      const x = Math.log(p.rank + beta);
+      const y = Math.log(p.freq);
+      sx += x;
+      sy += y;
+      sxx += x * x;
+      sxy += x * y;
+      syy += y * y;
+    }
+    const denom = n * sxx - sx * sx;
+    if (denom === 0) continue;
+    const slope = (n * sxy - sx * sy) / denom;
+    const intercept = (sy - slope * sx) / n;
+    const ssTot = syy - (sy * sy) / n;
+    const ssRes = ssTot - (slope * (n * sxy - sx * sy)) / n;
+    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+    if (!best || r2 > best.r2)
+      best = { s: -slope, beta, r2, logC: intercept };
+  }
+  return best;
 }
 
 type CompareMode = "none" | "corpus" | "site" | "period";
 
 export default function LexicalStats() {
   const words = useScopedMultiWords();
+  const scoped = useScopedCorpus();
   const corpus = useWorkbench((s) => s.corpus);
   const options = useScopeOptions();
   // Ref to the rendered Zipf SVG so reportFn can serialize and inline it
@@ -62,6 +118,25 @@ export default function LexicalStats() {
   const [comparePeriod, setComparePeriod] = useState("");
 
   const stats = useMemo(() => computeLexStats(words), [words]);
+  const zipfFit = useMemo(() => fitZipfMandelbrot(stats.zipf), [stats.zipf]);
+
+  // Vocabulary growth: distinct types observed as tokens accumulate in
+  // corpus document order. A flattening curve means the vocabulary is
+  // saturating; a still-climbing one means much remains unobserved.
+  const growth = useMemo(() => {
+    const seen = new Set<string>();
+    const points: { tokens: number; types: number }[] = [{ tokens: 0, types: 0 }];
+    let tok = 0;
+    for (const ins of scoped.inscriptions) {
+      for (const w of ins.words) {
+        if (!w.includes("-")) continue;
+        tok++;
+        seen.add(w);
+      }
+      points.push({ tokens: tok, types: seen.size });
+    }
+    return points;
+  }, [scoped.inscriptions]);
 
   // Comparison set B: an independently-filtered slice of the *full* corpus
   // (so it's unaffected by the active scope) selected by the controls below.
@@ -127,6 +202,21 @@ export default function LexicalStats() {
     };
     const idealStart = `M${x(1).toFixed(1)},${y(A[0].freq).toFixed(1)}`;
     const idealEnd = `L${x(A.length).toFixed(1)},${y(Math.max(1, A[0].freq / A.length)).toFixed(1)}`;
+    // Fitted Zipf–Mandelbrot curve, clamped to the plotted frequency range.
+    let fitted: string | null = null;
+    if (zipfFit) {
+      const pts: string[] = [];
+      const steps = 60;
+      for (let i = 0; i <= steps; i++) {
+        const r = Math.pow(A.length, i / steps); // log-spaced ranks 1..N
+        const f = Math.exp(zipfFit.logC - zipfFit.s * Math.log(r + zipfFit.beta));
+        if (f < 0.8 || f > maxFreq * 1.5) continue;
+        pts.push(
+          `${pts.length === 0 ? "M" : "L"}${x(r).toFixed(1)},${y(Math.max(1, f)).toFixed(1)}`,
+        );
+      }
+      fitted = pts.length >= 2 ? pts.join(" ") : null;
+    }
     return {
       W,
       H,
@@ -134,8 +224,9 @@ export default function LexicalStats() {
       dA: pathFor(A),
       dB: B ? pathFor(B) : null,
       ideal: `${idealStart} ${idealEnd}`,
+      fitted,
     };
-  }, [stats.zipf, compStats]);
+  }, [stats.zipf, compStats, zipfFit]);
 
   const maxSpectrum = Math.max(...stats.spectrum.map(([, c]) => c), 1);
 
@@ -143,10 +234,13 @@ export default function LexicalStats() {
     stats.types > 0 ? ((stats.hapax / stats.types) * 100).toFixed(0) : "0";
   const findingSummary =
     `${stats.types.toLocaleString()} types · ${stats.tokens.toLocaleString()} tokens · ` +
-    `TTR ${stats.ttr.toFixed(3)} · ${hapaxPct}% hapax.\n` +
-    `Spectrum: ${stats.hapax.toLocaleString()} words occur once, ${stats.dis.toLocaleString()} twice.` +
+    `TTR ${stats.ttr.toFixed(3)} · ${hapaxPct}% hapax · Yule's K ${stats.yuleK.toFixed(0)} · Herdan's C ${stats.herdanC.toFixed(3)}.` +
+    (zipfFit
+      ? `\nZipf–Mandelbrot fit: s=${zipfFit.s.toFixed(2)}, β=${zipfFit.beta.toFixed(2)}, R²=${zipfFit.r2.toFixed(3)}.`
+      : "") +
+    `\nSpectrum: ${stats.hapax.toLocaleString()} words occur once, ${stats.dis.toLocaleString()} twice.` +
     (compStats
-      ? `\nvs ${compareLabel}: ${compStats.types.toLocaleString()} types · TTR ${compStats.ttr.toFixed(3)}.`
+      ? `\nvs ${compareLabel}: ${compStats.types.toLocaleString()} types · TTR ${compStats.ttr.toFixed(3)} · K ${compStats.yuleK.toFixed(0)}.`
       : "");
 
   function exportCsv() {
@@ -154,6 +248,15 @@ export default function LexicalStats() {
     for (const [freq, count] of stats.spectrum) rows.push([freq, count]);
     downloadFile(
       "linear_a_frequency_spectrum.csv",
+      rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+    );
+  }
+
+  function exportGrowthCsv() {
+    const rows: (string | number)[][] = [["tokens_seen", "distinct_types"]];
+    for (const p of growth) rows.push([p.tokens, p.types]);
+    downloadFile(
+      "linear_a_vocabulary_growth.csv",
       rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
     );
   }
@@ -192,6 +295,20 @@ export default function LexicalStats() {
         <div className="stat-box">
           <span className="val">{hapaxPct}%</span>
           <span className="lbl">Hapax legomena</span>
+        </div>
+        <div
+          className="stat-box"
+          title="Yule's K = 10⁴·(Σ m²·V(m) − N)/N² — vocabulary repeat-rate, far less sensitive to corpus size than raw TTR. Higher = more repetitive vocabulary. Literary Greek runs ~60–100; administrative text runs higher."
+        >
+          <span className="val">{stats.yuleK.toFixed(0)}</span>
+          <span className="lbl">Yule's K</span>
+        </div>
+        <div
+          className="stat-box"
+          title="Herdan's C = log(types)/log(tokens) — size-robust vocabulary richness; natural-language corpora typically fall around 0.85–0.95."
+        >
+          <span className="val">{stats.herdanC.toFixed(3)}</span>
+          <span className="lbl">Herdan's C</span>
         </div>
       </div>
 
@@ -248,6 +365,13 @@ export default function LexicalStats() {
         <button className="btn btn-outline btn-sm" onClick={exportCsv}>
           Export CSV (spectrum)
         </button>
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={exportGrowthCsv}
+          title="Tokens-seen vs distinct-types curve, one row per inscription in corpus order"
+        >
+          Export CSV (growth)
+        </button>
         <SaveFindingButton
           module="lexstats"
           moduleLabel="Lexical Statistics"
@@ -287,6 +411,16 @@ export default function LexicalStats() {
               { label: "Types (distinct words)", a: stats.types.toLocaleString(), b: compStats?.types.toLocaleString() },
               { label: "Tokens (occurrences)", a: stats.tokens.toLocaleString(), b: compStats?.tokens.toLocaleString() },
               { label: "Type–token ratio", a: stats.ttr.toFixed(3), b: compStats?.ttr.toFixed(3) },
+              { label: "Yule's K", a: stats.yuleK.toFixed(0), b: compStats?.yuleK.toFixed(0) },
+              { label: "Herdan's C", a: stats.herdanC.toFixed(3), b: compStats?.herdanC.toFixed(3) },
+              ...(zipfFit
+                ? [
+                    {
+                      label: "Zipf–Mandelbrot fit",
+                      a: `s=${zipfFit.s.toFixed(2)}, β=${zipfFit.beta.toFixed(2)}, R²=${zipfFit.r2.toFixed(3)}`,
+                    } as StatRow,
+                  ]
+                : []),
               { label: "Hapax legomena", a: `${stats.hapax.toLocaleString()} (${hapaxPct}%)`, b: compStats ? `${compStats.hapax.toLocaleString()} (${compStats.types > 0 ? ((compStats.hapax / compStats.types) * 100).toFixed(0) : "0"}%)` : undefined },
               { label: "Dis legomena (×2)", a: stats.dis.toLocaleString(), b: compStats?.dis.toLocaleString() },
             ];
@@ -386,8 +520,21 @@ export default function LexicalStats() {
                 {compareLabel}.{" "}
               </>
             ) : null}
-            Dashed: ideal Zipf (freq ∝ 1/rank). A straight-ish line parallel to
-            the dashed reference means Zipfian behavior.
+            Dashed: ideal Zipf (freq ∝ 1/rank).{" "}
+            {zipfFit && (
+              <>
+                <span style={{ color: "var(--gn)" }}>Green</span>: fitted
+                Zipf–Mandelbrot{" "}
+                <span
+                  style={{ fontFamily: "var(--mono)" }}
+                  title="f(r) ∝ 1/(r+β)^s, fitted by least squares in log space over a β grid. s near 1 with high R² = Zipfian; β shifts the head of the curve."
+                >
+                  s={zipfFit.s.toFixed(2)}, β={zipfFit.beta.toFixed(2)}, R²=
+                  {zipfFit.r2.toFixed(3)}
+                </span>
+                .
+              </>
+            )}
           </div>
           {chart ? (
             <svg
@@ -440,6 +587,15 @@ export default function LexicalStats() {
                 strokeDasharray="4 4"
                 fill="none"
               />
+              {chart.fitted && (
+                <path
+                  d={chart.fitted}
+                  stroke="var(--gn)"
+                  strokeWidth={1.25}
+                  fill="none"
+                  opacity={0.8}
+                />
+              )}
               {chart.dB && (
                 <path
                   d={chart.dB}
@@ -503,6 +659,114 @@ export default function LexicalStats() {
           </div>
         </div>
       </div>
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <h4>Vocabulary growth</h4>
+        <div className="sub" style={{ marginBottom: 8 }}>
+          Distinct words observed as tokens accumulate, walking the corpus in
+          document order. A flattening curve means the vocabulary is
+          saturating — most of what the scribes wrote, we've seen; a curve
+          still climbing at the right edge means more excavation would keep
+          yielding new words. The dashed diagonal is the every-token-new
+          ceiling.
+        </div>
+        <GrowthChart points={growth} />
+      </div>
     </div>
+  );
+}
+
+// Linear-scale types-vs-tokens curve with an every-token-new reference
+// diagonal. Kept simple on purpose: one series, the shape is the message.
+function GrowthChart({
+  points,
+}: {
+  points: { tokens: number; types: number }[];
+}) {
+  const last = points[points.length - 1];
+  if (!last || last.tokens < 2) {
+    return <div className="dim">Not enough data.</div>;
+  }
+  const W = 560;
+  const H = 260;
+  const PAD = 40;
+  const x = (t: number) => PAD + (t / last.tokens) * (W - 2 * PAD);
+  const y = (v: number) => H - PAD - (v / last.tokens) * (H - 2 * PAD);
+  // Sample to ~300 segments so the path stays light.
+  const step = Math.max(1, Math.floor(points.length / 300));
+  const sampled = points.filter(
+    (_, i) => i % step === 0 || i === points.length - 1,
+  );
+  const d = sampled
+    .map(
+      (p, i) =>
+        `${i === 0 ? "M" : "L"}${x(p.tokens).toFixed(1)},${y(p.types).toFixed(1)}`,
+    )
+    .join(" ");
+  return (
+    <svg
+      viewBox={`0 0 ${W} ${H}`}
+      style={{ width: "100%", height: "auto", maxWidth: 640 }}
+      role="img"
+      aria-label={`Vocabulary growth curve: ${last.types.toLocaleString()} distinct words after ${last.tokens.toLocaleString()} tokens in corpus order, against an every-token-new reference diagonal`}
+    >
+      <line
+        x1={PAD}
+        y1={H - PAD}
+        x2={W - PAD}
+        y2={H - PAD}
+        stroke="var(--border-strong)"
+      />
+      <line
+        x1={PAD}
+        y1={PAD}
+        x2={PAD}
+        y2={H - PAD}
+        stroke="var(--border-strong)"
+      />
+      <text
+        x={W / 2}
+        y={H - 6}
+        fill="var(--text-muted)"
+        fontSize={10}
+        textAnchor="middle"
+        fontFamily="var(--sans)"
+      >
+        tokens seen (corpus order) →
+      </text>
+      <text
+        x={12}
+        y={H / 2}
+        fill="var(--text-muted)"
+        fontSize={10}
+        textAnchor="middle"
+        fontFamily="var(--sans)"
+        transform={`rotate(-90 12 ${H / 2})`}
+      >
+        distinct words →
+      </text>
+      {/* every-token-new ceiling */}
+      <line
+        x1={x(0)}
+        y1={y(0)}
+        x2={x(last.tokens)}
+        y2={y(last.tokens)}
+        stroke="var(--text-muted)"
+        strokeWidth={1}
+        strokeDasharray="4 4"
+      />
+      <path d={d} stroke="var(--ac)" strokeWidth={1.5} fill="none" />
+      <text
+        x={x(last.tokens) - 4}
+        y={y(last.types) - 6}
+        fill="var(--text)"
+        fontSize={10}
+        textAnchor="end"
+        fontFamily="var(--mono)"
+      >
+        {last.types.toLocaleString()} types / {last.tokens.toLocaleString()}{" "}
+        tokens
+      </text>
+    </svg>
   );
 }

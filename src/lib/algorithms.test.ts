@@ -15,6 +15,7 @@ import {
   wilsonInterval,
   cooccurrencePairs,
   keynessG2,
+  griesDP,
   sequenceDistance,
   sequenceSimilarity,
   findMorphologicalClusters,
@@ -140,6 +141,37 @@ describe("keynessG2", () => {
     expect(keynessG2(0, 100, 0, 200)).toBe(0);
     expect(keynessG2(5, 0, 1, 10)).toBe(0);
     expect(keynessG2(100, 100, 200, 200)).toBe(0);
+  });
+});
+
+describe("griesDP", () => {
+  it("is 0 when the item tracks the part sizes exactly", () => {
+    // parts 100/200/300 tokens; item 1/2/3 — same proportions
+    expect(griesDP([1, 2, 3], [100, 200, 300])).toBeCloseTo(0, 10);
+  });
+
+  it("matches the hand-computed value for a concentrated item", () => {
+    // equal thirds; all 6 occurrences in part 1:
+    // |1−⅓| + |0−⅓| + |0−⅓| = 4/3 → DP = 2/3
+    expect(griesDP([6, 0, 0], [100, 100, 100])).toBeCloseTo(2 / 3, 10);
+  });
+
+  it("rises as concentration rises", () => {
+    const even = griesDP([2, 2, 2], [100, 100, 100]);
+    const skewed = griesDP([4, 1, 1], [100, 100, 100]);
+    const all = griesDP([6, 0, 0], [100, 100, 100]);
+    expect(skewed).toBeGreaterThan(even);
+    expect(all).toBeGreaterThan(skewed);
+  });
+
+  it("weights by part size: filling a small part is more dispersed-looking than its share", () => {
+    // item only in the small part (10 of 110 tokens): DP = ½(|1−1/11| + |0−10/11|) = 10/11
+    expect(griesDP([3, 0], [10, 100])).toBeCloseTo(10 / 11, 10);
+  });
+
+  it("returns 0 for an unattested item or empty corpus", () => {
+    expect(griesDP([0, 0], [100, 100])).toBe(0);
+    expect(griesDP([1, 2], [0, 0])).toBe(0);
   });
 });
 
