@@ -6,6 +6,58 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+Deeper analysis in the existing modules:
+
+- **Word Frequency** learns dispersion (Gries' DP across find-sites),
+  keyness against the rest of the corpus while a Scope is active, and
+  *anchor* tags for the conventionally-read vocabulary (KU-RO, KI-RO,
+  PO-TO-KU-RO, the libation formula words — one shared list with the
+  accounting parser and structure classifier).
+- **Lexical Statistics** adds Yule's K and Herdan's C, a fitted
+  Zipf–Mandelbrot curve (s, β, R² reported on the chart), and a
+  vocabulary-growth curve with CSV export.
+- **Sign Transitions** gains a PMI heat mode (attraction blue, repulsion
+  red), expected counts on never-cells, and a "strongest gaps" list —
+  never-attested pairs of frequent signs ranked by how often they should
+  occur, the candidate graphotactic constraints.
+- **Sign Concordance** shows each sign's glyph, top carrier words, and a
+  positional-entropy column (how locked to one slot a sign is).
+- **Minimal Pairs** phonologically types every alternation under the
+  conventional AB values (V-alternation — the inflection signature —
+  C-alternation, CV, or unknowable), adds a vowel-alternation grid, and
+  an on-demand chance baseline from randomized vocabularies.
+- **Accounting & Metrology** tests KI-RO reconciliation (does the
+  deficit line explain the arithmetic?), adds a worst-Δ column, a
+  discrepancy-size histogram, and use-as-scope; zero reconciliations is
+  reported as a result (HT 123's deficit column is damaged in the
+  source transcription).
+- **Commodity Catalog**: the undeciphered *NNN logograms are now
+  first-class — same detail panel, scope, and map overlay as catalog
+  commodities.
+- **Tablet Structure** now uses the one shared classifier everywhere (a
+  stale local copy disagreed), and adds a category-by-site cross-tab
+  plus a review queue of the unclassified tablets with the most content.
+- **Libation Formulas** replaces the naive slot table with an anchored
+  alignment (canonical anchor order computed from the corpus), a
+  what-fills-each-slot card, and a candidate-variants finder that
+  surfaces the A-SA-SA-RA-ME family; U-NA-KA-NA-SI and I-PI-NA-MA join
+  the shared formula list.
+- **Name Candidates** counts shared counted-lines with the VIR/MUL
+  person logograms (sortable, in CSV) and tallies recurring name
+  endings across whatever verdict slice is shown.
+- **Root Cognates** shows each member's vowel melody, badges families
+  corroborated by attested minimal pairs, and lists vowel alternations
+  recurring across independent families.
+- **Cross-Linguistic** gains a corpus-context panel beside the matches
+  (sites, tablets, neighbors — does the proposed meaning fit?), a
+  *Chance* column calibrating each match against the whole corpus
+  ("top <1%" vs "a third of the corpus matches this well"), and a
+  reverse lookup — type `kupairos`, get KU-PA-RI.
+- **Sound Shift**'s sign grid shows each sign's attestation count and
+  top carrier inline, and the evaluation table can run against one of
+  your word collections instead of the auto-selected words.
+- **N-grams** rows expand to the tablets carrying the sequence.
+
 Statistical rigor, on by choice:
 
 - A shared **Dunning's G²** keyness test (in

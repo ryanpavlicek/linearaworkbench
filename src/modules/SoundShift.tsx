@@ -42,12 +42,57 @@ export default function SoundShift() {
   const modified = Object.keys(hyp).length;
   const modifiedSigns = Object.keys(hyp);
 
+  // Per-sign corpus context for the edit grid: how attested is the sign,
+  // and what's its most frequent carrier word — so you know what you're
+  // editing before you edit it.
+  const signContext = useMemo(() => {
+    const m = new Map<string, { count: number; topWord: string }>();
+    for (const { word, entry } of words) {
+      for (const p of word.split("-")) {
+        const norm = p.replace(/[₂₃₄*]/g, "");
+        const cur = m.get(norm);
+        if (!cur) m.set(norm, { count: entry.count, topWord: word });
+        else cur.count += entry.count;
+        // words arrive sorted by count desc, so the first carrier IS the top one
+      }
+    }
+    return m;
+  }, [words]);
+
+  // Optional collection-based evaluation set: test the hypothesis against
+  // YOUR word list (a collection) instead of the auto-selected words —
+  // e.g. the libation vocabulary, or your accepted name candidates.
+  const collections = useWorkbench((s) => s.collections);
+  const [evalSource, setEvalSource] = useState<string>("auto");
+  const wordCollections = useMemo(
+    () =>
+      collections
+        .map((c) => ({
+          id: c.id,
+          name: c.name,
+          words: c.items.filter((i) => i.kind === "word").map((i) => i.value),
+        }))
+        .filter((c) => c.words.length > 0),
+    [collections],
+  );
+
   // Evaluation set: with no overrides, the corpus's top words (a preview of
   // what editing will affect). With overrides, the words that actually
   // CONTAIN a modified sign — evaluating a rare-sign hypothesis against the
   // global top-20 would show all-zero deltas and look broken. Sign lookup
-  // strips ₂₃₄* exactly the way wordToPhonetic does.
+  // strips ₂₃₄* exactly the way wordToPhonetic does. A chosen collection
+  // replaces the auto selection outright.
   const top = useMemo(() => {
+    if (evalSource !== "auto") {
+      const coll = wordCollections.find((c) => c.id === evalSource);
+      if (coll) {
+        const byWord = new Map(words.map((w) => [w.word, w]));
+        return coll.words
+          .map((w) => byWord.get(w.toUpperCase()))
+          .filter((w): w is (typeof words)[number] => !!w)
+          .slice(0, 50);
+      }
+    }
     if (modifiedSigns.length === 0) return words.slice(0, 20);
     const touched = new Set(
       modifiedSigns.map((s) => s.replace(/[₂₃₄*]/g, "")),
@@ -57,7 +102,7 @@ export default function SoundShift() {
         word.split("-").some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
       )
       .slice(0, 50);
-  }, [words, modifiedSigns]);
+  }, [words, modifiedSigns, evalSource, wordCollections]);
 
   // Match-delta: for each top word, the closest reference-language match under
   // the *standard* reading vs the *modified* reading, and the change in score.
@@ -321,13 +366,55 @@ export default function SoundShift() {
         </div>
       )}
 
+      {wordCollections.length > 0 && (
+        <div className="toolbar" style={{ marginTop: 8 }}>
+          <label
+            className="dim"
+            style={{ display: "flex", alignItems: "center", gap: 4 }}
+            title="What words the evaluation table below scores. Auto = the words containing a modified sign (or the corpus top-20 before any edit); or pick one of your word collections — e.g. the accepted name candidates."
+          >
+            evaluate against
+            <select
+              className="select"
+              value={evalSource}
+              onChange={(e) => setEvalSource(e.target.value)}
+              style={{ fontSize: 11, padding: "3px 6px" }}
+            >
+              <option value="auto">affected words (auto)</option>
+              {wordCollections.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name} ({c.words.length})
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+
       <div className="hyp-grid">
         {signs.map((s) => {
           const isMod = hyp[s] !== undefined;
           const cur = hyp[s] ?? PHONETIC_MAP[s] ?? "?";
+          const ctx = signContext.get(s);
           return (
-            <div key={s} className={`hyp-cell${isMod ? " modified" : ""}`}>
-              <label>{s}</label>
+            <div
+              key={s}
+              className={`hyp-cell${isMod ? " modified" : ""}`}
+              title={
+                ctx
+                  ? `${s}: ${ctx.count} word-token occurrence${ctx.count === 1 ? "" : "s"} in scope · most frequent carrier ${ctx.topWord}`
+                  : `${s}: not attested in any multi-sign word in scope`
+              }
+            >
+              <label>
+                {s}
+                <span
+                  className="dim"
+                  style={{ fontSize: 9, marginLeft: 4 }}
+                >
+                  {ctx ? `×${ctx.count}` : "—"}
+                </span>
+              </label>
               <input
                 className="input"
                 value={cur}

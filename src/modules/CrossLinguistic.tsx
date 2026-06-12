@@ -18,7 +18,9 @@ import {
 } from "../lib/algorithms";
 import type { Confidence, MatchResult, ComparisonEntry } from "../lib/types";
 import { languageLabel } from "../data/languages";
+import { useScopedCorpus } from "../store/scope";
 import { WordToken } from "../components/WordToken";
+import { InscriptionLink } from "../components/InscriptionLink";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { WordAutocomplete } from "../components/WordAutocomplete";
 import { useSort, SortHeader } from "../components/sort";
@@ -123,6 +125,96 @@ export default function CrossLinguistic() {
   const [bulk, setBulk] = useState<
     { la: string; count: number; match: MatchResult }[] | null
   >(null);
+  const scoped = useScopedCorpus();
+  const [reverseQ, setReverseQ] = useState("");
+  const [reverseRows, setReverseRows] = useState<
+    { word: string; count: number; dist: number }[] | null
+  >(null);
+
+  // Every scoped corpus word with its phonetic key — shared by the chance
+  // calibration and the reverse lookup.
+  const corpusPhon = useMemo(
+    () =>
+      words.map((w) => ({
+        word: w.word,
+        count: w.entry.count,
+        ph: wordToPhonetic(w.word, hyp),
+      })),
+    [words, hyp],
+  );
+
+  // Chance calibration for the ranked matches: what share of corpus words
+  // match this reference entry at least as well? Not a formal p-value —
+  // an empirical "how unusual is this score" yardstick. A 90% match that
+  // a third of the corpus also achieves is the metric being generous, not
+  // a cognate.
+  const matchChance = useMemo(() => {
+    if (!matches || corpusPhon.length === 0) return null;
+    const m = new Map<string, number>();
+    for (const match of matches.slice(0, 50)) {
+      const key = `${match.lang}|${match.word}`;
+      if (m.has(key)) continue;
+      let better = 0;
+      for (const c of corpusPhon) {
+        if (
+          phoneticDistance(c.ph, match.comparePhonetic, weights, classes) <=
+          match.dist
+        )
+          better++;
+      }
+      m.set(key, better / corpusPhon.length);
+    }
+    return m;
+  }, [matches, corpusPhon, weights, classes]);
+
+  // Corpus context for the focused word — sites, tablets, and immediate
+  // neighbors. A proposed cognate meaning should square with how the word
+  // actually behaves on the tablets.
+  const context = useMemo(() => {
+    const w = word.toUpperCase().trim();
+    if (!w || !matches) return null;
+    const entry = scoped.wordIndex.get(w);
+    if (!entry) return null;
+    const neighbors = new Map<string, number>();
+    const ids: string[] = [];
+    for (const ins of scoped.inscriptions) {
+      if (!ins.words.includes(w)) continue;
+      ids.push(ins.id);
+      ins.words.forEach((t, i) => {
+        if (t !== w) return;
+        for (const nb of [ins.words[i - 1], ins.words[i + 1]]) {
+          if (nb && nb.includes("-"))
+            neighbors.set(nb, (neighbors.get(nb) ?? 0) + 1);
+        }
+      });
+    }
+    return {
+      count: entry.count,
+      sites: [...entry.sites],
+      ids,
+      neighbors: [...neighbors.entries()]
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 6),
+    };
+  }, [word, matches, scoped]);
+
+  // Reverse lookup: start from a reference-language form and find the
+  // Linear A words closest to it.
+  function reverse() {
+    const q = reverseQ.trim();
+    if (!q) return;
+    const key = referenceKey(q, scheme.stripNotation);
+    setReverseRows(
+      corpusPhon
+        .map((c) => ({
+          word: c.word,
+          count: c.count,
+          dist: phoneticDistance(c.ph, key, weights, classes),
+        }))
+        .sort((a, b) => a.dist - b.dist)
+        .slice(0, 15),
+    );
+  }
   // Honor a deep-link intent from the Help system (e.g. "open with the
   // alignment matrix selected"). Read once at mount via getState so we
   // don't subscribe to intent changes.
@@ -769,11 +861,68 @@ export default function CrossLinguistic() {
               }}
             />
           </div>
+          {context && (
+            <div className="card" style={{ marginBottom: 8 }}>
+              <div
+                style={{
+                  font: "600 9px var(--sans)",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                  marginBottom: 4,
+                }}
+              >
+                Corpus context — does a proposed meaning fit how the word
+                behaves?
+              </div>
+              <div style={{ fontSize: 11, lineHeight: 1.9 }}>
+                <span className="dim">
+                  {context.count} attestation{context.count === 1 ? "" : "s"}{" "}
+                  ·{" "}
+                </span>
+                {context.sites.map((s) => (
+                  <span key={s} className="tag tag-site">
+                    {s}
+                  </span>
+                ))}
+                <span className="dim" style={{ marginLeft: 8 }}>
+                  on:{" "}
+                </span>
+                {context.ids.slice(0, 8).map((id, i) => (
+                  <span key={id}>
+                    {i > 0 ? ", " : ""}
+                    <InscriptionLink id={id} />
+                  </span>
+                ))}
+                {context.ids.length > 8 && (
+                  <span className="dim"> +{context.ids.length - 8}</span>
+                )}
+                {context.neighbors.length > 0 && (
+                  <>
+                    <span className="dim" style={{ marginLeft: 8 }}>
+                      next to:{" "}
+                    </span>
+                    {context.neighbors.map(([nb, c]) => (
+                      <span key={nb} style={{ marginRight: 4 }}>
+                        <WordToken word={nb} />
+                        <span className="dim" style={{ fontSize: 10 }}>
+                          ×{c}
+                        </span>
+                      </span>
+                    ))}
+                  </>
+                )}
+              </div>
+            </div>
+          )}
           <div className="table-wrap">
             <table>
               <thead>
                 <tr>
                   <SortHeader label="Score" sortKey="score" sort={rankedSort.sort} onToggle={rankedSort.toggle} title="Sort by phonetic-similarity score (higher = better)" />
+                  <th title="Share of corpus words matching this reference entry at least this well — an empirical yardstick, not a formal p-value. 'top 1%' = almost no other Linear A word fits this entry this closely; a large share means the metric is being generous.">
+                    Chance
+                  </th>
                   <SortHeader label="Word" sortKey="word" sort={rankedSort.sort} onToggle={rankedSort.toggle} />
                   <SortHeader label="Language" sortKey="language" sort={rankedSort.sort} onToggle={rankedSort.toggle} />
                   <SortHeader label="Meaning" sortKey="meaning" sort={rankedSort.sort} onToggle={rankedSort.toggle} />
@@ -783,12 +932,30 @@ export default function CrossLinguistic() {
                 </tr>
               </thead>
               <tbody>
-                {(sortedMatches ?? matches).map((m, i) => (
+                {(sortedMatches ?? matches).map((m, i) => {
+                  const chance = matchChance?.get(`${m.lang}|${m.word}`);
+                  return (
                   <tr key={i}>
                     <td>
                       <span className={`score ${scoreClass(m.dist)}`}>
                         {((1 - m.dist) * 100).toFixed(0)}%
                       </span>
+                    </td>
+                    <td
+                      className="dim"
+                      style={{
+                        fontSize: 10,
+                        color:
+                          chance !== undefined && chance <= 0.02
+                            ? "var(--gn)"
+                            : undefined,
+                      }}
+                    >
+                      {chance === undefined
+                        ? "—"
+                        : chance < 0.01
+                          ? "top <1%"
+                          : `top ${Math.ceil(chance * 100)}%`}
                     </td>
                     <td>
                       <b>{m.word}</b>
@@ -811,7 +978,8 @@ export default function CrossLinguistic() {
                       </button>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -870,6 +1038,72 @@ export default function CrossLinguistic() {
           </div>
         </>
       )}
+
+      <div className="card" style={{ marginTop: 12, maxWidth: 640 }}>
+        <h4>Reverse lookup</h4>
+        <div className="sub" style={{ marginBottom: 8 }}>
+          Start from the other side: type a word from any ancient language
+          (e.g. <code>depas</code>, <code>kupairos</code>) and find the
+          Linear A words phonetically closest to it — same metric, weights,
+          and scheme as above.
+        </div>
+        <div style={{ display: "flex", gap: 6, marginBottom: 8 }}>
+          <input
+            className="input"
+            placeholder="Reference-language form…"
+            value={reverseQ}
+            onChange={(e) => setReverseQ(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") reverse();
+            }}
+            style={{ flex: 1 }}
+          />
+          <button
+            className="btn btn-sm"
+            disabled={!reverseQ.trim()}
+            onClick={reverse}
+          >
+            Find closest
+          </button>
+        </div>
+        {reverseRows && (
+          <div style={{ display: "grid", gap: 3 }}>
+            {reverseRows.map((r) => (
+              <div
+                key={r.word}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  fontSize: 11,
+                }}
+              >
+                <span
+                  className={`score ${scoreClass(r.dist)}`}
+                  style={{ minWidth: 44, textAlign: "right" }}
+                >
+                  {((1 - r.dist) * 100).toFixed(0)}%
+                </span>
+                <WordToken word={r.word} />
+                <span className="dim" style={{ fontSize: 10 }}>
+                  ×{r.count}
+                </span>
+                <button
+                  className="btn btn-outline btn-sm"
+                  style={{ padding: "0 6px", fontSize: 10, minWidth: 0 }}
+                  onClick={() => {
+                    setWord(r.word);
+                    single(r.word);
+                  }}
+                  title={`Run the full comparison for ${r.word}`}
+                >
+                  Compare →
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
