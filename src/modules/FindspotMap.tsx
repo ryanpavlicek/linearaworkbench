@@ -290,9 +290,18 @@ export default function FindspotMap() {
     };
   }
 
-  function onWheel(e: React.WheelEvent<SVGSVGElement>) {
-    e.preventDefault();
-    const factor = e.deltaY < 0 ? 1 / 1.25 : 1.25;
+  // Zoom is Shift+scroll, deliberately: a plain wheel belongs to the page
+  // (on smaller screens the page scrolls behind the map, so an unmodified
+  // wheel zooming AND scrolling at once is disorienting). The listener is
+  // attached natively with passive: false — React delegates wheel events
+  // passively, which silently turns preventDefault into a no-op.
+  function onWheel(e: WheelEvent) {
+    if (!e.shiftKey) return; // plain scroll: let the page have it
+    e.preventDefault(); // suppress Shift+wheel's horizontal-scroll default
+    // With Shift held some browsers report the delta on the X axis.
+    const delta = e.deltaY !== 0 ? e.deltaY : e.deltaX;
+    if (delta === 0) return;
+    const factor = delta < 0 ? 1 / 1.25 : 1.25;
     const newW = Math.max(
       MIN_VIEW_W,
       Math.min(MAX_VIEW_W, viewBox.w * factor),
@@ -309,6 +318,15 @@ export default function FindspotMap() {
       }),
     );
   }
+  const wheelRef = useRef(onWheel);
+  wheelRef.current = onWheel;
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const handler = (e: WheelEvent) => wheelRef.current(e);
+    svg.addEventListener("wheel", handler, { passive: false });
+    return () => svg.removeEventListener("wheel", handler);
+  }, []);
 
   function onPointerDown(e: React.PointerEvent<SVGSVGElement>) {
     if (e.button !== 0) return;
@@ -649,7 +667,7 @@ export default function FindspotMap() {
               pointerEvents: "none",
             }}
           >
-            Scroll to zoom · drag to pan · arrow keys when focused
+            Shift+scroll to zoom · drag to pan · arrows / + − when focused
           </div>
 
           {/* Minimap overlay (bottom-right) */}
@@ -681,9 +699,8 @@ export default function FindspotMap() {
               outline: "none",
             }}
             role="img"
-            aria-label="Interactive map of Linear A find-sites across Crete and the Aegean, each site marked at its coordinates and sized by inscription count; pan with drag or arrow keys, zoom with the wheel"
+            aria-label="Interactive map of Linear A find-sites across Crete and the Aegean, each site marked at its coordinates and sized by inscription count; pan with drag or arrow keys, zoom with Shift+scroll or the plus and minus keys"
             tabIndex={0}
-            onWheel={onWheel}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}
             onPointerUp={onPointerUp}
