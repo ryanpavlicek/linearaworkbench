@@ -21,10 +21,12 @@ import {
   type CommodityCategory,
 } from "../data/commodities";
 
+type AggCategory = CommodityCategory | "undeciphered";
+
 interface CommodityAgg {
   head: string;
   gloss: string;
-  category: CommodityCategory;
+  category: AggCategory;
   occurrences: number; // token occurrences
   quantity: number; // summed same-line numeric value
   tablets: Set<string>;
@@ -36,19 +38,21 @@ interface CommodityAgg {
   termLines: Map<string, number>; // term → lines containing both (for PMI)
 }
 
-const CATEGORY_LABEL: Record<CommodityCategory, string> = {
+const CATEGORY_LABEL: Record<AggCategory, string> = {
   agricultural: "Agricultural",
   livestock: "Livestock",
   people: "People",
   material: "Materials",
   vessel: "Vessels",
+  undeciphered: "Undeciphered",
 };
-const CATEGORY_COLOR: Record<CommodityCategory, string> = {
+const CATEGORY_COLOR: Record<AggCategory, string> = {
   agricultural: "var(--gn)",
   livestock: "var(--am)",
   people: "var(--ac)",
   material: "var(--pu)",
   vessel: "var(--cy)",
+  undeciphered: "var(--am)",
 };
 
 export default function Commodities() {
@@ -82,17 +86,23 @@ export default function Commodities() {
             termLineTally.set(t, (termLineTally.get(t) ?? 0) + 1);
           const headsOnLine = new Set<string>();
           for (const token of line) {
-            if (isUndecipheredLogogram(token)) {
-              undec.set(token, (undec.get(token) ?? 0) + 1);
-            }
-            const head = commodityHead(token);
+            // Catalog commodities and undeciphered *NNN logograms get the
+            // same aggregate, so the detail panel (tablets, terms, PMI,
+            // scope/map pivots) works for both.
+            const undecip = isUndecipheredLogogram(token);
+            if (undecip) undec.set(token, (undec.get(token) ?? 0) + 1);
+            const head = undecip ? token : commodityHead(token);
             if (!head) continue;
             let agg = map.get(head);
             if (!agg) {
               agg = {
                 head,
-                gloss: COMMODITIES[head].gloss,
-                category: COMMODITIES[head].category,
+                gloss: undecip
+                  ? "undeciphered commodity"
+                  : COMMODITIES[head].gloss,
+                category: undecip
+                  ? "undeciphered"
+                  : COMMODITIES[head].category,
                 occurrences: 0,
                 quantity: 0,
                 tablets: new Set(),
@@ -142,6 +152,9 @@ export default function Commodities() {
 
   const shown = sortRows(
     commodities.filter((c) => {
+      // The table lists the curated catalog; undeciphered *NNN logograms
+      // live in their own card below (clickable into the same detail).
+      if (c.category === "undeciphered") return false;
       if (catFilter !== "all" && c.category !== catFilter) return false;
       if (q) {
         const u = q.toLowerCase();
@@ -352,23 +365,29 @@ export default function Commodities() {
             </h4>
             <div className="sub" style={{ marginBottom: 6 }}>
               <code>*NNN</code> signs used logographically whose referent is
-              unknown. <code>*301</code> is by far the most common.
+              unknown. <code>*301</code> is by far the most common. Click
+              one for the same detail as a catalog commodity — quantities,
+              co-occurring terms, tablets, scope, map.
             </div>
             <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
               {undeciphered.slice(0, 40).map(([t, c]) => (
-                <span
+                <button
                   key={t}
+                  onClick={() => setSelected(t)}
                   style={{
                     padding: "2px 6px",
-                    background: "var(--surface-2)",
-                    border: "1px solid var(--border)",
+                    background:
+                      selected === t ? "var(--ac-soft)" : "var(--surface-2)",
+                    border: `1px solid ${selected === t ? "var(--ac)" : "var(--border)"}`,
                     borderRadius: 3,
                     fontSize: 11,
                     fontFamily: "var(--mono)",
+                    cursor: "pointer",
                   }}
+                  title={`Open ${t} in the detail panel`}
                 >
                   {t} <span className="dim">×{c}</span>
-                </span>
+                </button>
               ))}
             </div>
           </div>

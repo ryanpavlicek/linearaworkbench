@@ -3,7 +3,11 @@
 // or a tablet-structure category. Pure functions over the scoped
 // inscriptions so the map component stays thin and this logic is testable.
 
-import { COMMODITIES, commodityHead } from "../data/commodities";
+import {
+  COMMODITIES,
+  commodityHead,
+  isUndecipheredLogogram,
+} from "../data/commodities";
 import { heuristicCategory, type StructCategory } from "./corpusExport";
 import type { Inscription } from "./types";
 
@@ -43,7 +47,13 @@ export function overlayMatches(
     case "word":
       return ins.words.some((w) => w.toUpperCase() === value.toUpperCase());
     case "commodity":
-      return ins.words.some((w) => commodityHead(w) === value);
+      // Catalog heads (ligature-aware) plus undeciphered *NNN logograms,
+      // which the Commodity Catalog treats as first-class.
+      return ins.words.some(
+        (w) =>
+          commodityHead(w) === value ||
+          (isUndecipheredLogogram(w) && w === value),
+      );
     case "scribe":
       return ins.scribe === value;
     case "period":
@@ -89,7 +99,8 @@ export function overlayOptions(
     if (mode === "commodity") {
       const heads = new Set<string>();
       for (const w of ins.words) {
-        const h = commodityHead(w);
+        const h =
+          commodityHead(w) ?? (isUndecipheredLogogram(w) ? w : null);
         if (h) heads.add(h);
       }
       for (const h of heads) counts.set(h, (counts.get(h) ?? 0) + 1);
@@ -107,7 +118,7 @@ export function overlayOptions(
     count,
     label:
       mode === "commodity"
-        ? `${value} — ${COMMODITIES[value]?.gloss ?? "?"}`
+        ? `${value} — ${COMMODITIES[value]?.gloss ?? (isUndecipheredLogogram(value) ? "undeciphered" : "?")}`
         : mode === "category"
           ? CATEGORY_LABELS[value as StructCategory] ?? value
           : value,

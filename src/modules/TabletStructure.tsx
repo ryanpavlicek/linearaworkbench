@@ -11,13 +11,8 @@ import {
   snippetWrap,
   type SnippetColumn,
 } from "../lib/reportSnippet";
+import { heuristicCategory } from "../lib/corpusExport";
 import type { Inscription } from "../lib/types";
-
-const LIB_WORDS = new Set([
-  "A-TA-I-*301-WA-JA",
-  "JA-SA-SA-RA-ME",
-  "A-DI-KI-TE-TE-DU",
-]);
 
 const CATEGORIES = [
   {
@@ -56,21 +51,12 @@ type Key = (typeof CATEGORIES)[number]["key"];
 
 const PREVIEW = 24;
 
-// The heuristic category for an inscription, from its content shape. A
-// researcher can override this per tablet (tabletCategories in the store).
-function heuristicKey(ins: Inscription): Key {
-  const ws = ins.words;
-  const hasNums = ws.some((w) => /^[0-9]/.test(w));
-  const hasKuro = ws.includes("KU-RO");
-  const hasLib = ws.some((w) => LIB_WORDS.has(w));
-  const multi = ws.filter((w) => w.includes("-")).length;
-  const sep = ws.filter((w) => w === "𐄁").length;
-  if (hasKuro || (hasNums && multi > 2)) return "accounting";
-  if (hasLib) return "libation";
-  if (sep > 3 && !hasNums) return "list";
-  if (multi > 4 && !hasNums) return "text";
-  return "other";
-}
+// The heuristic category comes from the SHARED classifier in
+// lib/corpusExport (fraction-aware numerals, the full libation word list)
+// — one implementation for this module, the exports, and the map overlay,
+// so they can never disagree. A researcher can override it per tablet
+// (tabletCategories in the store).
+const heuristicKey = (ins: Inscription): Key => heuristicCategory(ins);
 
 export default function TabletStructure() {
   const inscriptions = useScopedCorpus().inscriptions;
@@ -142,6 +128,48 @@ export default function TabletStructure() {
     }
     return { classified: buckets, heuristicOf, reclassifiedCount };
   }, [inscriptions, tabletCategories]);
+
+  // Category × site cross-tab over the biggest sites: where does each
+  // document type live? Libation texts at the peak sanctuaries vs
+  // accounting at the palatial archives is the corpus's basic geography.
+  const crossTab = useMemo(() => {
+    const siteCounts = new Map<string, number>();
+    for (const ins of inscriptions)
+      if (ins.site) siteCounts.set(ins.site, (siteCounts.get(ins.site) ?? 0) + 1);
+    const topSites = [...siteCounts.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 8)
+      .map(([s]) => s);
+    const cell = new Map<string, number>();
+    let restRow = false;
+    for (const c of CATEGORIES) {
+      for (const ins of classified[c.key]) {
+        const site = ins.site && topSites.includes(ins.site) ? ins.site : "(other sites)";
+        if (site === "(other sites)") restRow = true;
+        cell.set(`${site}|${c.key}`, (cell.get(`${site}|${c.key}`) ?? 0) + 1);
+      }
+    }
+    return {
+      sites: restRow ? [...topSites, "(other sites)"] : topSites,
+      cell,
+    };
+  }, [inscriptions, classified]);
+
+  // Review queue: unclassified tablets with the most linguistic content —
+  // the ones where a human call is most worth making. One click files the
+  // tablet under a category (a persistent override, like the per-row
+  // dropdowns below).
+  const reviewQueue = useMemo(
+    () =>
+      [...classified.other]
+        .sort(
+          (a, b) =>
+            b.words.filter((w) => w.includes("-")).length -
+            a.words.filter((w) => w.includes("-")).length,
+        )
+        .slice(0, 10),
+    [classified],
+  );
 
   // Shared CSV export — dumps the given (category, inscription[]) buckets in
   // one file. Called either with the full classification (the corpus-wide
@@ -228,6 +256,114 @@ export default function TabletStructure() {
             </div>
           );
         })}
+      </div>
+
+      <div className="col2" style={{ marginBottom: 12, alignItems: "start" }}>
+        <div className="card">
+          <h4>Category × site</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Where each document type lives (effective classification,
+            overrides included).
+          </div>
+          <div className="table-wrap">
+            <table style={{ fontSize: 11 }}>
+              <thead>
+                <tr>
+                  <th>Site</th>
+                  {CATEGORIES.map((c) => (
+                    <th
+                      key={c.key}
+                      style={{ color: c.color, textAlign: "right" }}
+                    >
+                      {c.label}
+                    </th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {crossTab.sites.map((s) => (
+                  <tr key={s}>
+                    <td className="site-text">{s}</td>
+                    {CATEGORIES.map((c) => {
+                      const n = crossTab.cell.get(`${s}|${c.key}`) ?? 0;
+                      return (
+                        <td
+                          key={c.key}
+                          className="numeral"
+                          style={{
+                            textAlign: "right",
+                            color: n === 0 ? "var(--text-faint)" : undefined,
+                          }}
+                        >
+                          {n || "·"}
+                        </td>
+                      );
+                    })}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </div>
+
+        <div className="card">
+          <h4>
+            Review queue{" "}
+            <span className="dim">({classified.other.length} unclassified)</span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            The unclassified tablets with the most content — the ones most
+            worth a human call. One click files the tablet (it becomes a
+            persistent override, undoable from its row below).
+          </div>
+          {reviewQueue.length === 0 ? (
+            <div className="dim" style={{ fontSize: 12 }}>
+              Nothing left to review — every tablet is classified.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 4 }}>
+              {reviewQueue.map((ins) => (
+                <div
+                  key={ins.id}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 11,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <InscriptionLink id={ins.id} />
+                  <span className="dim">
+                    {ins.site}
+                    {" · "}
+                    {ins.words.filter((w) => w.includes("-")).length} words
+                  </span>
+                  <span style={{ flex: 1 }} />
+                  {CATEGORIES.filter((c) => c.key !== "other").map((c) => (
+                    <button
+                      key={c.key}
+                      className="btn btn-outline btn-sm"
+                      style={{
+                        padding: "0 6px",
+                        fontSize: 10,
+                        minWidth: 0,
+                        color: c.color,
+                      }}
+                      onClick={() => {
+                        setTabletCategory(ins.id, c.key);
+                        toast(`${ins.id} filed under ${c.label}`);
+                      }}
+                      title={`Classify ${ins.id} as ${c.label}`}
+                    >
+                      {c.label}
+                    </button>
+                  ))}
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       {/* ── Filter builder ─────────────────────────────────────────────── */}

@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useScopedCorpus } from "../store/scope";
+import { useWorkbench } from "../store/workbench";
 import { WordToken } from "../components/WordToken";
 import { InscriptionLink } from "../components/InscriptionLink";
 import { csvEscape, downloadFile } from "../lib/helpers";
@@ -20,7 +21,9 @@ import {
 } from "../lib/numerals";
 import type { Inscription } from "../lib/types";
 
-type Filter = "all" | "balanced" | "discrepant";
+type Filter = "all" | "balanced" | "discrepant" | "reconciled";
+
+const EPS = 1e-6;
 
 interface TabletResult {
   ins: Inscription;
@@ -28,10 +31,98 @@ interface TabletResult {
   checks: BalanceCheck[];
   anyDiscrepant: boolean;
   hasTotal: boolean;
+  maxAbsDelta: number;
+  // KI-RO reconciliation notes: human-readable statements of which sums
+  // a deficit line explains on this tablet (empty when none).
+  reconciliations: string[];
+}
+
+// Does a KI-RO line explain this tablet's arithmetic? Four checkable
+// patterns, all flowing from the literature's reading of KI-RO as
+// "deficit / owed":
+//   1. A total that looks "off" is off by exactly one KI-RO amount —
+//      the items list what was expected, KU-RO what arrived, KI-RO the
+//      shortfall (or the mirror image).
+//   2. KU-RO + KI-RO equals a LATER stated total on the same tablet —
+//      delivered + outstanding restated as the full obligation.
+//   3. The per-entry KI-RO amounts sum to the final KI-RO line — the
+//      deficit ledger itself balances (the HT 123 pattern).
+//   4. A total's gap equals the COMBINED per-entry KI-RO amounts.
+function findReconciliations(
+  lines: AccountLine[],
+  checks: BalanceCheck[],
+): string[] {
+  const deficits = lines.filter((l) => l.role === "deficit" && l.hasNumber);
+  if (deficits.length === 0) return [];
+  const out: string[] = [];
+  for (const d of deficits) {
+    for (const c of checks) {
+      if (
+        !c.balances &&
+        Math.abs(Math.abs(c.difference) - d.value) < EPS &&
+        d.value > 0
+      ) {
+        out.push(
+          `${c.marker} is off by exactly the KI-RO amount (${formatValue(d.value)}) — items, total, and deficit reconcile`,
+        );
+      }
+    }
+    // delivered + outstanding = a later total
+    const totals = lines.filter(
+      (l) =>
+        (l.role === "total" || l.role === "grand-total") && l.hasNumber,
+    );
+    for (let i = 0; i < totals.length; i++) {
+      for (let j = i + 1; j < totals.length; j++) {
+        if (
+          Math.abs(totals[i].value + d.value - totals[j].value) < EPS &&
+          d.value > 0
+        ) {
+          out.push(
+            `${totals[i].tokens.find((t) => t.includes("-")) ?? "total"} (${formatValue(totals[i].value)}) + KI-RO (${formatValue(d.value)}) = the later total ${formatValue(totals[j].value)}`,
+          );
+        }
+      }
+    }
+  }
+  // The deficit ledger balances against itself: earlier per-entry KI-RO
+  // amounts sum to the final KI-RO line.
+  if (deficits.length >= 3) {
+    const last = deficits[deficits.length - 1];
+    const sumPrior = deficits
+      .slice(0, -1)
+      .reduce((s, d) => s + d.value, 0);
+    if (sumPrior > 0 && Math.abs(sumPrior - last.value) < EPS) {
+      out.push(
+        `the ${deficits.length - 1} per-entry KI-RO amounts sum to the final KI-RO (${formatValue(last.value)}) — the deficit ledger balances`,
+      );
+    }
+  }
+  // A total's gap equals the combined deficits.
+  if (deficits.length > 1) {
+    const sumAll = deficits.reduce((s, d) => s + d.value, 0);
+    for (const c of checks) {
+      if (
+        !c.balances &&
+        sumAll > 0 &&
+        Math.abs(Math.abs(c.difference) - sumAll) < EPS
+      ) {
+        out.push(
+          `${c.marker} is off by exactly the combined KI-RO amounts (${formatValue(sumAll)})`,
+        );
+      }
+    }
+  }
+  return [...new Set(out)];
 }
 
 export default function ArithmeticCheck() {
   const inscriptions = useScopedCorpus().inscriptions;
+  const createCollectionWithItems = useWorkbench(
+    (s) => s.createCollectionWithItems,
+  );
+  const setScope = useWorkbench((s) => s.setScope);
+  const toast = useWorkbench((s) => s.toast_show);
   const [filter, setFilter] = useState<Filter>("all");
   const [expanded, setExpanded] = useState<string | null>(null);
 
@@ -49,6 +140,8 @@ export default function ArithmeticCheck() {
         checks,
         anyDiscrepant,
         hasTotal: true,
+        maxAbsDelta: Math.max(...checks.map((c) => Math.abs(c.difference))),
+        reconciliations: findReconciliations(lines, checks),
       });
     }
     // Balanced first within each, but surface discrepant tablets near the
@@ -60,6 +153,8 @@ export default function ArithmeticCheck() {
   const filtered = useMemo(() => {
     if (filter === "balanced") return results.filter((r) => !r.anyDiscrepant);
     if (filter === "discrepant") return results.filter((r) => r.anyDiscrepant);
+    if (filter === "reconciled")
+      return results.filter((r) => r.reconciliations.length > 0);
     return results;
   }, [results, filter]);
 
@@ -67,15 +162,65 @@ export default function ArithmeticCheck() {
     let balanced = 0;
     let discrepant = 0;
     let totalChecks = 0;
+    let reconciled = 0;
     for (const r of results) {
       for (const c of r.checks) {
         totalChecks++;
         if (c.balances) balanced++;
         else discrepant++;
       }
+      if (r.reconciliations.length > 0) reconciled++;
     }
-    return { balanced, discrepant, totalChecks, tablets: results.length };
+    return { balanced, discrepant, totalChecks, tablets: results.length, reconciled };
   }, [results]);
+
+  // Discrepancy-size distribution: are the misses fraction-sized (the
+  // metrological system fighting back) or whole-unit (scribal slips,
+  // damage)? Buckets over |Δ| of every non-balancing check.
+  const deltaHistogram = useMemo(() => {
+    const bins = [
+      { label: "< 1 (fractions)", test: (d: number) => d < 1, n: 0 },
+      { label: "1 – 2", test: (d: number) => d >= 1 && d <= 2, n: 0 },
+      { label: "3 – 9", test: (d: number) => d > 2 && d < 10, n: 0 },
+      { label: "10 +", test: (d: number) => d >= 10, n: 0 },
+    ];
+    for (const r of results) {
+      for (const c of r.checks) {
+        if (c.balances) continue;
+        const d = Math.abs(c.difference);
+        const bin = bins.find((b) => b.test(d));
+        if (bin) bin.n++;
+      }
+    }
+    const max = Math.max(...bins.map((b) => b.n), 1);
+    return { bins, max };
+  }, [results]);
+
+  function useAsScope() {
+    if (filtered.length === 0) {
+      toast("No tablets to scope to", "error");
+      return;
+    }
+    const label =
+      filter === "all" ? "accounting" : `${filter} accounting`;
+    const id = createCollectionWithItems(
+      `Accounting • ${label} (${filtered.length})`,
+      filtered.map((r) => ({
+        kind: "inscription" as const,
+        value: r.ins.id,
+      })),
+    );
+    if (id) {
+      setScope({
+        site: null,
+        period: null,
+        scribe: null,
+        support: null,
+        collectionId: id,
+      });
+      toast(`Scope set to ${filtered.length} ${label} tablets`);
+    }
+  }
 
   const balanceRate =
     stats.totalChecks > 0
@@ -97,6 +242,7 @@ export default function ArithmeticCheck() {
         "item_count",
         "difference",
         "balances",
+        "kiro_reconciliation",
       ],
     ];
     for (const r of results) {
@@ -110,6 +256,7 @@ export default function ArithmeticCheck() {
           c.itemCount,
           c.difference,
           c.balances ? "yes" : "no",
+          r.reconciliations.join("; "),
         ]);
       }
     }
@@ -138,7 +285,13 @@ export default function ArithmeticCheck() {
           Discrepancies are genuinely interesting: some reflect scribal
           error, some damaged readings, some unresolved questions about the
           fraction system. Section boundaries are heuristic (reset at each
-          total).
+          total). The <b>KI-RO reconciliation</b> check then asks whether a
+          deficit line arithmetically explains the account (a gap equal to
+          the KI-RO amount; KU-RO + KI-RO restated as a later total; the
+          per-entry deficits summing to the final KI-RO). A zero here is a
+          result, not a bug — on tablets like HT 123 the deficit column is
+          damaged in the source transcription, so the sums can't be
+          completed automatically.
         </p>
       </div>
 
@@ -168,6 +321,15 @@ export default function ArithmeticCheck() {
           </span>
           <span className="lbl">Balance rate</span>
         </div>
+        <div
+          className="stat-box"
+          title="Tablets where a KI-RO (deficit) line arithmetically explains the account — a seemingly off total is off by exactly the KI-RO amount, or KU-RO + KI-RO equals a later total"
+        >
+          <span className="val" style={{ color: "var(--cy)" }}>
+            {stats.reconciled}
+          </span>
+          <span className="lbl">KI-RO reconciled</span>
+        </div>
       </div>
 
       <div className="toolbar">
@@ -177,6 +339,7 @@ export default function ArithmeticCheck() {
               ["all", "All"],
               ["discrepant", "Discrepant only"],
               ["balanced", "Balanced only"],
+              ["reconciled", "KI-RO reconciled"],
             ] as const
           ).map(([k, lbl]) => (
             <button
@@ -189,6 +352,14 @@ export default function ArithmeticCheck() {
           ))}
         </div>
         <span style={{ flex: 1 }} />
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={useAsScope}
+          disabled={filtered.length === 0}
+          title="Use the tablets in the current filter as the global corpus scope — every other module will compute over just these"
+        >
+          ◇ Use as scope
+        </button>
         <button className="btn btn-outline btn-sm" onClick={exportCsv}>
           Export CSV
         </button>
@@ -293,6 +464,9 @@ export default function ArithmeticCheck() {
               <th>Inscription</th>
               <th>Site</th>
               <th>Totals checked</th>
+              <th title="Largest absolute stated-vs-computed gap on the tablet">
+                Worst Δ
+              </th>
               <th>Result</th>
             </tr>
           </thead>
@@ -317,6 +491,47 @@ export default function ArithmeticCheck() {
           </div>
         )}
       </div>
+
+      {stats.discrepant > 0 && (
+        <div className="card" style={{ marginTop: 12, maxWidth: 480 }}>
+          <h4>How far off are the misses?</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            |stated − computed| for every non-balancing total.
+            Fraction-sized gaps point at the metrological system (rounding,
+            unread fraction signs); whole-unit gaps at scribal slips, damage,
+            or entries the parser can't see.
+          </div>
+          <div style={{ display: "grid", gap: 3 }}>
+            {deltaHistogram.bins.map((b) => (
+              <div
+                key={b.label}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "110px 1fr 40px",
+                  gap: 6,
+                  alignItems: "center",
+                  fontSize: 11,
+                }}
+              >
+                <span className="dim" style={{ textAlign: "right" }}>
+                  {b.label}
+                </span>
+                <div
+                  style={{
+                    height: 10,
+                    background: "var(--am)",
+                    opacity: 0.55,
+                    borderRadius: 1,
+                    width: `${(b.n / deltaHistogram.max) * 100}%`,
+                    minWidth: b.n > 0 ? 2 : 0,
+                  }}
+                />
+                <span className="numeral">{b.n}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -342,9 +557,28 @@ function FragRow({
         </td>
         <td className="site-text">{ins.site}</td>
         <td className="numeral">{checks.length}</td>
+        <td className="numeral">
+          {result.maxAbsDelta < EPS ? (
+            <span style={{ color: "var(--gn)" }}>0</span>
+          ) : (
+            <span style={{ color: "var(--am)" }}>
+              {formatValue(result.maxAbsDelta)}
+            </span>
+          )}
+        </td>
         <td>
           {result.anyDiscrepant ? (
-            <span className="score score-md">discrepant</span>
+            result.reconciliations.length > 0 ? (
+              <span
+                className="score score-hi"
+                style={{ color: "var(--cy)" }}
+                title={result.reconciliations.join("; ")}
+              >
+                KI-RO reconciled
+              </span>
+            ) : (
+              <span className="score score-md">discrepant</span>
+            )
           ) : (
             <span className="score score-hi">balances</span>
           )}
@@ -352,7 +586,7 @@ function FragRow({
       </tr>
       {isOpen && (
         <tr>
-          <td colSpan={4} style={{ background: "var(--surface-0)" }}>
+          <td colSpan={5} style={{ background: "var(--surface-0)" }}>
             <div style={{ padding: "10px 16px" }}>
               {/* Itemized lines */}
               <div
@@ -370,6 +604,27 @@ function FragRow({
                   <LineRow key={line.index} line={line} />
                 ))}
               </div>
+
+              {/* KI-RO reconciliation notes */}
+              {result.reconciliations.length > 0 && (
+                <div style={{ marginTop: 12 }}>
+                  {result.reconciliations.map((note, i) => (
+                    <div
+                      key={i}
+                      style={{
+                        padding: "6px 10px",
+                        marginBottom: 4,
+                        borderRadius: 4,
+                        background: "#22d3ee0c",
+                        border: "1px solid #22d3ee40",
+                        fontSize: 12,
+                      }}
+                    >
+                      <b style={{ color: "var(--cy)" }}>KI-RO</b>: {note}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Balance checks */}
               <div style={{ marginTop: 12 }}>
