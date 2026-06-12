@@ -4,7 +4,7 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
-## Unreleased
+## 1.2.0 — 2026-06-12
 
 - **Embed mode**: `?embed=1#/i/HT13` renders a chromeless single-tablet
   card (glyphs, transliteration, facsimile thumbnail, link back) sized for
