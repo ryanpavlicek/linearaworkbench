@@ -14,6 +14,7 @@ import {
 import {
   chiSquared2x2,
   chiSquaredPValue,
+  cooccurrencePairs,
   fishersExact,
   logLikelihoodRatio2x2,
   pmiInterval,
@@ -35,58 +36,26 @@ interface Pair {
   pValue: number;
 }
 
-// Compute every pair's marginal counts plus the four collocation
-// measures: PMI, G² (log-likelihood), Yates-corrected χ² (with its
-// associated p-value), and the raw joint count.
+// Every pair's marginal counts (shared counting core in lib/algorithms)
+// plus the four collocation measures: PMI, G² (log-likelihood),
+// Yates-corrected χ² (with its associated p-value), and the joint count.
 function computePairs(
   inscriptions: { words: string[] }[],
 ): { pairs: Pair[]; total: number } {
-  const pairJoint = new Map<string, number>();
-  const single = new Map<string, number>();
-  let total = 0;
-  for (const ins of inscriptions) {
-    const ws = [...new Set(ins.words.filter((w) => w.includes("-")))];
-    if (ws.length === 0) continue;
-    total++;
-    for (const w of ws) single.set(w, (single.get(w) || 0) + 1);
-    for (let i = 0; i < ws.length; i++) {
-      for (let j = i + 1; j < ws.length; j++) {
-        const [a, b] = [ws[i], ws[j]].sort();
-        const key = `${a}\t${b}`;
-        pairJoint.set(key, (pairJoint.get(key) || 0) + 1);
-      }
-    }
-  }
-  const pairs: Pair[] = [];
-  for (const [key, joint] of pairJoint) {
-    const [a, b] = key.split("\t");
-    const ca = single.get(a) || 1;
-    const cb = single.get(b) || 1;
-    const pa = ca / total;
-    const pb = cb / total;
-    const pab = joint / total;
-    const pmi = Math.log2(pab / (pa * pb));
-    const [pmiLow, pmiHigh] = pmiInterval(joint, ca, cb, total);
+  const { pairs: base, total } = cooccurrencePairs(inscriptions);
+  const pairs: Pair[] = base.map(({ a, b, joint, countA, countB, pmi }) => {
+    const [pmiLow, pmiHigh] = pmiInterval(joint, countA, countB, total);
     // Dunning (1993) log-likelihood ratio — full 4-cell G², not the
     // single-cell shortcut. Asymptotically χ²(1); more robust than χ² for
     // sparse pairs. See logLikelihoodRatio2x2 in algorithms.ts.
-    const loglik = logLikelihoodRatio2x2(joint, ca, cb, total);
-    const chi2 = chiSquared2x2(joint, ca, cb, total);
+    const loglik = logLikelihoodRatio2x2(joint, countA, countB, total);
+    const chi2 = chiSquared2x2(joint, countA, countB, total);
     const pValue = chiSquaredPValue(chi2);
-    pairs.push({
-      a,
-      b,
-      joint,
-      countA: ca,
-      countB: cb,
-      pmi,
-      pmiLow,
-      pmiHigh,
-      loglik,
-      chi2,
-      pValue,
-    });
-  }
+    return {
+      a, b, joint, countA, countB,
+      pmi, pmiLow, pmiHigh, loglik, chi2, pValue,
+    };
+  });
   return { pairs, total };
 }
 

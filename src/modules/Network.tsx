@@ -2,6 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile } from "../lib/helpers";
+import { cooccurrencePairs } from "../lib/algorithms";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 
 interface Node {
@@ -20,37 +21,18 @@ interface Edge {
   joint: number;
 }
 
-// Compute PMI for all word pairs; return the top-N pairs.
+// Top-N word pairs by PMI (shared counting core in lib/algorithms).
 function buildEdges(
   inscriptions: { words: string[] }[],
   minJoint: number,
   topN: number,
 ): { pairs: { a: string; b: string; pmi: number; joint: number }[] } {
-  const pairJoint = new Map<string, number>();
-  const single = new Map<string, number>();
-  let total = 0;
-  for (const ins of inscriptions) {
-    const ws = [...new Set(ins.words.filter((w) => w.includes("-")))];
-    if (ws.length === 0) continue;
-    total++;
-    for (const w of ws) single.set(w, (single.get(w) || 0) + 1);
-    for (let i = 0; i < ws.length; i++)
-      for (let j = i + 1; j < ws.length; j++) {
-        const [a, b] = [ws[i], ws[j]].sort();
-        pairJoint.set(`${a}\t${b}`, (pairJoint.get(`${a}\t${b}`) || 0) + 1);
-      }
-  }
-  const pairs: { a: string; b: string; pmi: number; joint: number }[] = [];
-  for (const [key, joint] of pairJoint) {
-    if (joint < minJoint) continue;
-    const [a, b] = key.split("\t");
-    const ca = single.get(a) || 1;
-    const cb = single.get(b) || 1;
-    const pmi = Math.log2(joint / total / ((ca / total) * (cb / total)));
-    pairs.push({ a, b, pmi, joint });
-  }
-  pairs.sort((x, y) => y.pmi - x.pmi);
-  return { pairs: pairs.slice(0, topN) };
+  const pairs = cooccurrencePairs(inscriptions)
+    .pairs.filter((p) => p.joint >= minJoint)
+    .sort((x, y) => y.pmi - x.pmi)
+    .slice(0, topN)
+    .map(({ a, b, pmi, joint }) => ({ a, b, pmi, joint }));
+  return { pairs };
 }
 
 const REPULSION = 1500;
@@ -390,6 +372,8 @@ export default function Network() {
           style={{ width: "100%", height: "70vh", display: "block" }}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
+          role="img"
+          aria-label={`Force-directed co-occurrence network: ${stats.nodeCount} word nodes joined by ${stats.edgeCount} edges, edges weighted by PMI`}
         >
           {edgesRef.current.map((e, i) => {
             const a = nodesRef.current[e.a];

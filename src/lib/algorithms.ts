@@ -361,6 +361,52 @@ export function pmiInterval(
   return [lo, hi];
 }
 
+// ─── Document-level co-occurrence ────────────────────────────────────────
+// The shared core of the Co-occurrence table and the Network graph: count
+// how often each pair of multi-sign words appears on the same inscription
+// (deduplicated within a tablet), with marginal counts and PMI. One
+// implementation so the two views can never drift apart.
+
+export interface CooccurrencePair {
+  a: string;
+  b: string;
+  joint: number;
+  countA: number;
+  countB: number;
+  pmi: number;
+}
+
+export function cooccurrencePairs(
+  inscriptions: { words: string[] }[],
+): { pairs: CooccurrencePair[]; total: number } {
+  const pairJoint = new Map<string, number>();
+  const single = new Map<string, number>();
+  let total = 0; // inscriptions carrying at least one multi-sign word
+  for (const ins of inscriptions) {
+    const ws = [...new Set(ins.words.filter((w) => w.includes("-")))];
+    if (ws.length === 0) continue;
+    total++;
+    for (const w of ws) single.set(w, (single.get(w) || 0) + 1);
+    for (let i = 0; i < ws.length; i++)
+      for (let j = i + 1; j < ws.length; j++) {
+        const [a, b] = [ws[i], ws[j]].sort();
+        const key = `${a}\t${b}`;
+        pairJoint.set(key, (pairJoint.get(key) || 0) + 1);
+      }
+  }
+  const pairs: CooccurrencePair[] = [];
+  for (const [key, joint] of pairJoint) {
+    const [a, b] = key.split("\t");
+    const countA = single.get(a) || 1;
+    const countB = single.get(b) || 1;
+    const pmi = Math.log2(
+      joint / total / ((countA / total) * (countB / total)),
+    );
+    pairs.push({ a, b, joint, countA, countB, pmi });
+  }
+  return { pairs, total };
+}
+
 // ─── Morphological clustering ───────────────────────────────────────────
 // Heuristic lemmatization for an undeciphered script: find suffixes that
 // are productive across many distinct words, then group words where one

@@ -13,6 +13,7 @@ import {
   chiSquaredPValue,
   fishersExact,
   wilsonInterval,
+  cooccurrencePairs,
   sequenceDistance,
   sequenceSimilarity,
   findMorphologicalClusters,
@@ -112,6 +113,42 @@ describe("Fisher's exact (two-sided)", () => {
 
   it("never exceeds 1 and is 1 for a degenerate margin", () => {
     expect(fishersExact(0, 0, 5, 10)).toBe(1);
+  });
+});
+
+describe("cooccurrencePairs", () => {
+  it("counts document-level joints and marginals over multi-sign words", () => {
+    const { pairs, total } = cooccurrencePairs([
+      { words: ["KU-RO", "A-DU", "5"] }, // numeral-like single token ignored
+      { words: ["KU-RO", "A-DU"] },
+      { words: ["KU-RO", "PA-I-TO"] },
+      { words: ["VIN"] }, // no multi-sign word — excluded from total
+    ]);
+    expect(total).toBe(3);
+    const kuAdu = pairs.find((p) => p.a === "A-DU" && p.b === "KU-RO")!;
+    expect(kuAdu.joint).toBe(2);
+    expect(kuAdu.countA).toBe(2); // A-DU
+    expect(kuAdu.countB).toBe(3); // KU-RO
+    // PMI = log2( (2/3) / ((2/3)·(3/3)) ) = 0
+    expect(kuAdu.pmi).toBeCloseTo(0, 10);
+    const kuPaito = pairs.find((p) => p.b === "PA-I-TO")!;
+    // PMI = log2( (1/3) / ((3/3)·(1/3)) ) = 0
+    expect(kuPaito.pmi).toBeCloseTo(0, 10);
+    expect(pairs).toHaveLength(2);
+  });
+
+  it("deduplicates repeated words within one inscription", () => {
+    const { pairs } = cooccurrencePairs([
+      { words: ["KU-RO", "KU-RO", "A-DU"] },
+    ]);
+    expect(pairs).toHaveLength(1);
+    expect(pairs[0].joint).toBe(1);
+  });
+
+  it("orders each pair's words lexicographically", () => {
+    const { pairs } = cooccurrencePairs([{ words: ["ZU-MA", "A-DU"] }]);
+    expect(pairs[0].a).toBe("A-DU");
+    expect(pairs[0].b).toBe("ZU-MA");
   });
 });
 
