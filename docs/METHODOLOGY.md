@@ -22,6 +22,7 @@ analysis the tool produces.
 - [Tablet structure classification](#tablet-structure-classification)
 - [Accounting & metrology (total verification)](#accounting--metrology-total-verification)
 - [Lexical statistics](#lexical-statistics)
+- [Word frequency: dispersion and keyness](#word-frequency-dispersion-and-keyness)
 - [Sign transitions (graphotactics)](#sign-transitions-graphotactics)
 - [Scribe sign-frequency comparison](#scribe-sign-frequency-comparison)
 - [Site distribution (Jaccard)](#site-distribution-jaccard)
@@ -633,21 +634,80 @@ fraction system.
 The Lexical Statistics module reports standard vocabulary measures over the
 multi-sign words:
 
-- **Type–token ratio** = distinct words / total word occurrences.
+- **Type–token ratio** = distinct words / total word occurrences. Raw TTR
+  shrinks mechanically as a corpus grows, so it is only comparable between
+  same-sized slices.
+- **MATTR** (moving-average TTR, Covington & McFall 2010) = the mean TTR
+  over every sliding 100-token window of the corpus-order word stream.
+  Window-based, so differently sized slices are comparable. Not shown when
+  a slice has fewer than 100 word tokens.
+- **Yule's K** = 10⁴·(Σ m²·V(m) − N)/N² over the frequency spectrum —
+  repeat-rate of vocabulary, largely size-insensitive.
+- **Herdan's C** = log V / log N, the classic size-robust richness constant.
 - **Frequency spectrum** = for each frequency *n*, the number of words
   occurring exactly *n* times. The *n*=1 value is the hapax legomena count.
-- **Zipf rank–frequency curve**: words ranked by descending frequency,
-  plotted on log₁₀(rank) vs log₁₀(frequency) axes. A dashed reference line
-  shows the ideal Zipf relation (frequency ∝ 1/rank, anchored at the
-  top-frequency word). Zipfian corpora plot as a roughly straight line
-  parallel to the reference.
+- **Chao1 vocabulary estimate** = S_obs + F₁²/(2F₂), where F₁/F₂ are the
+  hapax and dis legomena counts (bias-corrected form when F₂ = 0), with
+  Chao's (1987) variance and the standard log-normal 95% interval. This
+  estimates how many word types the *whole* vocabulary had, given how many
+  rare types the sample contains. It is a **lower bound**, and with ~60% of
+  types attested once the unseen mass is large — read it as "at least",
+  never as "about".
+- **Zipf rank–frequency curve**: words ranked by descending frequency on
+  log₁₀–log₁₀ axes, with a dashed ideal-Zipf reference (frequency ∝
+  1/rank). A **Zipf–Mandelbrot** model p(r) ∝ 1/(r+β)^s, normalized over
+  the attested ranks, is fitted by maximum likelihood (grid search with
+  two refinement passes) and drawn over the data. Goodness of fit is
+  reported two ways: the one-sample **Kolmogorov–Smirnov statistic** D
+  (the largest gap between empirical and fitted cumulative token shares;
+  smaller is closer — no p-value is attached, since the parameters were
+  estimated from the same data) and log-space R² for visual continuity
+  with the chart.
+- **Vocabulary growth curve**: distinct types as tokens accumulate in
+  corpus document order, against an every-token-new diagonal. A
+  **permutation envelope** (min/max band over 30 seeded reshuffles of
+  inscription order) shows how much of the curve's shape is just document
+  order: a curve hugging the band's edge means the publication order
+  groups vocabulary (sites are published together in GORILA numbering). A
+  **Heaps' law** fit V(N) = k·N^β (least squares in log–log space) is
+  drawn over the curve; β < 1 is ordinary sublinear vocabulary growth.
 
-These are descriptive, not inferential — no curve fitting or goodness-of-fit
-test is computed; the plots are for visual assessment. A high hapax fraction
-is expected both for small corpora and for proper-name-rich administrative
-texts, so it does not by itself indicate non-linguistic structure.
+Caveats that apply to all of these: the corpus is small and administrative,
+so a high hapax fraction is expected (proper names, place names) and does
+not by itself indicate non-linguistic structure; richness estimators
+assume tokens are sampled independently, which whole-document corpora
+violate; and every number here describes the *attested* corpus — a few
+hundred tablets from a handful of sites — not Minoan writing as a whole.
 
-**Implementation**: [`LexicalStats.tsx`](../src/modules/LexicalStats.tsx).
+**Implementation**: [`LexicalStats.tsx`](../src/modules/LexicalStats.tsx),
+[`lexstats.ts`](../src/lib/lexstats.ts) (estimators, unit-tested).
+
+## Word frequency: dispersion and keyness
+
+The Word Frequency table pairs each word's raw count with two
+distribution-aware measures:
+
+- **Gries' DP** (deviation of proportions; Gries 2008):
+
+  ```
+  DP = ½ · Σᵢ | vᵢ − sᵢ |
+  ```
+
+  where sᵢ is find-site i's share of all word tokens and vᵢ is the share
+  of this word's tokens found there. DP = 0 means the word is spread
+  exactly as the site sizes predict; values near 1 mean it is concentrated
+  in one small place. Frequency and dispersion together separate
+  corpus-wide vocabulary (KU-RO: frequent, low DP) from local or scribal
+  idiosyncrasies (frequent, high DP). With Haghia Triada contributing the
+  majority of all tokens, most words have moderately high DP by
+  construction — compare DP between words, not against an absolute scale.
+- **Keyness G²** (only while a Scope is active): Dunning's log-likelihood
+  on the scope-vs-rest 2×2 table, signed by direction (positive =
+  over-represented in the scope). See the co-occurrence section for the
+  formula and the thresholds caveat.
+
+**Implementation**: [`WordFrequency.tsx`](../src/modules/WordFrequency.tsx),
+`griesDP` in [`algorithms.ts`](../src/lib/algorithms.ts) (unit-tested).
 
 ## Sign transitions (graphotactics)
 
@@ -670,7 +730,42 @@ the inspector gives the full ranked outgoing/incoming distributions for any
 sign. This is graphotactics (sign-sequence structure) rather than
 phonotactics, since the phonetic values of many signs are unknown.
 
-**Implementation**: [`SignTransitions.tsx`](../src/modules/SignTransitions.tsx).
+### Entropy of the sign system
+
+The module also reports Shannon entropies of the word-internal sign
+stream, in bits:
+
+- **H(sign)** — uncertainty of a sign drawn from the stream with no
+  context. 2^H is an "effective inventory": how many equally likely signs
+  would produce the same uncertainty.
+- **H(next | prev)** — what remains once the preceding sign is known,
+  computed as H(pair) − H(prev) over the bigram table.
+- **Mutual information** I = H(next) − H(next | prev), the bits adjacent
+  signs share — a single-number summary of graphotactic strength.
+- **Unigram redundancy** = 1 − H(sign)/log₂K.
+
+All entropies use the **Miller–Madow** bias correction (+ (K−1)/(2N·ln 2)
+bits): the plug-in estimator systematically underestimates entropy in
+small samples because unseen categories contribute nothing. Even after
+correction, the conditional entropy remains an underestimate — most of
+the sign-pair space is unattested in a corpus this size.
+
+A 95% interval is shown for **H(sign) only**, from a seeded **bootstrap**
+(200 multinomial resamples of the token counts). Two honesty notes. First,
+the resampling treats tokens as independent draws while real tokens repeat
+in whole words, so even that interval is optimistic. Second, the
+conditional entropy deliberately gets **no interval**: with the large
+majority of attested sign pairs occurring exactly once, every resample
+drops a big share of the categories, which biases every resampled estimate
+well below the point estimate — the percentile interval doesn't even
+contain the value it's supposed to bracket. Reporting it would be
+precision theater. (The principled fix is a Bayesian estimator such as
+NSB, which is out of scope for a client-side workbench.) Use these numbers
+comparatively — between scopes, sites, or against another script — rather
+than as absolute constants of "the Minoan language".
+
+**Implementation**: [`SignTransitions.tsx`](../src/modules/SignTransitions.tsx),
+[`lexstats.ts`](../src/lib/lexstats.ts) (entropy estimators, unit-tested).
 
 ## Scribe sign-frequency comparison
 

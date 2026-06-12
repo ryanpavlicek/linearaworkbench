@@ -7,6 +7,7 @@ import {
 } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
+import { bootstrapCountsCI, millerMadowEntropy } from "../lib/lexstats";
 import { Glyph } from "../components/Glyph";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -165,6 +166,69 @@ export default function SignTransitions() {
       ? Math.log2((v * grandTotal) / (rowTotal * colTotal))
       : null;
 
+  // Entropy of the sign system, Miller–Madow corrected, with seeded
+  // bootstrap CIs. H(sign) is the uncertainty of a sign drawn from the
+  // word-internal token stream; H(next|prev) is what remains once you know
+  // the preceding sign; the difference against H(next) is the information
+  // adjacent signs share. The bootstrap resamples pair tokens i.i.d. —
+  // real tokens repeat in whole words, so the intervals are a floor on the
+  // true uncertainty, and unattested bigrams mean the conditional entropy
+  // is still an underestimate even after correction.
+  const entropy = useMemo(() => {
+    const uniCounts = [...data.signTotal.values()];
+    const k = uniCounts.length;
+    if (k < 2 || grandTotal === 0) return null;
+    const prevIds = new Map<string, number>();
+    const pairCounts: number[] = [];
+    const pairPrev: number[] = [];
+    for (const [a, inner] of data.outgoing) {
+      let id = prevIds.get(a);
+      if (id === undefined) {
+        id = prevIds.size;
+        prevIds.set(a, id);
+      }
+      for (const c of inner.values()) {
+        pairCounts.push(c);
+        pairPrev.push(id);
+      }
+    }
+    const prevTotalsOf = (pc: readonly number[]) => {
+      const t = new Array<number>(prevIds.size).fill(0);
+      for (let i = 0; i < pc.length; i++) t[pairPrev[i]] += pc[i];
+      return t;
+    };
+    const hUni = millerMadowEntropy(uniCounts);
+    const hUniCI = bootstrapCountsCI(uniCounts, millerMadowEntropy, {
+      iters: 200,
+      seed: 11,
+    });
+    // No bootstrap CI for the conditional: with most sign pairs attested
+    // once, every resample loses a large share of the categories, so the
+    // resampled estimates are biased far below the point estimate and the
+    // percentile interval doesn't even contain it. Honest omission beats
+    // a confident-looking wrong interval; the tooltip says why.
+    const hCond =
+      millerMadowEntropy(pairCounts) -
+      millerMadowEntropy(prevTotalsOf(pairCounts));
+    const hNext = millerMadowEntropy([...colTotals.values()]);
+    const hMax = Math.log2(k);
+    let pairHapax = 0;
+    for (const c of pairCounts) if (c === 1) pairHapax++;
+    return {
+      k,
+      hUni,
+      hUniCI,
+      hCond,
+      pairTypes: pairCounts.length,
+      pairHapaxPct:
+        pairCounts.length > 0
+          ? Math.round((100 * pairHapax) / pairCounts.length)
+          : 0,
+      mutualInfo: Math.max(0, hNext - hCond),
+      redundancy: hMax > 0 ? Math.max(0, 1 - hUni / hMax) : 0,
+    };
+  }, [data, colTotals, grandTotal]);
+
   // Never-attested transitions among the frequent signs, ranked by how
   // often they SHOULD occur under independence — the strongest candidate
   // graphotactic constraints. A gap between two rare signs is expected;
@@ -223,7 +287,11 @@ export default function SignTransitions() {
 
   const findingSummary =
     `${signCount} signs · ${data.distinctTransitions} attested transitions · ` +
-    `${density.toFixed(1)}% matrix density.\nMost frequent transitions: ` +
+    `${density.toFixed(1)}% matrix density.` +
+    (entropy
+      ? `\nH(sign) ${entropy.hUni.toFixed(2)} bits (bootstrap 95% CI ${entropy.hUniCI[0].toFixed(2)}–${entropy.hUniCI[1].toFixed(2)}) · H(next|prev) ${entropy.hCond.toFixed(2)} bits (floor — pair space too sparse for an interval) · adjacent-sign MI ${entropy.mutualInfo.toFixed(2)} bits (Miller–Madow corrected).`
+      : "") +
+    `\nMost frequent transitions: ` +
     (allTransitions
       .slice(0, 6)
       .map((t) => `${t.a}→${t.b} (${t.c})`)
@@ -272,6 +340,60 @@ export default function SignTransitions() {
           <span className="lbl">Never-occurring pairs</span>
         </div>
       </div>
+
+      {entropy && (
+        <div className="card" style={{ marginBottom: 12 }}>
+          <h4>Entropy of the sign system</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Shannon entropy of the word-internal sign stream, Miller–Madow
+            bias-corrected. The plug-in estimator underestimates in a corpus
+            this small — and with most sign pairs unattested, the
+            conditional entropy is still a floor even after correction. The
+            unigram interval is a seeded bootstrap (resampling tokens as if
+            independent, so it's optimistic); the conditional gets no
+            interval at all — {entropy.pairHapaxPct}% of the{" "}
+            {entropy.pairTypes.toLocaleString()} attested pairs occur once,
+            and resampling that sparse a table only produces
+            confidently-wrong bounds. Treat these as comparative numbers
+            between slices, not absolutes.
+          </div>
+          <div className="stat-grid">
+            <div
+              className="stat-box"
+              title={`Uncertainty of the next sign with no context: ${entropy.hUni.toFixed(2)} bits ≈ choosing among ${Math.pow(2, entropy.hUni).toFixed(0)} equally-likely signs (of ${entropy.k} attested). Bootstrap 95% CI ${entropy.hUniCI[0].toFixed(2)}–${entropy.hUniCI[1].toFixed(2)} bits.`}
+            >
+              <span className="val">{entropy.hUni.toFixed(2)} bits</span>
+              <span className="lbl">
+                H(sign) · CI {entropy.hUniCI[0].toFixed(2)}–
+                {entropy.hUniCI[1].toFixed(2)}
+              </span>
+            </div>
+            <div
+              className="stat-box"
+              title={`Uncertainty of the next sign once the previous sign is known: ${entropy.hCond.toFixed(2)} bits ≈ ${Math.pow(2, entropy.hCond).toFixed(0)} effective choices. A floor: ${entropy.pairHapaxPct}% of attested pairs occur once, so much of the pair space is unobserved and no stable resampling interval exists.`}
+            >
+              <span className="val">{entropy.hCond.toFixed(2)} bits</span>
+              <span className="lbl">H(next | prev) · floor</span>
+            </div>
+            <div
+              className="stat-box"
+              title="Mutual information between adjacent signs — how many bits the preceding sign tells you about the next one. Higher = stronger graphotactic structure."
+            >
+              <span className="val">{entropy.mutualInfo.toFixed(2)} bits</span>
+              <span className="lbl">Info from previous sign</span>
+            </div>
+            <div
+              className="stat-box"
+              title={`1 − H(sign)/log₂(${entropy.k}) — how far sign usage falls below a uniform inventory. Natural writing systems are substantially redundant; 0% would mean every sign equally common.`}
+            >
+              <span className="val">
+                {(entropy.redundancy * 100).toFixed(0)}%
+              </span>
+              <span className="lbl">Unigram redundancy</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="toolbar">
         <label

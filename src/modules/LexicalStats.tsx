@@ -7,6 +7,13 @@ import {
   useScopeOptions,
 } from "../store/scope";
 import { useWorkbench, buildIndex } from "../store/workbench";
+import {
+  chao1,
+  fitHeaps,
+  fitZipfMandelbrotMLE,
+  mattr,
+  mulberry32,
+} from "../lib/lexstats";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
   esc,
@@ -63,45 +70,6 @@ function computeLexStats(words: MultiWordEntry[]): LexStats {
   return { types, tokens, hapax, dis, ttr, yuleK, herdanC, zipf, spectrum };
 }
 
-// Zipf–Mandelbrot fit: log f = log C − s·log(rank + β). For each candidate
-// β on a small grid, the best s and intercept come from ordinary least
-// squares in log space; keep the β with the highest R². β=0 reduces to a
-// plain Zipf power-law fit, so the fit can only match or beat it.
-function fitZipfMandelbrot(
-  zipf: { rank: number; freq: number }[],
-): { s: number; beta: number; r2: number; logC: number } | null {
-  if (zipf.length < 5) return null;
-  let best: { s: number; beta: number; r2: number; logC: number } | null =
-    null;
-  for (let beta = 0; beta <= 10; beta += 0.25) {
-    let sx = 0;
-    let sy = 0;
-    let sxx = 0;
-    let sxy = 0;
-    let syy = 0;
-    const n = zipf.length;
-    for (const p of zipf) {
-      const x = Math.log(p.rank + beta);
-      const y = Math.log(p.freq);
-      sx += x;
-      sy += y;
-      sxx += x * x;
-      sxy += x * y;
-      syy += y * y;
-    }
-    const denom = n * sxx - sx * sx;
-    if (denom === 0) continue;
-    const slope = (n * sxy - sx * sy) / denom;
-    const intercept = (sy - slope * sx) / n;
-    const ssTot = syy - (sy * sy) / n;
-    const ssRes = ssTot - (slope * (n * sxy - sx * sy)) / n;
-    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
-    if (!best || r2 > best.r2)
-      best = { s: -slope, beta, r2, logC: intercept };
-  }
-  return best;
-}
-
 type CompareMode = "none" | "corpus" | "site" | "period";
 
 export default function LexicalStats() {
@@ -118,7 +86,25 @@ export default function LexicalStats() {
   const [comparePeriod, setComparePeriod] = useState("");
 
   const stats = useMemo(() => computeLexStats(words), [words]);
-  const zipfFit = useMemo(() => fitZipfMandelbrot(stats.zipf), [stats.zipf]);
+  const zipfFit = useMemo(
+    () => fitZipfMandelbrotMLE(stats.zipf.map((z) => z.freq)),
+    [stats.zipf],
+  );
+
+  // Chao1 lower bound on the total vocabulary, from the hapax/dis counts.
+  const richness = useMemo(
+    () => chao1(stats.types, stats.hapax, stats.dis),
+    [stats],
+  );
+
+  // MATTR over the multi-sign token stream in corpus order. Window 100 is
+  // the conventional setting; null if the stream is shorter than that.
+  const mattrValue = useMemo(() => {
+    const stream: string[] = [];
+    for (const ins of scoped.inscriptions)
+      for (const w of ins.words) if (w.includes("-")) stream.push(w);
+    return mattr(stream, 100);
+  }, [scoped.inscriptions]);
 
   // Vocabulary growth: distinct types observed as tokens accumulate in
   // corpus document order. A flattening curve means the vocabulary is
@@ -137,6 +123,52 @@ export default function LexicalStats() {
     }
     return points;
   }, [scoped.inscriptions]);
+
+  // Permutation envelope: re-walk the growth curve under 30 random
+  // reshuffles of inscription order (seeded — reproducible) and keep the
+  // min/max types at each sampled token count. The observed curve sitting
+  // inside the band means document order doesn't matter much; hugging an
+  // edge means the publication order groups vocabulary (e.g. by site).
+  const envelope = useMemo(() => {
+    const perIns = scoped.inscriptions.map((ins) =>
+      ins.words.filter((w) => w.includes("-")),
+    );
+    const total = perIns.reduce((s, a) => s + a.length, 0);
+    if (total < 50) return null;
+    const PERMS = 30;
+    const SAMPLES = 120;
+    const sampleAt = Array.from({ length: SAMPLES }, (_, j) =>
+      Math.max(1, Math.round(((j + 1) / SAMPLES) * total)),
+    );
+    const min = new Array<number>(SAMPLES).fill(Infinity);
+    const max = new Array<number>(SAMPLES).fill(0);
+    for (let p = 0; p < PERMS; p++) {
+      const rand = mulberry32(1000 + p);
+      const order = perIns.map((_, i) => i);
+      for (let i = order.length - 1; i > 0; i--) {
+        const j = Math.floor(rand() * (i + 1));
+        [order[i], order[j]] = [order[j], order[i]];
+      }
+      const seen = new Set<string>();
+      let tok = 0;
+      let si = 0;
+      for (const idx of order) {
+        for (const w of perIns[idx]) {
+          tok++;
+          seen.add(w);
+          while (si < SAMPLES && sampleAt[si] <= tok) {
+            if (seen.size < min[si]) min[si] = seen.size;
+            if (seen.size > max[si]) max[si] = seen.size;
+            si++;
+          }
+        }
+      }
+    }
+    return sampleAt.map((t, j) => ({ tokens: t, min: min[j], max: max[j] }));
+  }, [scoped.inscriptions]);
+
+  // Heaps' law fit V = k·N^β over the observed growth curve.
+  const heaps = useMemo(() => fitHeaps(growth), [growth]);
 
   // Comparison set B: an independently-filtered slice of the *full* corpus
   // (so it's unaffected by the active scope) selected by the controls below.
@@ -209,7 +241,9 @@ export default function LexicalStats() {
       const steps = 60;
       for (let i = 0; i <= steps; i++) {
         const r = Math.pow(A.length, i / steps); // log-spaced ranks 1..N
-        const f = Math.exp(zipfFit.logC - zipfFit.s * Math.log(r + zipfFit.beta));
+        const f =
+          stats.tokens *
+          Math.exp(-zipfFit.s * Math.log(r + zipfFit.beta) - zipfFit.logZ);
         if (f < 0.8 || f > maxFreq * 1.5) continue;
         pts.push(
           `${pts.length === 0 ? "M" : "L"}${x(r).toFixed(1)},${y(Math.max(1, f)).toFixed(1)}`,
@@ -226,7 +260,7 @@ export default function LexicalStats() {
       ideal: `${idealStart} ${idealEnd}`,
       fitted,
     };
-  }, [stats.zipf, compStats, zipfFit]);
+  }, [stats, compStats, zipfFit]);
 
   const maxSpectrum = Math.max(...stats.spectrum.map(([, c]) => c), 1);
 
@@ -234,9 +268,15 @@ export default function LexicalStats() {
     stats.types > 0 ? ((stats.hapax / stats.types) * 100).toFixed(0) : "0";
   const findingSummary =
     `${stats.types.toLocaleString()} types · ${stats.tokens.toLocaleString()} tokens · ` +
-    `TTR ${stats.ttr.toFixed(3)} · ${hapaxPct}% hapax · Yule's K ${stats.yuleK.toFixed(0)} · Herdan's C ${stats.herdanC.toFixed(3)}.` +
+    `TTR ${stats.ttr.toFixed(3)} · ${hapaxPct}% hapax · Yule's K ${stats.yuleK.toFixed(0)} · Herdan's C ${stats.herdanC.toFixed(3)}` +
+    (mattrValue != null ? ` · MATTR(100) ${mattrValue.toFixed(3)}` : "") +
+    "." +
+    `\nChao1 vocabulary lower bound: ≥${Math.round(richness.estimate).toLocaleString()} types (95% CI ${Math.round(richness.ciLow).toLocaleString()}–${Math.round(richness.ciHigh).toLocaleString()}).` +
     (zipfFit
-      ? `\nZipf–Mandelbrot fit: s=${zipfFit.s.toFixed(2)}, β=${zipfFit.beta.toFixed(2)}, R²=${zipfFit.r2.toFixed(3)}.`
+      ? `\nZipf–Mandelbrot (MLE): s=${zipfFit.s.toFixed(2)}, β=${zipfFit.beta.toFixed(2)}, KS D=${zipfFit.ks.toFixed(3)}, log-space R²=${zipfFit.r2Log.toFixed(3)}.`
+      : "") +
+    (heaps
+      ? `\nHeaps' law: V ≈ ${heaps.k.toFixed(1)}·N^${heaps.beta.toFixed(2)} (R² ${heaps.r2.toFixed(3)}).`
       : "") +
     `\nSpectrum: ${stats.hapax.toLocaleString()} words occur once, ${stats.dis.toLocaleString()} twice.` +
     (compStats
@@ -309,6 +349,24 @@ export default function LexicalStats() {
         >
           <span className="val">{stats.herdanC.toFixed(3)}</span>
           <span className="lbl">Herdan's C</span>
+        </div>
+        <div
+          className="stat-box"
+          title={`Chao1 estimate of the total vocabulary (observed + unseen), from the hapax/dis counts: S + F₁²/2F₂. A LOWER bound — with this much hapax mass the real total is likely higher. 95% CI ${Math.round(richness.ciLow).toLocaleString()}–${Math.round(richness.ciHigh).toLocaleString()} (Chao 1987 log-normal).`}
+        >
+          <span className="val">
+            ≥{Math.round(richness.estimate).toLocaleString()}
+          </span>
+          <span className="lbl">Chao1 est. vocabulary</span>
+        </div>
+        <div
+          className="stat-box"
+          title="Moving-average type–token ratio over every sliding 100-token window (Covington & McFall 2010). Unlike raw TTR it doesn't shrink mechanically with corpus size, so differently-sized slices are comparable. — shown when the view has fewer than 100 word tokens."
+        >
+          <span className="val">
+            {mattrValue != null ? mattrValue.toFixed(3) : "—"}
+          </span>
+          <span className="lbl">MATTR (window 100)</span>
         </div>
       </div>
 
@@ -413,11 +471,31 @@ export default function LexicalStats() {
               { label: "Type–token ratio", a: stats.ttr.toFixed(3), b: compStats?.ttr.toFixed(3) },
               { label: "Yule's K", a: stats.yuleK.toFixed(0), b: compStats?.yuleK.toFixed(0) },
               { label: "Herdan's C", a: stats.herdanC.toFixed(3), b: compStats?.herdanC.toFixed(3) },
+              ...(mattrValue != null
+                ? [
+                    {
+                      label: "MATTR (window 100)",
+                      a: mattrValue.toFixed(3),
+                    } as StatRow,
+                  ]
+                : []),
+              {
+                label: "Chao1 est. vocabulary (lower bound)",
+                a: `≥${Math.round(richness.estimate).toLocaleString()} (95% CI ${Math.round(richness.ciLow).toLocaleString()}–${Math.round(richness.ciHigh).toLocaleString()})`,
+              },
               ...(zipfFit
                 ? [
                     {
-                      label: "Zipf–Mandelbrot fit",
-                      a: `s=${zipfFit.s.toFixed(2)}, β=${zipfFit.beta.toFixed(2)}, R²=${zipfFit.r2.toFixed(3)}`,
+                      label: "Zipf–Mandelbrot fit (MLE)",
+                      a: `s=${zipfFit.s.toFixed(2)}, β=${zipfFit.beta.toFixed(2)}, KS D=${zipfFit.ks.toFixed(3)}, R²=${zipfFit.r2Log.toFixed(3)}`,
+                    } as StatRow,
+                  ]
+                : []),
+              ...(heaps
+                ? [
+                    {
+                      label: "Heaps' law",
+                      a: `V ≈ ${heaps.k.toFixed(1)}·N^${heaps.beta.toFixed(2)} (R² ${heaps.r2.toFixed(3)})`,
                     } as StatRow,
                   ]
                 : []),
@@ -527,10 +605,10 @@ export default function LexicalStats() {
                 Zipf–Mandelbrot{" "}
                 <span
                   style={{ fontFamily: "var(--mono)" }}
-                  title="f(r) ∝ 1/(r+β)^s, fitted by least squares in log space over a β grid. s near 1 with high R² = Zipfian; β shifts the head of the curve."
+                  title="p(r) ∝ 1/(r+β)^s over the attested ranks, fitted by maximum likelihood (grid + refinement). KS D is the largest gap between the empirical and fitted cumulative token shares — smaller is closer; R² describes the fit in log–log space. s near 1 = Zipfian; β shifts the head of the curve."
                 >
-                  s={zipfFit.s.toFixed(2)}, β={zipfFit.beta.toFixed(2)}, R²=
-                  {zipfFit.r2.toFixed(3)}
+                  s={zipfFit.s.toFixed(2)}, β={zipfFit.beta.toFixed(2)} (MLE),
+                  KS D={zipfFit.ks.toFixed(3)}, R²={zipfFit.r2Log.toFixed(3)}
                 </span>
                 .
               </>
@@ -668,20 +746,47 @@ export default function LexicalStats() {
           saturating — most of what the scribes wrote, we've seen; a curve
           still climbing at the right edge means more excavation would keep
           yielding new words. The dashed diagonal is the every-token-new
-          ceiling.
+          ceiling.{" "}
+          {envelope && (
+            <>
+              The shaded band is a permutation envelope — the min/max over 30
+              seeded reshuffles of inscription order; a curve hugging one
+              edge means the publication order groups vocabulary (sites are
+              published together).
+            </>
+          )}{" "}
+          {heaps && (
+            <>
+              <span style={{ color: "var(--gn)" }}>Green dashes</span>: Heaps'
+              law fit{" "}
+              <span
+                style={{ fontFamily: "var(--mono)" }}
+                title="V(N) = k·N^β by least squares in log–log space. β < 1 = sublinear vocabulary growth; large natural-language corpora typically run β ≈ 0.4–0.6."
+              >
+                V ≈ {heaps.k.toFixed(1)}·N^{heaps.beta.toFixed(2)} (R²{" "}
+                {heaps.r2.toFixed(3)})
+              </span>
+              .
+            </>
+          )}
         </div>
-        <GrowthChart points={growth} />
+        <GrowthChart points={growth} envelope={envelope} heaps={heaps} />
       </div>
     </div>
   );
 }
 
 // Linear-scale types-vs-tokens curve with an every-token-new reference
-// diagonal. Kept simple on purpose: one series, the shape is the message.
+// diagonal, an optional permutation envelope band, and an optional Heaps
+// fit overlay. Kept simple on purpose: the shape is the message.
 function GrowthChart({
   points,
+  envelope,
+  heaps,
 }: {
   points: { tokens: number; types: number }[];
+  envelope: { tokens: number; min: number; max: number }[] | null;
+  heaps: { k: number; beta: number; r2: number } | null;
 }) {
   const last = points[points.length - 1];
   if (!last || last.tokens < 2) {
@@ -755,6 +860,43 @@ function GrowthChart({
         strokeWidth={1}
         strokeDasharray="4 4"
       />
+      {/* permutation envelope: min/max band over reshuffled document orders */}
+      {envelope && envelope.length >= 2 && (
+        <path
+          d={
+            envelope
+              .map(
+                (p, i) =>
+                  `${i === 0 ? "M" : "L"}${x(p.tokens).toFixed(1)},${y(p.max).toFixed(1)}`,
+              )
+              .join(" ") +
+            " " +
+            [...envelope]
+              .reverse()
+              .map((p) => `L${x(p.tokens).toFixed(1)},${y(p.min).toFixed(1)}`)
+              .join(" ") +
+            " Z"
+          }
+          fill="var(--ac)"
+          opacity={0.1}
+          stroke="none"
+        />
+      )}
+      {/* Heaps' law fit V = k·N^β */}
+      {heaps && (
+        <path
+          d={Array.from({ length: 61 }, (_, i) => {
+            const t = (last.tokens * i) / 60;
+            const v = heaps.k * Math.pow(Math.max(1, t), heaps.beta);
+            return `${i === 0 ? "M" : "L"}${x(t).toFixed(1)},${y(Math.min(v, last.tokens)).toFixed(1)}`;
+          }).join(" ")}
+          stroke="var(--gn)"
+          strokeWidth={1.25}
+          strokeDasharray="5 3"
+          fill="none"
+          opacity={0.85}
+        />
+      )}
       <path d={d} stroke="var(--ac)" strokeWidth={1.5} fill="none" />
       <text
         x={x(last.tokens) - 4}
