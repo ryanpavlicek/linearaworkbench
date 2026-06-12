@@ -326,6 +326,74 @@ describe("corpus loading", () => {
     expect(store().loadError).toBeTruthy();
     vi.unstubAllGlobals();
   });
+
+  it("loadCorpusFromCustomUrl normalizes the document and records the source", async () => {
+    const fetchMock = vi.fn(async (url: string) =>
+      ({
+        ok: true,
+        status: 200,
+        json: async () =>
+          url.includes("signs")
+            ? [sign("KU")]
+            : [{ id: "MY1", words: ["KU-RO"] }], // minimal record, no metadata
+      }) as unknown as Response,
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    await store().loadCorpusFromCustomUrl(
+      "https://example.org/my.json",
+      "/corpus/signs.json",
+    );
+    expect(store().loaded).toBe(true);
+    expect(store().corpusSource).toBe("https://example.org/my.json");
+    expect(store().corpus.byId.get("MY1")?.site).toBe("Unknown");
+    vi.unstubAllGlobals();
+  });
+
+  it("loadCorpusFromCustomUrl surfaces unusable documents as loadError", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        ({ ok: true, status: 200, json: async () => ({ nope: 1 }) }) as unknown as Response,
+      ),
+    );
+    await store().loadCorpusFromCustomUrl("https://example.org/bad.json", "/s.json");
+    expect(store().loaded).toBe(false);
+    expect(store().loadError).toMatch(/Expected a JSON array/);
+    vi.unstubAllGlobals();
+  });
+
+  it("applyCustomCorpus swaps the corpus, keeps signs, and resets detail/scope", () => {
+    store().loadCorpusFromInscriptions(
+      [blank("HT1", "HT", ["KU-RO"])],
+      [sign("KU")],
+    );
+    store().showInscription("HT1");
+    store().setScope({ site: "HT" });
+    const result = store().applyCustomCorpus(
+      [{ id: "MY1", words: ["A-B"] }, { words: ["no-id"] }],
+      "my-file.json",
+    );
+    expect(result).toEqual({ loaded: 1, skipped: 1 });
+    expect(store().corpusSource).toBe("my-file.json");
+    expect(store().corpus.byId.has("MY1")).toBe(true);
+    expect(store().corpus.byId.has("HT1")).toBe(false);
+    expect(store().corpus.signsByLabel.get("KU")).toBeDefined(); // signs kept
+    expect(store().detail).toBeNull();
+    expect(store().scope).toEqual(EMPTY_SCOPE);
+    // the bundled loader clears the marker again
+    store().loadCorpusFromInscriptions([blank("HT1", "HT", ["KU-RO"])], [sign("KU")]);
+    expect(store().corpusSource).toBeNull();
+  });
+
+  it("applyCustomCorpus throws on unusable input without touching the corpus", () => {
+    store().loadCorpusFromInscriptions(
+      [blank("HT1", "HT", ["KU-RO"])],
+      [sign("KU")],
+    );
+    expect(() => store().applyCustomCorpus({ nope: 1 }, "bad.json")).toThrow();
+    expect(store().corpus.byId.has("HT1")).toBe(true);
+    expect(store().corpusSource).toBeNull();
+  });
 });
 
 describe("findings", () => {

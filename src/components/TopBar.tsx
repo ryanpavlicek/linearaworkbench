@@ -9,6 +9,7 @@ interface TopBarProps {
 export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
   const loaded = useWorkbench((s) => s.loaded);
   const corpus = useWorkbench((s) => s.corpus);
+  const corpusSource = useWorkbench((s) => s.corpusSource);
   const annotations = useWorkbench((s) => s.annotations);
   const setActive = useWorkbench((s) => s.setActiveModule);
 
@@ -22,6 +23,15 @@ export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
         <b>{corpus.inscriptions.length}</b> inscriptions · <b>{nWords}</b>{" "}
         words · <b>{corpus.signs.length}</b> signs ·{" "}
         <b>{corpus.siteIndex.size}</b> sites
+        {corpusSource && (
+          <span
+            className="tag tag-domain"
+            style={{ marginLeft: 8, fontSize: 9 }}
+            title={`This session is browsing a custom corpus (${corpusSource}), not the bundled one. Reload without ?corpus= to go back.`}
+          >
+            custom corpus
+          </span>
+        )}
       </>
     );
   }

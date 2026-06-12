@@ -201,6 +201,26 @@ facsimile thumbnail, and a link back to the full workbench:
 </iframe>
 ```
 
+## Bring your own corpus
+
+Every analysis module can run against an inscription set you supply instead
+of the bundled corpus — for the length of a browser session:
+
+- **From a URL**: `?corpus=<url-to-json>` loads the document and opens the
+  workbench on it (the URL must allow cross-origin reads — a GitHub raw
+  link or Pages site works).
+- **From a file**: *Data Export → Bring your own corpus* picks a local
+  JSON file.
+
+Both accept either a plain array of inscription records or a workbench
+corpus export (the schema-v1 object Data Export and the data API produce).
+Only `id` plus some text (`words`, `lines`, or `transcription`) are
+required per record; missing metadata gets sensible defaults. That makes
+round trips easy: export a scope-filtered corpus here and reload it later,
+or build one in Python with pyaegean's `to_workbench()` and point the
+workbench at it. The top bar shows a "custom corpus" tag while one is
+active; reloading without the parameter restores the bundled corpus.
+
 ## Keyboard
 
 - `Ctrl + K` — Command palette (jump to any module by name)

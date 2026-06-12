@@ -52,12 +52,18 @@ export function App() {
     setMobileNavOpen(false);
   }, [activeModule]);
 
+  const loadCustomCorpus = useWorkbench((s) => s.loadCorpusFromCustomUrl);
   useEffect(() => {
     if (!loaded) {
       const base = import.meta.env.BASE_URL || "/";
-      loadCorpus(`${base}corpus/`);
+      // ?corpus=<url> swaps in someone else's inscription JSON for this
+      // session (a pyaegean dump, a colleague's export) — the bundled sign
+      // inventory still applies. No param: the bundled corpus.
+      const custom = new URLSearchParams(window.location.search).get("corpus");
+      if (custom) loadCustomCorpus(custom, `${base}corpus/signs.json`);
+      else loadCorpus(`${base}corpus/`);
     }
-  }, [loaded, loadCorpus]);
+  }, [loaded, loadCorpus, loadCustomCorpus]);
 
   // URL ↔ store sync: module / detail / scope are shareable permalinks.
   // Embeds skip it — the card is read-only and owns no navigation.
@@ -165,7 +171,11 @@ export function App() {
             <button
               onClick={() => {
                 const base = import.meta.env.BASE_URL || "/";
-                loadCorpus(`${base}corpus/`);
+                const custom = new URLSearchParams(
+                  window.location.search,
+                ).get("corpus");
+                if (custom) loadCustomCorpus(custom, `${base}corpus/signs.json`);
+                else loadCorpus(`${base}corpus/`);
               }}
             >
               Retry

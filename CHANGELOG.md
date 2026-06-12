@@ -6,6 +6,12 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+- **Bring your own corpus**: `?corpus=<url>` (or *Data Export → Load
+  corpus from file*) runs every module against an inscription set you
+  supply for the session — a scoped export from this app, a pyaegean
+  `to_workbench()` dump, or any JSON array where each record has an `id`
+  and some text. Missing metadata gets defaults; the top bar flags the
+  session with a "custom corpus" tag.
 - **Obsidian vault export**: Data Export can write your research straight
   into a folder as a linked Markdown vault — notes with wikilinks, a
   Lexicon page, stub pages for every tablet and word your work touches

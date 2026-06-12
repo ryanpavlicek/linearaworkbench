@@ -23,6 +23,7 @@ import type {
 } from "../lib/types";
 import { COMPARISON_LANGUAGES } from "../data/languages";
 import { KEYS, loadJson, saveJson } from "../lib/persistence";
+import { normalizeCorpusJson } from "../lib/customCorpus";
 
 export interface CorpusIndex {
   inscriptions: Inscription[];
@@ -71,11 +72,24 @@ interface State {
     | { kind: "inscription"; value: string }
     | null;
 
+  // Non-null when a bring-your-own corpus replaced the bundled one for this
+  // session — the label shown in the top bar ("?corpus=" URL or a file name).
+  corpusSource: string | null;
+
   loadCorpusFromUrl: (baseUrl: string) => Promise<void>;
   loadCorpusFromInscriptions: (
     data: Inscription[],
     signs: SignData[],
   ) => void;
+  // Bring-your-own corpus: fetch one JSON document (array or schema-v1
+  // export), normalize it, and load it against the bundled sign inventory.
+  loadCorpusFromCustomUrl: (url: string, signsUrl: string) => Promise<void>;
+  // Same normalization for already-parsed JSON (the local file picker).
+  // Throws on unusable input; returns counts for the caller's toast.
+  applyCustomCorpus: (
+    raw: unknown,
+    label: string,
+  ) => { loaded: number; skipped: number };
 
   setScope: (patch: Partial<CorpusScope>) => void;
   clearScope: () => void;
@@ -283,6 +297,8 @@ export const useWorkbench = create<State>((set, get) => ({
   toast: null,
   detail: null,
 
+  corpusSource: null,
+
   async loadCorpusFromUrl(baseUrl) {
     try {
       const [insRes, signRes] = await Promise.all([
@@ -306,7 +322,45 @@ export const useWorkbench = create<State>((set, get) => ({
       corpus: buildIndex(data, signs),
       loaded: true,
       loadError: null,
+      corpusSource: null,
     });
+  },
+
+  async loadCorpusFromCustomUrl(url, signsUrl) {
+    try {
+      const [insRes, signRes] = await Promise.all([fetch(url), fetch(signsUrl)]);
+      if (!insRes.ok)
+        throw new Error(`custom corpus fetch failed (HTTP ${insRes.status})`);
+      if (!signRes.ok)
+        throw new Error(`sign inventory fetch failed (HTTP ${signRes.status})`);
+      const [raw, signs] = await Promise.all([
+        insRes.json() as Promise<unknown>,
+        signRes.json() as Promise<SignData[]>,
+      ]);
+      const { inscriptions } = normalizeCorpusJson(raw);
+      set({
+        corpus: buildIndex(inscriptions, signs),
+        loaded: true,
+        loadError: null,
+        corpusSource: url,
+      });
+    } catch (err) {
+      set({ loadError: String(err), loaded: false });
+    }
+  },
+
+  applyCustomCorpus(raw, label) {
+    const { inscriptions, skipped } = normalizeCorpusJson(raw);
+    set((s) => ({
+      corpus: buildIndex(inscriptions, s.corpus.signs),
+      loaded: true,
+      loadError: null,
+      corpusSource: label,
+      // The old corpus's open detail/scope would dangle against new ids.
+      detail: null,
+      scope: { ...EMPTY_SCOPE },
+    }));
+    return { loaded: inscriptions.length, skipped };
   },
 
   setScope: (patch) => set((s) => ({ scope: { ...s.scope, ...patch } })),

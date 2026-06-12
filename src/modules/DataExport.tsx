@@ -248,6 +248,33 @@ export default function DataExport() {
   const fileRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<BackupFile | null>(null);
 
+  // ── Bring your own corpus ─────────────────────────────────────────────────
+  const applyCustomCorpus = useWorkbench((s) => s.applyCustomCorpus);
+  const corpusSource = useWorkbench((s) => s.corpusSource);
+  const corpusFileRef = useRef<HTMLInputElement>(null);
+
+  function onPickCorpusFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const raw = JSON.parse(String(reader.result));
+        const { loaded: n, skipped } = applyCustomCorpus(raw, f.name);
+        toast(
+          `Loaded ${n} inscriptions from ${f.name}${skipped ? ` (${skipped} entries skipped)` : ""}`,
+        );
+      } catch (err) {
+        toast(
+          err instanceof Error ? err.message : "Couldn't parse that file as JSON.",
+          "error",
+        );
+      }
+    };
+    reader.readAsText(f);
+    e.target.value = "";
+  }
+
   // ── Reset to baseline ─────────────────────────────────────────────────────
   // Two-step destructive action: arm the panel, then require the user to type
   // CLEAR so it can't be triggered by a stray click.
@@ -492,6 +519,40 @@ export default function DataExport() {
       <FolderSyncCard onLoadBackup={setPending} />
 
       <VaultExportCard />
+
+      <div className="card" style={{ marginTop: 12 }}>
+        <h4>Bring your own corpus</h4>
+        <p className="sub" style={{ marginTop: 4 }}>
+          Load a different inscription set into every module for this session —
+          a corpus you exported here (possibly scoped), a pyaegean{" "}
+          <code>to_workbench()</code> dump, or any JSON array of inscription
+          records (only <code>id</code> and some text are required; everything
+          else gets sensible defaults). The same thing works as a shareable
+          link: <code>?corpus=&lt;url-to-json&gt;</code>. The bundled corpus
+          comes back on reload.{" "}
+          {corpusSource && (
+            <>
+              <b>Currently loaded:</b> {corpusSource}.
+            </>
+          )}
+        </p>
+        <div style={{ marginTop: 10 }}>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => corpusFileRef.current?.click()}
+            title="Pick a JSON file of inscriptions to browse for this session"
+          >
+            ⬆ Load corpus from file…
+          </button>
+          <input
+            ref={corpusFileRef}
+            type="file"
+            accept="application/json,.json"
+            style={{ display: "none" }}
+            onChange={onPickCorpusFile}
+          />
+        </div>
+      </div>
 
       <div
         className="card"
