@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
+import { isScopeActive, scopeSummary, useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile, siglaSignListUrl } from "../lib/helpers";
 import { resolveSignAlias } from "../data/abNumbers";
 import { Glyph } from "../components/Glyph";
@@ -18,7 +19,11 @@ type Filter = "all" | "shared" | "aOnly" | "unknown";
 
 export default function SignInventory() {
   const signs = useWorkbench((s) => s.corpus.signs);
-  const wordIndex = useWorkbench((s) => s.corpus.wordIndex);
+  const scope = useWorkbench((s) => s.scope);
+  // Scope-aware: top words and attestation counts reflect the active Scope
+  // (sign metadata — status, confidence, codepoint — stays corpus-wide).
+  const wordIndex = useScopedCorpus().wordIndex;
+  const scopeOn = isScopeActive(scope);
   const initialIntent = useWorkbench.getState().moduleIntent;
   const initialFilter: Filter =
     initialIntent?.tab === "shared" ||
@@ -26,14 +31,17 @@ export default function SignInventory() {
     initialIntent?.tab === "unknown"
       ? initialIntent.tab
       : "all";
-  const [q, setQ] = useState("");
+  // Deep links (sign annotations, Notes chips) can land here focused on a
+  // specific sign.
+  const [q, setQ] = useState(initialIntent?.focus ?? "");
   const [filter, setFilter] = useState<Filter>(initialFilter);
   const [minFreq, setMinFreq] = useState(1);
   const [minConf, setMinConf] = useState(0);
   const { sort, toggle, sortRows } = useSort("total", "desc");
 
-  const examplesBySign = useMemo(() => {
+  const { examplesBySign, scopedCounts } = useMemo(() => {
     const map = new Map<string, { word: string; count: number }[]>();
+    const counts = new Map<string, number>();
     for (const [w, e] of wordIndex) {
       if (!w.includes("-")) continue;
       const parts = w.split("-").map((p) =>
@@ -51,11 +59,20 @@ export default function SignInventory() {
           map.set(p, arr);
         }
         arr.push({ word: w, count: e.count });
+        counts.set(p, (counts.get(p) ?? 0) + e.count);
       }
     }
     for (const v of map.values()) v.sort((a, b) => b.count - a.count);
-    return map;
+    return { examplesBySign: map, scopedCounts: counts };
   }, [wordIndex]);
+
+  // Attestations: the build-time corpus total normally; recomputed from the
+  // scoped word index while a Scope is active.
+  const attestation = useCallback(
+    (s: (typeof signs)[number]) =>
+      scopeOn ? (scopedCounts.get(s.label) ?? 0) : s.total,
+    [scopeOn, scopedCounts],
+  );
 
   // If the user typed an AB-number or A-only code (e.g. "AB77" or "A301"),
   // resolve it to the GORILA label and use that as the effective query —
@@ -69,7 +86,7 @@ export default function SignInventory() {
       if (filter === "aOnly" && !s.linearAOnly) return false;
       if (filter === "unknown" && (s.linearAOnly || s.sharedWithLinearB))
         return false;
-      if (s.total < minFreq) return false;
+      if (attestation(s) < minFreq) return false;
       if (s.confidence < minConf) return false;
       if (!effective) return true;
       // When alias-resolved, match the label exactly (the alias gave us the
@@ -83,11 +100,11 @@ export default function SignInventory() {
         (s.phonetic && s.phonetic.toUpperCase().includes(effective))
       );
     });
-  }, [signs, q, aliasResolved, filter, minFreq, minConf]);
+  }, [signs, q, aliasResolved, filter, minFreq, minConf, attestation]);
 
   const sorted = sortRows(shown, {
     label: (s) => s.label,
-    total: (s) => s.total,
+    total: (s) => attestation(s),
     confidence: (s) => s.confidence,
   });
 
@@ -118,7 +135,7 @@ export default function SignInventory() {
         s.codepoint ? `U+${s.codepoint.toString(16).toUpperCase()}` : "",
         s.phonetic ?? "",
         status,
-        s.total,
+        attestation(s),
         `${(s.confidence * 100).toFixed(0)}%`,
       ]);
     }
@@ -157,6 +174,17 @@ export default function SignInventory() {
           complementary, not redundant.
         </p>
       </div>
+      {scopeOn && (
+        <div
+          className="dim"
+          style={{ fontSize: 11, marginBottom: 8, color: "var(--ac)" }}
+        >
+          ◆ Scope: {scopeSummary(scope)} —{" "}
+          {signs.filter((s) => (scopedCounts.get(s.label) ?? 0) > 0).length} of{" "}
+          {signs.length} signs attested in scope; attestation counts and top
+          words reflect the scoped corpus.
+        </div>
+      )}
       <div className="stat-grid">
         <div className="stat-box">
           <span className="val">{signs.length}</span>
@@ -287,7 +315,7 @@ export default function SignInventory() {
               },
               {
                 label: "Attestations",
-                render: (s) => esc(s.total),
+                render: (s) => esc(attestation(s)),
                 align: "right",
               },
               {
@@ -365,7 +393,7 @@ export default function SignInventory() {
                       <span className="tag tag-domain">variant</span>
                     )}
                   </td>
-                  <td className="numeral">{s.total}</td>
+                  <td className="numeral">{attestation(s)}</td>
                   <td className="dim">{(s.confidence * 100).toFixed(0)}%</td>
                   <td style={{ fontSize: 11 }}>
                     {ex.map((e) => (

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkbench, getAllLanguages } from "../store/workbench";
-import { useMultiWords } from "../lib/helpers";
+import { useScopedMultiWords } from "../lib/helpers";
 import {
   alignPhonetic,
   phoneticDistance,
@@ -79,7 +79,9 @@ export default function CrossLinguistic() {
   const hyp = useWorkbench((s) => s.hypothesis);
   const custom = useWorkbench((s) => s.customLanguages);
   const allLangs = useMemo(() => getAllLanguages(custom), [custom]);
-  const words = useMultiWords();
+  // Scoped: the Bulk view ranks the top corpus words, and "top words" must
+  // honor the global Scope like every other analysis surface.
+  const words = useScopedMultiWords();
   const upsertAnnotation = useWorkbench((s) => s.upsertAnnotation);
   const toast = useWorkbench((s) => s.toast_show);
 

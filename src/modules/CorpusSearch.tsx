@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
+import { isScopeActive, scopeSummary, useScopedCorpus } from "../store/scope";
 import { WordToken } from "../components/WordToken";
 import { InscriptionLink } from "../components/InscriptionLink";
 import { GlyphPalette } from "../components/GlyphPalette";
@@ -7,7 +8,12 @@ import { SaveFindingButton } from "../components/SaveFindingButton";
 import { csvEscape, downloadFile, MAX_ROWS } from "../lib/helpers";
 
 export default function CorpusSearch() {
-  const inscriptions = useWorkbench((s) => s.corpus.inscriptions);
+  // Scope-aware, like Corpus Browser — the two corpus surfaces must agree.
+  const inscriptions = useScopedCorpus().inscriptions;
+  const totalInscriptions = useWorkbench(
+    (s) => s.corpus.inscriptions.length,
+  );
+  const scope = useWorkbench((s) => s.scope);
 
   const [q, setQ] = useState("");
   const [site, setSite] = useState("");
@@ -100,6 +106,21 @@ export default function CorpusSearch() {
       <p className="panel-desc">
         Search inscriptions by ID or word; filter by site and tablet support.
       </p>
+
+      {isScopeActive(scope) && (
+        <div
+          className="dim"
+          style={{
+            fontSize: 11,
+            marginBottom: 8,
+            color: "var(--ac)",
+          }}
+        >
+          ◆ Scope: {scopeSummary(scope)} — searching {inscriptions.length} of{" "}
+          {totalInscriptions} inscriptions. Clear it in the top bar to search
+          everything.
+        </div>
+      )}
 
       <div className="toolbar">
         <input

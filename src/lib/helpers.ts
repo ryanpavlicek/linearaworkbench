@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useWorkbench } from "../store/workbench";
+import { useScopedCorpus } from "../store/scope";
 import { wordToPhonetic } from "./algorithms";
 import type { Inscription, PhoneticOverrides, WordEntry } from "./types";
 
@@ -8,17 +9,29 @@ export interface MultiWordEntry {
   entry: WordEntry;
 }
 
-// Multi-sign words only (sign-1-sign-2-…) — these are the linguistic units of interest.
+function toMultiWordList(
+  wordIndex: Map<string, WordEntry>,
+): MultiWordEntry[] {
+  const list: MultiWordEntry[] = [];
+  for (const [word, entry] of wordIndex) {
+    if (word.includes("-")) list.push({ word, entry });
+  }
+  list.sort((a, b) => b.entry.count - a.entry.count);
+  return list;
+}
+
+// Multi-sign words only (sign-1-sign-2-…) — these are the linguistic units
+// of interest. Whole-corpus: use for inputs/autocomplete, where suggestions
+// shouldn't shrink with the Scope.
 export function useMultiWords() {
   const wordIndex = useWorkbench((s) => s.corpus.wordIndex);
-  return useMemo(() => {
-    const list: MultiWordEntry[] = [];
-    for (const [word, entry] of wordIndex) {
-      if (word.includes("-")) list.push({ word, entry });
-    }
-    list.sort((a, b) => b.entry.count - a.entry.count);
-    return list;
-  }, [wordIndex]);
+  return useMemo(() => toMultiWordList(wordIndex), [wordIndex]);
+}
+
+// Scope-aware variant — analysis surfaces must respect the global Scope.
+export function useScopedMultiWords() {
+  const wordIndex = useScopedCorpus().wordIndex;
+  return useMemo(() => toMultiWordList(wordIndex), [wordIndex]);
 }
 
 export function useInscriptionList() {

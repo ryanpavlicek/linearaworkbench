@@ -22,8 +22,7 @@ import { FolderSyncCard } from "../components/FolderSyncCard";
 import { VaultExportCard } from "../components/VaultExportCard";
 
 export default function DataExport() {
-  const wordIndex = useWorkbench((s) => s.corpus.wordIndex);
-  const inscriptions = useWorkbench((s) => s.corpus.inscriptions);
+  const corpusTotal = useWorkbench((s) => s.corpus.inscriptions.length);
   const signs = useWorkbench((s) => s.corpus.signs);
   const hyp = useWorkbench((s) => s.hypothesis);
   const custom = useWorkbench((s) => s.customLanguages);
@@ -33,10 +32,12 @@ export default function DataExport() {
   const tabletCategories = useWorkbench((s) => s.tabletCategories);
   const scope = useWorkbench((s) => s.scope);
   const toast = useWorkbench((s) => s.toast_show);
-  // Scope-aware: the corpus export respects the active scope (so a researcher
-  // can export just "LMIB Haghia Triada tablets" or the whole corpus, by
-  // toggling Scope off/on before exporting).
+  // Scope-aware: EVERY export card respects the active scope (so a
+  // researcher can export just "LMIB Haghia Triada tablets" or the whole
+  // corpus, by toggling Scope off/on before exporting).
   const scoped = useScopedCorpus();
+  const wordIndex = scoped.wordIndex;
+  const inscriptions = scoped.inscriptions;
   // Per-checkbox options for the full corpus export. Defaults are
   // conservative — a clean reference dump, no user state, no extras.
   const [includeUserState, setIncludeUserState] = useState(false);
@@ -360,13 +361,13 @@ export default function DataExport() {
           {isScopeActive(scope) ? (
             <>
               <b>Scope is active</b> ({scopeSummary(scope)}) —{" "}
-              {scoped.inscriptions.length} of {inscriptions.length} inscriptions
+              {scoped.inscriptions.length} of {corpusTotal} inscriptions
               will be exported. Clear the scope in the top bar to export the
               whole corpus.
             </>
           ) : (
             <>
-              Exporting the <b>whole corpus</b> ({inscriptions.length}{" "}
+              Exporting the <b>whole corpus</b> ({corpusTotal}{" "}
               inscriptions). Set a Scope in the top bar to export a slice
               instead.
             </>
@@ -424,6 +425,14 @@ export default function DataExport() {
           </button>
         </div>
       </div>
+
+      {isScopeActive(scope) && (
+        <div className="dim" style={{ fontSize: 11, marginBottom: 8, color: "var(--ac)" }}>
+          ◆ Scope: {scopeSummary(scope)} — every card below exports the
+          scoped slice ({scoped.inscriptions.length} of {corpusTotal}{" "}
+          inscriptions).
+        </div>
+      )}
 
       <div className="col2">
         <div className="card">

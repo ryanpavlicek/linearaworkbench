@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
+import { isScopeActive, useScopedCorpus } from "../store/scope";
 import { normalizeSignLabel, csvEscape, downloadFile } from "../lib/helpers";
 import { WordToken } from "../components/WordToken";
 import { Glyph } from "../components/Glyph";
@@ -35,6 +36,20 @@ function phaseLabel(sel: string): string {
   if (sel === "MM") return "Middle Minoan (MM)";
   if (sel === "LM") return "Late Minoan (LM)";
   return sel;
+}
+
+// Chronological ordering for phase codes: EM < MM < LM, then the finer
+// code string (MMII < MMIII < MMIIIA…). Plain localeCompare would list LM
+// before MM — backwards in time.
+function phaseSortKey(context: string): string {
+  const era = /^EM/i.test(context)
+    ? "0"
+    : /^MM/i.test(context)
+      ? "1"
+      : /^(LM|LB)/i.test(context)
+        ? "2"
+        : "3";
+  return era + context;
 }
 
 interface PhaseProfile {
@@ -77,7 +92,9 @@ interface DistinctiveRow {
 }
 
 export default function Diachronic() {
-  const inscriptions = useWorkbench((s) => s.corpus.inscriptions);
+  const allInscriptions = useWorkbench((s) => s.corpus.inscriptions);
+  const scopedInscriptions = useScopedCorpus().inscriptions;
+  const scope = useWorkbench((s) => s.scope);
   const createCollectionWithItems = useWorkbench(
     (s) => s.createCollectionWithItems,
   );
@@ -86,6 +103,12 @@ export default function Diachronic() {
   const [unit, setUnit] = useState<Unit>("words");
   const [phaseA, setPhaseA] = useState("MM");
   const [phaseB, setPhaseB] = useState("LM");
+  // Off by default: comparing phases normally wants the whole corpus, and
+  // "Use phase as scope" would otherwise feed the module its own output.
+  // Turning it on enables conditioned diachrony ("Haghia Triada only:
+  // MM vs LM").
+  const [respectScope, setRespectScope] = useState(false);
+  const inscriptions = respectScope ? scopedInscriptions : allInscriptions;
 
   // Materialize a phase's matching inscriptions as a temp collection and set
   // the global Scope to it — same pattern as Tablet Structure and Query
@@ -116,12 +139,15 @@ export default function Diachronic() {
     }
   }
 
-  // Distinct finer phase codes present in the corpus, with tablet counts.
+  // Distinct finer phase codes present in the corpus, with tablet counts,
+  // in chronological order (MM before LM).
   const phaseOptions = useMemo(() => {
     const counts = new Map<string, number>();
     for (const ins of inscriptions)
       if (ins.context) counts.set(ins.context, (counts.get(ins.context) ?? 0) + 1);
-    return [...counts.entries()].sort((x, y) => x[0].localeCompare(y[0]));
+    return [...counts.entries()].sort((x, y) =>
+      phaseSortKey(x[0]).localeCompare(phaseSortKey(y[0])),
+    );
   }, [inscriptions]);
 
   const { a, b } = useMemo(() => {
@@ -300,6 +326,23 @@ export default function Diachronic() {
             </button>
           ))}
         </div>
+        <label
+          className="dim"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
+          title="Restrict the comparison to the global Scope (e.g. one site or support type). Off compares across the whole corpus."
+        >
+          <input
+            type="checkbox"
+            checked={respectScope}
+            onChange={(e) => setRespectScope(e.target.checked)}
+          />
+          respect Scope
+        </label>
+        {isScopeActive(scope) && !respectScope && (
+          <span className="dim" style={{ fontSize: 10 }}>
+            (Scope active but ignored here)
+          </span>
+        )}
         <span style={{ flex: 1 }} />
         <button className="btn btn-outline btn-sm" onClick={exportCsv}>
           Export CSV
