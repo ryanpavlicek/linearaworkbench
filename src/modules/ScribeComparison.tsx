@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { InscriptionLink } from "../components/InscriptionLink";
+import { WordToken } from "../components/WordToken";
 import { Glyph } from "../components/Glyph";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
@@ -21,6 +22,8 @@ interface ScribeProfile {
   periods: Set<string>;
   signCounts: Map<string, number>;
   totalSignTokens: number;
+  wordCounts: Map<string, number>;
+  totalWordTokens: number;
 }
 
 // Build a per-scribe profile: which signs they used and how often, plus
@@ -41,6 +44,8 @@ function buildScribeProfiles(
         periods: new Set(),
         signCounts: new Map(),
         totalSignTokens: 0,
+        wordCounts: new Map(),
+        totalWordTokens: 0,
       };
       map.set(ins.scribe, p);
     }
@@ -49,6 +54,8 @@ function buildScribeProfiles(
     if (ins.context) p.periods.add(ins.context);
     for (const w of ins.words) {
       if (!w.includes("-")) continue;
+      p.wordCounts.set(w, (p.wordCounts.get(w) ?? 0) + 1);
+      p.totalWordTokens++;
       for (const sign of w.split("-")) {
         const norm = normalizeSignLabel(sign);
         p.signCounts.set(norm, (p.signCounts.get(norm) ?? 0) + 1);
@@ -61,14 +68,21 @@ function buildScribeProfiles(
 
 // Tally sign frequencies over an arbitrary set of inscriptions (same rule as
 // the per-scribe profile: multi-sign words only, normalized signs).
-function tallySigns(
-  inscriptions: { words: string[] }[],
-): { signCounts: Map<string, number>; totalSignTokens: number } {
+function tallySigns(inscriptions: { words: string[] }[]): {
+  signCounts: Map<string, number>;
+  totalSignTokens: number;
+  wordCounts: Map<string, number>;
+  totalWordTokens: number;
+} {
   const signCounts = new Map<string, number>();
+  const wordCounts = new Map<string, number>();
   let total = 0;
+  let wordTotal = 0;
   for (const ins of inscriptions) {
     for (const w of ins.words) {
       if (!w.includes("-")) continue;
+      wordCounts.set(w, (wordCounts.get(w) ?? 0) + 1);
+      wordTotal++;
       for (const sign of w.split("-")) {
         const norm = normalizeSignLabel(sign);
         signCounts.set(norm, (signCounts.get(norm) ?? 0) + 1);
@@ -76,7 +90,12 @@ function tallySigns(
       }
     }
   }
-  return { signCounts, totalSignTokens: total };
+  return {
+    signCounts,
+    totalSignTokens: total,
+    wordCounts,
+    totalWordTokens: wordTotal,
+  };
 }
 
 function jaccard(a: Map<string, number>, b: Map<string, number>): number {
@@ -162,15 +181,26 @@ export default function ScribeComparison() {
   // A dilutes.
   const corpusBaseline = useMemo(() => {
     const signCounts = new Map<string, number>();
+    const wordCounts = new Map<string, number>();
     let total = 0;
+    let wordTotal = 0;
     for (const p of profiles.values()) {
       if (a && p.scribe === a.scribe) continue;
       for (const [s, c] of p.signCounts) {
         signCounts.set(s, (signCounts.get(s) ?? 0) + c);
         total += c;
       }
+      for (const [w, c] of p.wordCounts) {
+        wordCounts.set(w, (wordCounts.get(w) ?? 0) + c);
+        wordTotal += c;
+      }
     }
-    return { signCounts, totalSignTokens: total };
+    return {
+      signCounts,
+      totalSignTokens: total,
+      wordCounts,
+      totalWordTokens: wordTotal,
+    };
   }, [profiles, a]);
 
   // Site-average baseline: the OTHER scribed inscriptions at the selected
@@ -217,6 +247,50 @@ export default function ScribeComparison() {
       .sort((x, y) => y[1] - x[1])
       .slice(0, 20);
   }, [a]);
+
+  // Word-level distinctiveness against the same comparison side — which
+  // WORDS (names, terms) the scribe writes more or less than expected.
+  // Vocabulary is the hand's subject matter, where sign frequencies are
+  // its habits; the two views answer different questions.
+  const distinctiveWords = useMemo(() => {
+    if (!a) return [];
+    const all = new Set<string>([
+      ...a.wordCounts.keys(),
+      ...comparison.wordCounts.keys(),
+    ]);
+    const out: {
+      word: string;
+      aCount: number;
+      cmpCount: number;
+      logRatio: number;
+      g2: number;
+    }[] = [];
+    for (const w of all) {
+      const aC = a.wordCounts.get(w) ?? 0;
+      const cC = comparison.wordCounts.get(w) ?? 0;
+      if (aC + cC < 2) continue;
+      const aF = ((aC + 1) / (a.totalWordTokens + all.size)) * 1000;
+      const cF = ((cC + 1) / (comparison.totalWordTokens + all.size)) * 1000;
+      out.push({
+        word: w,
+        aCount: aC,
+        cmpCount: cC,
+        logRatio: Math.log2(aF / cF),
+        g2: keynessG2(
+          aC,
+          a.totalWordTokens,
+          cC,
+          comparison.totalWordTokens,
+        ),
+      });
+    }
+    out.sort((x, y) =>
+      bySignificance
+        ? y.g2 - x.g2
+        : Math.abs(y.logRatio) - Math.abs(x.logRatio),
+    );
+    return out.slice(0, 15);
+  }, [a, comparison, bySignificance]);
 
   const sim = a && b ? jaccard(a.signCounts, b.signCounts) : null;
 
@@ -645,6 +719,52 @@ export default function ScribeComparison() {
               </div>
             </div>
           </div>
+
+          {distinctiveWords.length > 0 && (
+            <div className="card" style={{ marginTop: 12 }}>
+              <h4>Distinctive vocabulary</h4>
+              <div className="sub" style={{ marginBottom: 8 }}>
+                Which <em>words</em> {scribeA} writes more or less than{" "}
+                <b>{cmpLabelTxt}</b> predicts — the hand's subject matter,
+                where the sign profile above is its habits. Counts shown{" "}
+                {scribeA}/{cmpLabelTxt}; ranked by{" "}
+                {bySignificance ? "G² significance" : "|log-ratio|"}.
+              </div>
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: "4px 12px",
+                }}
+              >
+                {distinctiveWords.map((w) => (
+                  <span
+                    key={w.word}
+                    style={{ whiteSpace: "nowrap", fontSize: 11 }}
+                    title={`log2 ratio ${w.logRatio > 0 ? "+" : ""}${w.logRatio.toFixed(2)} · G² ${w.g2.toFixed(2)}`}
+                  >
+                    <WordToken word={w.word} />
+                    <span
+                      className="dim"
+                      style={{ fontFamily: "var(--mono)", fontSize: 10 }}
+                    >
+                      {w.aCount}/{w.cmpCount}
+                      <span
+                        style={{
+                          marginLeft: 4,
+                          color:
+                            w.logRatio > 0 ? "var(--gn)" : "var(--am)",
+                        }}
+                      >
+                        {w.logRatio > 0 ? "+" : ""}
+                        {w.logRatio.toFixed(1)}
+                      </span>
+                    </span>
+                  </span>
+                ))}
+              </div>
+            </div>
+          )}
 
           <div className="card" style={{ marginTop: 12 }}>
             <h4>

@@ -166,6 +166,46 @@ export default function Diachronic() {
     return { a, b };
   }, [inscriptions, phaseA, phaseB]);
 
+  // Trajectory: one item's rate across EVERY dated phase in chronological
+  // order — the finer-grained story behind the two-phase comparison.
+  const [trajItem, setTrajItem] = useState("");
+  const trajectory = useMemo(() => {
+    const item = trajItem.toUpperCase().trim();
+    if (!item) return null;
+    const per = new Map<string, { n: number; total: number }>();
+    for (const ins of inscriptions) {
+      if (!ins.context) continue;
+      let p = per.get(ins.context);
+      if (!p) {
+        p = { n: 0, total: 0 };
+        per.set(ins.context, p);
+      }
+      for (const w of ins.words) {
+        if (!w.includes("-")) continue;
+        if (unit === "words") {
+          p.total++;
+          if (w.toUpperCase() === item) p.n++;
+        } else {
+          for (const s of w.split("-")) {
+            p.total++;
+            if (normalizeSignLabel(s) === item) p.n++;
+          }
+        }
+      }
+    }
+    // Phases with tiny token totals produce wild rates — keep them out.
+    const rows = [...per.entries()]
+      .filter(([, p]) => p.total >= 30)
+      .sort((x, y) => phaseSortKey(x[0]).localeCompare(phaseSortKey(y[0])))
+      .map(([phase, p]) => ({
+        phase,
+        n: p.n,
+        total: p.total,
+        rate: (p.n / p.total) * 1000,
+      }));
+    return { rows, max: Math.max(...rows.map((r) => r.rate), 0.001) };
+  }, [trajItem, inscriptions, unit]);
+
   const distinctive = useMemo<DistinctiveRow[]>(() => {
     const aFreq = unit === "words" ? a.wordFreq : a.signFreq;
     const bFreq = unit === "words" ? b.wordFreq : b.signFreq;
@@ -541,6 +581,64 @@ export default function Diachronic() {
           </div>
         </div>
       )}
+
+      <div className="card" style={{ marginTop: 12, maxWidth: 640 }}>
+        <h4>Trajectory across all phases</h4>
+        <div className="sub" style={{ marginBottom: 8 }}>
+          One {unit === "words" ? "word" : "sign"}'s rate (per 1,000{" "}
+          {unit === "words" ? "word" : "sign"} tokens) in every dated phase,
+          oldest first — the finer-grained story behind the two-phase
+          comparison. Phases with fewer than 30 tokens are hidden (tiny
+          denominators make wild rates).
+        </div>
+        <input
+          className="input"
+          placeholder={
+            unit === "words" ? "Word (e.g. KU-RO)…" : "Sign (e.g. RO)…"
+          }
+          value={trajItem}
+          onChange={(e) => setTrajItem(e.target.value)}
+          style={{ width: 220, marginBottom: 8 }}
+        />
+        {trajectory && trajectory.rows.length > 0 && (
+          <div style={{ display: "grid", gap: 3 }}>
+            {trajectory.rows.map((r) => (
+              <div
+                key={r.phase}
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "90px 1fr 90px",
+                  gap: 6,
+                  alignItems: "center",
+                  fontSize: 11,
+                }}
+              >
+                <span className="dim" style={{ textAlign: "right" }}>
+                  {r.phase}
+                </span>
+                <div
+                  style={{
+                    height: 10,
+                    background: r.n > 0 ? "var(--ac)" : "var(--surface-2)",
+                    opacity: r.n > 0 ? 0.6 : 1,
+                    borderRadius: 1,
+                    width: `${Math.max(2, (r.rate / trajectory.max) * 100)}%`,
+                  }}
+                  title={`${r.phase}: ${r.n} of ${r.total} tokens (${r.rate.toFixed(1)}‰)`}
+                />
+                <span className="dim" style={{ fontFamily: "var(--mono)" }}>
+                  {r.n}/{r.total}
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {trajectory && trajectory.rows.length === 0 && (
+          <div className="dim" style={{ fontSize: 12 }}>
+            No dated phase has 30+ tokens to compute a rate against.
+          </div>
+        )}
+      </div>
     </div>
   );
 }
