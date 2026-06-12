@@ -165,6 +165,14 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         category: "descriptive",
       },
       { id: "diachronic", name: "Diachronic (MM/LM)", group: "Distribution", category: "descriptive" },
+      {
+        id: "timeline",
+        name: "Timeline",
+        group: "Distribution",
+        category: "descriptive",
+        keywords:
+          "timeline chronology periods MM LM protopalatial neopalatial dates ceramic phases history",
+      },
     ],
   },
   {
@@ -267,5 +275,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   doctypes: lazy(() => import("./DocumentTypes")),
   dossiers: lazy(() => import("./AccountDossiers")),
   metrology: lazy(() => import("./MetrologyLab")),
+  timeline: lazy(() => import("./Timeline")),
   help: lazy(() => import("./Help")),
 };

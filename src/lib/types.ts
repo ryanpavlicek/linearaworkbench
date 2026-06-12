@@ -230,6 +230,7 @@ export type ModuleId =
   | "doctypes"
   | "dossiers"
   | "metrology"
+  | "timeline"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the

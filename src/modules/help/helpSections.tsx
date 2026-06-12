@@ -1606,6 +1606,34 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-timeline",
+    group: "Interpretation modules",
+    title: "Timeline",
+    keywords:
+      "timeline chronology periods MM LM protopalatial neopalatial ceramic phases dates",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="timeline">Timeline</ModuleLink> lays the corpus
+          on a date line by ceramic phase — from the MM II Phaistos deposit
+          through the LM IB destruction horizon that sealed most of the
+          corpus, out to the LM IIIA stragglers and one Geometric-context
+          heirloom. Band height is log-scaled (LM IB's 1,310 inscriptions
+          would otherwise flatten everything). Click a band for that
+          phase's sites, vocabulary, and examples, with a one-click Scope
+          and a pivot to Diachronic.
+        </P>
+        <Note>
+          Dating is by the deposit an object was found in, not the act of
+          writing; absolute years follow the conventional chronology, and
+          the LM IA (Thera) debate can move the Neopalatial dates by
+          decades. About a fifth of the corpus has no dated context and
+          isn't on the strip.
+        </Note>
+      </>
+    ),
+  },
+  {
     id: "mod-metrology",
     group: "Interpretation modules",
     title: "Metrology Lab",
