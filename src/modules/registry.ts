@@ -199,6 +199,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "write your name linear a glyphs syllables transliterate convert render fun",
       },
+      {
+        id: "trainer",
+        name: "Sign Trainer",
+        group: "Learn",
+        keywords:
+          "sign trainer flashcards leitner memorize learn signs values practice spaced repetition",
+      },
     ],
   },
   {
@@ -305,5 +312,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   reader: lazy(() => import("./GuidedReader")),
   school: lazy(() => import("./ScribeSchool")),
   write: lazy(() => import("./WriteLinearA")),
+  trainer: lazy(() => import("./SignTrainer")),
   help: lazy(() => import("./Help")),
 };

@@ -1606,6 +1606,26 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-trainer",
+    group: "Interpretation modules",
+    title: "Sign Trainer",
+    keywords:
+      "sign trainer flashcards leitner memorize learn signs values spaced repetition",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="trainer">Sign Trainer</ModuleLink> teaches the
+          syllabary with Leitner-box flashcards: see a glyph, recall its
+          conventional value, self-grade. Missed signs return often;
+          known signs retire to occasional review. Cards come
+          highest-corpus-frequency first, so a few sessions in you can
+          sound out the words on real tablets. Progress persists in your
+          browser; one button resets it.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-write",
     group: "Interpretation modules",
     title: "Write in Linear A",
