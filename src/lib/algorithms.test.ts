@@ -14,6 +14,7 @@ import {
   fishersExact,
   wilsonInterval,
   cooccurrencePairs,
+  keynessG2,
   sequenceDistance,
   sequenceSimilarity,
   findMorphologicalClusters,
@@ -113,6 +114,32 @@ describe("Fisher's exact (two-sided)", () => {
 
   it("never exceeds 1 and is 1 for a degenerate margin", () => {
     expect(fishersExact(0, 0, 5, 10)).toBe(1);
+  });
+});
+
+describe("keynessG2", () => {
+  it("matches the hand-computed G² for a known 2×2 corpus comparison", () => {
+    // item: 10/100 tokens in A vs 5/200 in B
+    // expecteds: e11=5, e12=95, e21=10, e22=190
+    const g2 = keynessG2(10, 100, 5, 200);
+    expect(g2).toBeCloseTo(7.3297, 3);
+  });
+
+  it("is ~0 when the item's rate is identical in both corpora", () => {
+    expect(keynessG2(10, 100, 20, 200)).toBeCloseTo(0, 10);
+  });
+
+  it("weights evidence: 30-vs-4 outranks 2-vs-0 at comparable totals", () => {
+    const strong = keynessG2(30, 1000, 4, 1000);
+    const weak = keynessG2(2, 1000, 0, 1000);
+    expect(strong).toBeGreaterThan(weak);
+    expect(weak).toBeGreaterThan(0);
+  });
+
+  it("returns 0 for degenerate tables", () => {
+    expect(keynessG2(0, 100, 0, 200)).toBe(0);
+    expect(keynessG2(5, 0, 1, 10)).toBe(0);
+    expect(keynessG2(100, 100, 200, 200)).toBe(0);
   });
 });
 

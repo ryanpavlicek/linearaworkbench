@@ -312,6 +312,45 @@ export function logLikelihoodRatio2x2(
   );
 }
 
+// Keyness G² — Dunning's log-likelihood for the corpus-comparison 2×2
+// table: an item occurring `countA` times in a corpus of `totalA` tokens
+// versus `countB` times in a comparison corpus of `totalB` tokens.
+//
+//        | item        | other tokens      |
+//   A    | countA      | totalA − countA   |
+//   B    | countB      | totalB − countB   |
+//
+// The shared significance measure for every "distinctive vocabulary"
+// surface (Scribes, Diachronic, …): a raw log-ratio says how big a
+// difference looks; G² says whether the sample sizes support it — a 2-vs-0
+// item stops outranking a 30-vs-4 item. Asymptotically χ²(1); signed by
+// the caller via the ratio's direction. Returns 0 for degenerate tables.
+export function keynessG2(
+  countA: number,
+  totalA: number,
+  countB: number,
+  totalB: number,
+): number {
+  if (totalA <= 0 || totalB <= 0) return 0;
+  const a11 = countA;
+  const a12 = totalA - countA;
+  const a21 = countB;
+  const a22 = totalB - countB;
+  if (a11 < 0 || a12 < 0 || a21 < 0 || a22 < 0) return 0;
+  const total = totalA + totalB;
+  const itemTotal = countA + countB;
+  if (itemTotal === 0 || itemTotal === total) return 0;
+  const e11 = (totalA * itemTotal) / total;
+  const e12 = (totalA * (total - itemTotal)) / total;
+  const e21 = (totalB * itemTotal) / total;
+  const e22 = (totalB * (total - itemTotal)) / total;
+  const term = (o: number, e: number) =>
+    o > 0 && e > 0 ? o * Math.log(o / e) : 0;
+  return (
+    2 * (term(a11, e11) + term(a12, e12) + term(a21, e21) + term(a22, e22))
+  );
+}
+
 // p-value for chi-squared with 1 degree of freedom: P(X² ≥ x) = erfc(√(x/2)).
 // Returns a value in [0, 1].
 export function chiSquaredPValue(x: number): number {
