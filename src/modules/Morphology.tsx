@@ -39,8 +39,8 @@ export default function Morphology() {
   // be tested for *edge bias*: does this sequence occur at the word edge
   // more often than its interior rate predicts?
   const { suffixes, prefixes, windowStats } = useMemo(() => {
-    const sm = new Map<string, { count: number; words: string[] }>();
-    const pm = new Map<string, { count: number; words: string[] }>();
+    const sm = new Map<string, Affix[1]>();
+    const pm = new Map<string, Affix[1]>();
     const aw = new Map<string, number>(); // every window position, token-weighted
     let edgeTotal = 0; // one edge slot per word token (same for both modes)
     let windowTotal = 0;
