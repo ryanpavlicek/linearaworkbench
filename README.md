@@ -95,9 +95,10 @@ Open <http://localhost:5173>.
 (~1.5 MB of JSON) plus the entire upstream auxiliary mirror (~500 MB) —
 commentary HTML, facsimile images, GORILA PDFs — all of it. Search, sign
 inventory, network graphs, hypothesis testing, the map, the facsimile and
-Commentary ↗ links: it all serves from the repo itself. The one external
-runtime dependency is the webfonts (including the Linear A glyph font),
-which load from Google Fonts.
+Commentary ↗ links, even the fonts (the Linear A glyph font included) all
+serve from the repo itself: zero external dependencies at runtime. After
+your first visit a service worker caches the app shell, corpus, and fonts,
+so the workbench keeps working offline.
 
 > ⚠️ Heads up: the repo is **~500 MB** because of the bundled auxiliary
 > mirror. The trade-off is that the GitHub Pages deployment carries its
@@ -151,12 +152,34 @@ npm run assets:fetch     # ~10–20 min, repopulates public/upstream/
 - **Sign mapping**: derived empirically by aligning the upstream's
   transliterations with its parsed glyph strings codepoint-by-codepoint.
   Confidence scores per sign are reported in the Sign Inventory module.
-- **Glyphs**: rendered via [Noto Sans Linear A](https://fonts.google.com/noto/specimen/Noto+Sans+Linear+A).
+- **Glyphs**: rendered via [Noto Sans Linear A](https://fonts.google.com/noto/specimen/Noto+Sans+Linear+A),
+  self-hosted with the other UI fonts in `public/fonts/` (regenerate with
+  `node scripts/fetch-fonts.mjs`; all four families are OFL-licensed).
+- **Offline**: a small service worker (`public/sw.js`) caches the app
+  shell, corpus JSON, and fonts after the first visit. The 500 MB upstream
+  mirror is deliberately not precached — facsimiles and commentary load
+  network-first and cache as you view them.
+- **Permalinks**: the URL hash carries the active module, open tablet/word,
+  and corpus scope (`#/i/HT13`, `#/m/freq?site=Haghia+Triada`) — share a
+  link to exactly what you're looking at.
 - **Asset paths**: configurable via `VITE_ASSET_BASE` and
   `VITE_COMMENTARY_BASE` env vars; default to the bundled local mirror.
 
 See [`docs/METHODOLOGY.md`](docs/METHODOLOGY.md) for the math (phonetic
 distance formula, PMI, alignment derivation) and known limitations.
+
+## Data API
+
+The deployed site also publishes the corpus as static JSON at stable,
+versioned URLs — the full schema-v1 export with derived analyses, one file
+per inscription, and an id manifest:
+
+```bash
+curl -s https://ryanpavlicek.github.io/linearaworkbench/api/v1/inscriptions/HT13.json | jq '.derived.balance'
+```
+
+See [`docs/API.md`](docs/API.md) for the endpoints, schema stability
+guarantees, and pandas examples.
 
 ## Keyboard
 
