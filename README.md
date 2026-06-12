@@ -291,14 +291,10 @@ I'm a software engineer in Cincinnati, Ohio. My classical-languages credentials
 start and end at amateur Koine Greek — 85-90% proficient enough to read the
 Biblical New Testament in Greek, no further. I'm not a classicist, not a 
 Linear A researcher, and I have no delusions about becoming one
-in mid-life. But the Classics department at University of Cincinnati is
-world-class for Classics studies and Greek Bronze Age Archeology, so I
-live in the shadow of giants.
+in mid-life. Creating a tool for working with Linear A seemed like an
+interesting engineering problem to tackle.
 
-So why Linear A? Because building a serious research tool for a language
-that, by definition, can't be deciphered struck me as an unusually fun
-engineering problem. Most research software is written by domain experts
-for domain experts; this is the inverse — an outsider's attempt to provide
-useful infrastructure that the actual specialists are free to pick up,
-ignore, or correct. If something here is wrong, please open an issue. I'd
-rather ship something honest than something flattering.
+If something here is wrong, please open an issue on github.
+
+**Email**: 'ryan [dot] pavlicek [dot] github [at] gmail [dot] com'
+*(Replace `[at]` with `@` and `[dot]` with `.`)*
