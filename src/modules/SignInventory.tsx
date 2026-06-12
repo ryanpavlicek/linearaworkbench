@@ -14,6 +14,13 @@ import {
   snippetWrap,
   type SnippetColumn,
 } from "../lib/reportSnippet";
+import {
+  buildLbDivergence,
+  linearASignValueCounts,
+  parseDamosFrequencies,
+  spearmanRho,
+  type LbFrequencies,
+} from "../lib/linearB";
 
 type Filter = "all" | "shared" | "aOnly" | "unknown";
 
@@ -450,6 +457,276 @@ export default function SignInventory() {
           </tbody>
         </table>
       </div>
+
+      <LinearBComparison />
+    </div>
+  );
+}
+
+// Linear A vs Linear B sign-frequency divergence. The Linear B counts
+// come from the DAMOS corpus (CC BY-NC-SA), which is NEVER bundled: the
+// researcher downloads pyaegean's damos-corpus.json decode and loads it
+// here; only the ~50-value aggregate is cached in the browser. GitHub
+// release assets don't allow cross-origin fetches, so a download-then-
+// load step is also the only way that works without a proxy.
+const LB_CACHE_KEY = "linear-a-workbench:lb-sign-frequencies";
+const DAMOS_ASSET_URL =
+  "https://github.com/ryanpavlicek/pyaegean/releases/download/damos-corpus-v2/damos-corpus.json";
+
+function LinearBComparison() {
+  const corpus = useWorkbench((s) => s.corpus);
+  const [lb, setLb] = useState<LbFrequencies | null>(() => {
+    try {
+      const raw = localStorage.getItem(LB_CACHE_KEY);
+      return raw ? (JSON.parse(raw) as LbFrequencies) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [err, setErr] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const la = useMemo(() => {
+    const words: { word: string; count: number }[] = [];
+    for (const [w, e] of corpus.wordIndex)
+      words.push({ word: w, count: e.count });
+    return linearASignValueCounts(words);
+  }, [corpus]);
+
+  const rows = useMemo(() => (lb ? buildLbDivergence(la, lb) : []), [la, lb]);
+  const rho = useMemo(
+    () =>
+      spearmanRho(
+        rows.map((r) => r.laPer1000),
+        rows.map((r) => r.lbPer1000),
+      ),
+    [rows],
+  );
+
+  async function onFile(file: File) {
+    setBusy(true);
+    setErr(null);
+    try {
+      const payload = JSON.parse(await file.text()) as Parameters<
+        typeof parseDamosFrequencies
+      >[0];
+      if (!payload || !Array.isArray(payload.documents))
+        throw new Error(
+          "that file has no documents array — expected pyaegean's damos-corpus.json",
+        );
+      const f = parseDamosFrequencies(payload);
+      if (f.totalSigns < 1000)
+        throw new Error(
+          "parsed, but almost no sign tokens came out — is this the right dataset?",
+        );
+      setLb(f);
+      try {
+        localStorage.setItem(LB_CACHE_KEY, JSON.stringify(f));
+      } catch {
+        // storage quota — the in-memory copy still works this session
+      }
+    } catch (e) {
+      setErr(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function clearLb() {
+    try {
+      localStorage.removeItem(LB_CACHE_KEY);
+    } catch {
+      // ignore
+    }
+    setLb(null);
+  }
+
+  function exportDivergenceCsv() {
+    const out: (string | number)[][] = [
+      [
+        "value",
+        "linear_a_signs",
+        "la_count",
+        "la_per_1000",
+        "lb_count",
+        "lb_per_1000",
+        "log2_ratio_la_over_lb",
+      ],
+    ];
+    for (const r of rows)
+      out.push([
+        r.value,
+        r.labels.join(" "),
+        r.laCount,
+        r.laPer1000.toFixed(2),
+        r.lbCount,
+        r.lbPer1000.toFixed(2),
+        r.logRatio.toFixed(3),
+      ]);
+    downloadFile(
+      "linear_a_vs_linear_b_sign_frequencies.csv",
+      out.map((r) => r.map(csvEscape).join(",")).join("\n"),
+    );
+  }
+
+  return (
+    <div className="card" style={{ marginTop: 12 }}>
+      <h4>
+        Linear A vs Linear B sign frequencies{" "}
+        {lb && (
+          <span className="dim">
+            ({rows.length} shared values · Spearman ρ {rho.toFixed(2)})
+          </span>
+        )}
+      </h4>
+      <div className="sub" style={{ marginBottom: 8 }}>
+        How differently do the two scripts use the signary they share? Each
+        AB sign is matched to its Linear B counterpart by the conventional
+        phonetic value — which is precisely the identification under test,
+        so a strong divergence can mean a different language behind the
+        sign <em>or</em> a wrong value assignment; this table cannot tell
+        them apart. Rates are per 1,000 word-internal sign tokens
+        (multi-sign words only, both sides).
+      </div>
+      {!lb ? (
+        <div>
+          <div style={{ fontSize: 12, marginBottom: 8 }}>
+            The Linear B side comes from the DAMOS corpus (Aurora 2015,
+            damos.hf.uio.no), via the <code>damos-corpus.json</code> decode
+            published with pyaegean. DAMOS is licensed{" "}
+            <b>CC BY-NC-SA 4.0</b>, so the workbench doesn't bundle it —
+            load it once and only the small aggregate stays in this
+            browser.
+          </div>
+          <div
+            style={{
+              display: "flex",
+              gap: 8,
+              alignItems: "center",
+              flexWrap: "wrap",
+            }}
+          >
+            <a
+              className="btn btn-outline btn-sm"
+              href={DAMOS_ASSET_URL}
+              target="_blank"
+              rel="noreferrer"
+              title="Downloads pyaegean's damos-corpus.json (~3 MB) from its GitHub release"
+            >
+              1 · Download damos-corpus.json
+            </a>
+            <label className="btn btn-outline btn-sm" style={{ cursor: "pointer" }}>
+              2 · Load the downloaded file…
+              <input
+                type="file"
+                accept=".json,application/json"
+                style={{ display: "none" }}
+                onChange={(e) => {
+                  const f = e.target.files?.[0];
+                  if (f) void onFile(f);
+                  e.target.value = "";
+                }}
+              />
+            </label>
+            {busy && <span className="dim">parsing…</span>}
+            {err && (
+              <span style={{ color: "var(--rd, #c00)", fontSize: 11 }}>
+                {err}
+              </span>
+            )}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <div
+            className="dim"
+            style={{
+              fontSize: 11,
+              marginBottom: 8,
+              display: "flex",
+              gap: 10,
+              flexWrap: "wrap",
+              alignItems: "center",
+            }}
+          >
+            <span>
+              DAMOS dataset v{lb.version || "?"}
+              {lb.generated ? ` @ ${lb.generated}` : ""} ·{" "}
+              {lb.docCount.toLocaleString()} documents ·{" "}
+              {lb.wordTokens.toLocaleString()} word tokens ·{" "}
+              {lb.totalSigns.toLocaleString()} sign tokens (aggregate cached
+              in this browser)
+            </span>
+            <button className="btn btn-outline btn-sm" onClick={exportDivergenceCsv}>
+              Export CSV
+            </button>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={clearLb}
+              title="Remove the cached aggregate from this browser"
+            >
+              Clear
+            </button>
+          </div>
+          <div className="table-wrap" style={{ maxHeight: 420, overflowY: "auto" }}>
+            <table style={{ fontSize: 11 }}>
+              <thead>
+                <tr>
+                  <th>Value</th>
+                  <th>Linear A sign</th>
+                  <th style={{ textAlign: "right" }}>LA /1000</th>
+                  <th style={{ textAlign: "right" }}>LB /1000</th>
+                  <th
+                    style={{ textAlign: "right" }}
+                    title="log₂ of the (smoothed) rate ratio. +1 = the value is used twice as often in Linear A as in Linear B; −1 = half as often."
+                  >
+                    log₂ A/B
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r) => (
+                  <tr key={r.value}>
+                    <td style={{ fontFamily: "var(--mono)" }}>{r.value}</td>
+                    <td>
+                      {r.labels.map((l) => (
+                        <span key={l} style={{ marginRight: 6 }}>
+                          <Glyph sign={l} /> {l}
+                        </span>
+                      ))}
+                    </td>
+                    <td className="numeral" title={`${r.laCount} tokens`}>
+                      {r.laPer1000.toFixed(1)}
+                    </td>
+                    <td className="numeral" title={`${r.lbCount} tokens`}>
+                      {r.lbPer1000.toFixed(1)}
+                    </td>
+                    <td
+                      className="numeral"
+                      style={{
+                        color:
+                          Math.abs(r.logRatio) >= 1.5
+                            ? "var(--am)"
+                            : "var(--text-muted)",
+                      }}
+                    >
+                      {r.logRatio >= 0 ? "+" : "−"}
+                      {Math.abs(r.logRatio).toFixed(2)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="dim" style={{ fontSize: 11, marginTop: 6 }}>
+            Sorted by divergence. Beyond the value-assignment circularity,
+            remember the corpora differ in scale (~10×), period, and
+            administrative tradition — some divergence is expected even if
+            every value is right. Linear B data: DAMOS, Aurora, F. (2015),
+            CC BY-NC-SA 4.0 — cite DAMOS in published work.
+          </div>
+        </div>
+      )}
     </div>
   );
 }

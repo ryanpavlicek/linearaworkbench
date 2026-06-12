@@ -25,6 +25,7 @@ analysis the tool produces.
 - [Lexical statistics](#lexical-statistics)
 - [Word frequency: dispersion and keyness](#word-frequency-dispersion-and-keyness)
 - [Sign transitions (graphotactics)](#sign-transitions-graphotactics)
+- [Linear A vs Linear B sign frequencies](#linear-a-vs-linear-b-sign-frequencies)
 - [Scribe sign-frequency comparison](#scribe-sign-frequency-comparison)
 - [Site distribution (Jaccard)](#site-distribution-jaccard)
 - [Commentary archive index](#commentary-archive-index)
@@ -837,6 +838,50 @@ classifier.
 (unit-tested), surfaced in
 [`SignTransitions.tsx`](../src/modules/SignTransitions.tsx) and the word
 detail modal.
+
+## Linear A vs Linear B sign frequencies
+
+The Sign Inventory's comparison card asks: do the two scripts use the
+signary they share in the same proportions?
+
+**Data.** The Linear B side is the DAMOS corpus (Aurora, F. 2015, *DAMOS:
+Database of Mycenaean at Oslo*, damos.hf.uio.no — the most complete
+edition of the Mycenaean corpus), via the `damos-corpus.json` dataset
+published with pyaegean (~5,900 documents). DAMOS is licensed **CC
+BY-NC-SA 4.0**, so the workbench never bundles it: the researcher
+downloads the file and loads it locally, and only the ~50-value
+aggregate (sign counts and totals, under a kilobyte) is cached in the
+browser. Cite DAMOS in published work.
+
+**Counting.** Both sides count sign tokens inside multi-sign WORD tokens
+only — logograms, numerals, ligatures, and single-sign tokens are
+excluded, and on the Linear B side editorial brackets and
+uncertainty underdots are stripped rather than dropped (DAMOS marks
+uncertainty densely; excluding every dotted sign would bias against worn
+tablets). Rates are per 1,000 sign tokens. The displayed divergence is
+the log₂ ratio of add-half-smoothed rates; a single **Spearman rank
+correlation** over the shared values summarizes overall agreement. No
+significance statistic is attached — with ~4.5k tokens against ~45k,
+nearly every difference is formally "significant"; the effect size is
+the information.
+
+**The caveat that matters.** Signs are matched by their conventional
+phonetic value, i.e. by the graphic identification of AB signs between
+the scripts — which is precisely the hypothesis frequency divergence
+probes. A strongly divergent sign is therefore ambiguous between "same
+sign, different language behind it" and "the value assignment is wrong
+for Linear A"; the table cannot distinguish these. Divergence is also
+expected from corpus differences alone: scale (~10×), period, sites, and
+administrative genre all differ. Read the table as a ranked agenda of
+signs whose Linear A behavior is least like their Linear B namesakes —
+several of the strongest divergences (o, to, ko over-used in Linear B)
+transparently reflect Greek function words and Greek toponyms, which is
+reassuring: the method finds real linguistic signal where the answer is
+known.
+
+**Implementation**: [`linearB.ts`](../src/lib/linearB.ts) (parser, join,
+Spearman — unit-tested), card in
+[`SignInventory.tsx`](../src/modules/SignInventory.tsx).
 
 ## Scribe sign-frequency comparison
 
