@@ -40,7 +40,7 @@ jobs:
           # GH Pages serves project sites at /<repo>/ — Vite needs to know
           # so asset URLs resolve correctly. The repo name is read from the
           # workflow context.
-          BASE_URL: /${{ github.event.repository.name }}/
+          BASE_URL: /
       - uses: actions/configure-pages@v6
       - uses: actions/upload-pages-artifact@v5
         with:
