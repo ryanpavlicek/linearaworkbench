@@ -2644,6 +2644,90 @@ export const SECTIONS: Section[] = [
 
   // ─────────────────────────── WORKFLOWS ──────────────────────────────
   {
+    id: "wf-case",
+    group: "Workflow recipes",
+    title: "Recipe: building a case for a word's meaning",
+    keywords: "workflow recipe meaning evidence annotate argue case",
+    body: (
+      <ol
+        style={{
+          fontFamily: "var(--serif)",
+          fontSize: 14,
+          lineHeight: 1.8,
+          color: "var(--text-dim)",
+          paddingLeft: 20,
+        }}
+      >
+        <li>
+          <ModuleLink to="kwic">Concordance (KWIC)</ModuleLink> → read every
+          context the word appears in; note line positions
+        </li>
+        <li>
+          <ModuleLink to="comp">Cross-Linguistic</ModuleLink> → check the
+          alignment matrix for plausible sound-alike candidates
+        </li>
+        <li>
+          <ModuleLink to="cooc">Co-occurrence</ModuleLink> → what company
+          does it keep? Commodity logograms and totals are strong context
+          clues
+        </li>
+        <li>
+          Open the word's detail and <b>✎ annotate</b> it — proposed
+          meaning, confidence, and the evidence in the notes field
+        </li>
+        <li>
+          <ModuleLink to="annot" intent={{ tab: "notes" }}>Notes</ModuleLink>{" "}
+          → write the argument up properly, inserting <Btn>+ Reference</Btn>{" "}
+          chips for the word, the key tablets, and your annotation
+        </li>
+        <li>
+          Compile the report (My Research → Report) — your annotation,
+          note, and findings arrive with citations attached
+        </li>
+      </ol>
+    ),
+  },
+  {
+    id: "wf-copy",
+    group: "Workflow recipes",
+    title: "Recipe: is this tablet a copy of another?",
+    keywords: "workflow recipe duplicate copy similar parallel fragment",
+    body: (
+      <ol
+        style={{
+          fontFamily: "var(--serif)",
+          fontSize: 14,
+          lineHeight: 1.8,
+          color: "var(--text-dim)",
+          paddingLeft: 20,
+        }}
+      >
+        <li>
+          <ModuleLink to="similarity">Similarity</ModuleLink> →{" "}
+          <Btn>Find similar</Btn> with your tablet as the pivot
+        </li>
+        <li>
+          Take the top matches to{" "}
+          <ModuleLink to="compare">Compare Inscriptions</ModuleLink> and
+          switch on the <b>interlinear</b> view — shared words align
+          row-by-row
+        </li>
+        <li>
+          Toggle <b>shared-sign highlight</b> to confirm overlapping
+          vocabulary rather than coincidence
+        </li>
+        <li>
+          <Btn>Save to findings</Btn> so the comparison is captured with
+          its table
+        </li>
+        <li>
+          Open each tablet's detail and read the inline <b>commentary</b> —
+          the scholarship may already link them
+        </li>
+      </ol>
+    ),
+  },
+  {
     id: "wf-explore",
     group: "Workflow recipes",
     title: "Recipe: exploring a single word",
