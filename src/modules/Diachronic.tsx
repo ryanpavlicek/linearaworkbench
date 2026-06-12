@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { isScopeActive, useScopedCorpus } from "../store/scope";
+import { keynessG2 } from "../lib/algorithms";
 import { normalizeSignLabel, csvEscape, downloadFile } from "../lib/helpers";
 import { WordToken } from "../components/WordToken";
 import { Glyph } from "../components/Glyph";
@@ -88,6 +89,7 @@ interface DistinctiveRow {
   item: string;
   aCount: number;
   bCount: number;
+  g2: number; // Dunning's G² for the A-vs-B comparison (keynessG2)
   logRatio: number; // log2( A relative freq / B relative freq ), +ve = A-leaning
 }
 
@@ -108,6 +110,10 @@ export default function Diachronic() {
   // Turning it on enables conditioned diachrony ("Haghia Triada only:
   // MM vs LM").
   const [respectScope, setRespectScope] = useState(false);
+  // Rank distinctive items by raw log-ratio (size of the difference) or by
+  // G² (strength of the evidence) — the remedy for the lopsided-sample
+  // caveat below.
+  const [bySignificance, setBySignificance] = useState(false);
   const inscriptions = respectScope ? scopedInscriptions : allInscriptions;
 
   // Materialize a phase's matching inscriptions as a temp collection and set
@@ -178,18 +184,33 @@ export default function Diachronic() {
         aCount: aC,
         bCount: bC,
         logRatio: Math.log2(aRel / bRel),
+        // Dunning's G² for the corpus-comparison table: does the sample
+        // size support the difference, or is it lopsided-sample noise?
+        g2: keynessG2(aC, aTok, bC, bTok),
       });
     }
     return rows.filter((r) => r.aCount + r.bCount >= 2);
   }, [unit, a, b]);
 
   const aLeaning = useMemo(
-    () => [...distinctive].sort((x, y) => y.logRatio - x.logRatio).slice(0, 25),
-    [distinctive],
+    () =>
+      distinctive
+        .filter((r) => r.logRatio > 0)
+        .sort((x, y) =>
+          bySignificance ? y.g2 - x.g2 : y.logRatio - x.logRatio,
+        )
+        .slice(0, 25),
+    [distinctive, bySignificance],
   );
   const bLeaning = useMemo(
-    () => [...distinctive].sort((x, y) => x.logRatio - y.logRatio).slice(0, 25),
-    [distinctive],
+    () =>
+      distinctive
+        .filter((r) => r.logRatio < 0)
+        .sort((x, y) =>
+          bySignificance ? y.g2 - x.g2 : x.logRatio - y.logRatio,
+        )
+        .slice(0, 25),
+    [distinctive, bySignificance],
   );
 
   const jaccard = useMemo(() => {
@@ -226,10 +247,17 @@ export default function Diachronic() {
         `${phaseA}_count`,
         `${phaseB}_count`,
         `log2_ratio_${phaseA}_over_${phaseB}`,
+        "g2",
       ],
     ];
     for (const r of [...distinctive].sort((x, y) => y.logRatio - x.logRatio)) {
-      rows.push([r.item, r.aCount, r.bCount, r.logRatio.toFixed(3)]);
+      rows.push([
+        r.item,
+        r.aCount,
+        r.bCount,
+        r.logRatio.toFixed(3),
+        r.g2.toFixed(3),
+      ]);
     }
     downloadFile(
       `linear_a_diachronic_${phaseA}_vs_${phaseB}_${unit}.csv`,
@@ -329,6 +357,18 @@ export default function Diachronic() {
         <label
           className="dim"
           style={{ display: "flex", alignItems: "center", gap: 4 }}
+          title="Rank by Dunning's G² (strength of evidence) instead of raw log-ratio (size of difference) — a 2-vs-0 item stops outranking a 30-vs-4 item"
+        >
+          <input
+            type="checkbox"
+            checked={bySignificance}
+            onChange={(e) => setBySignificance(e.target.checked)}
+          />
+          rank by significance (G²)
+        </label>
+        <label
+          className="dim"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
           title="Restrict the comparison to the global Scope (e.g. one site or support type). Off compares across the whole corpus."
         >
           <input
@@ -392,8 +432,13 @@ export default function Diachronic() {
                   `<span style="color:${r.logRatio > 0 ? "#b45309" : "#1d4ed8"};">${r.logRatio > 0 ? "+" : ""}${r.logRatio.toFixed(2)}</span>`,
                 align: "right",
               },
+              {
+                label: "G²",
+                render: (r) => esc(r.g2.toFixed(2)),
+                align: "right",
+              },
             ];
-            const meta = `${phaseLabel(phaseA)} vs ${phaseLabel(phaseB)} by ${unit}. ${a.tablets} / ${b.tablets} tablets · Jaccard overlap ${(jaccard * 100).toFixed(1)}%. Top 25 distinctive to each side.`;
+            const meta = `${phaseLabel(phaseA)} vs ${phaseLabel(phaseB)} by ${unit}. ${a.tablets} / ${b.tablets} tablets · Jaccard overlap ${(jaccard * 100).toFixed(1)}%. Top 25 distinctive to each side, ranked by ${bySignificance ? "G² significance" : "log-ratio"}.`;
             return {
               html: snippetWrap(meta, snippetTable(rows, cols)),
               markdown: `_${meta}_\n\n` + snippetTableMd(rows, cols),
@@ -458,8 +503,10 @@ export default function Diachronic() {
               </button>
             </div>
             <div className="sub" style={{ marginBottom: 8 }}>
-              Highest {phaseA}/{phaseB} relative-frequency ratio. Counts shown{" "}
-              {phaseA}/{phaseB}.
+              {bySignificance
+                ? `Ranked by G² (strength of evidence for the imbalance).`
+                : `Highest ${phaseA}/${phaseB} relative-frequency ratio.`}{" "}
+              Counts shown {phaseA}/{phaseB}.
             </div>
             <DistinctiveList rows={aLeaning} renderItem={renderItem} side="a" />
           </div>
@@ -485,8 +532,10 @@ export default function Diachronic() {
               </button>
             </div>
             <div className="sub" style={{ marginBottom: 8 }}>
-              Highest {phaseB}/{phaseA} relative-frequency ratio. Counts shown{" "}
-              {phaseA}/{phaseB}.
+              {bySignificance
+                ? `Ranked by G² (strength of evidence for the imbalance).`
+                : `Highest ${phaseB}/${phaseA} relative-frequency ratio.`}{" "}
+              Counts shown {phaseA}/{phaseB}.
             </div>
             <DistinctiveList rows={bLeaning} renderItem={renderItem} side="b" />
           </div>
@@ -523,7 +572,7 @@ function DistinctiveList({
           <span
             className="dim"
             style={{ fontFamily: "var(--mono)", fontSize: 10 }}
-            title={`log2 A/B = ${r.logRatio.toFixed(2)}`}
+            title={`log2 A/B = ${r.logRatio.toFixed(2)} · Dunning G² = ${r.g2.toFixed(2)} (3.84 ≈ p<.05, 6.63 ≈ p<.01)`}
           >
             {r.aCount}/{r.bCount}
             <span
@@ -534,6 +583,9 @@ function DistinctiveList({
             >
               {r.logRatio > 0 ? "+" : ""}
               {r.logRatio.toFixed(1)}
+            </span>
+            <span style={{ marginLeft: 6, opacity: 0.75 }}>
+              G²{r.g2.toFixed(1)}
             </span>
           </span>
         </div>

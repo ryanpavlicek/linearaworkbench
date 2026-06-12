@@ -12,6 +12,7 @@ import {
   type SnippetColumn,
 } from "../lib/reportSnippet";
 import { csvEscape, downloadFile, normalizeSignLabel } from "../lib/helpers";
+import { keynessG2 } from "../lib/algorithms";
 
 interface ScribeProfile {
   scribe: string;
@@ -96,6 +97,7 @@ interface SignSignature {
   scribeFreq: number; // per-thousand sign tokens
   cmpFreq: number; // per-thousand for the comparison side
   logRatio: number;
+  g2: number; // Dunning's G² on the raw (unsmoothed) counts
   scribeCount: number;
   cmpCount: number;
 }
@@ -120,6 +122,7 @@ function signSignature(
       scribeFreq: aFreq,
       cmpFreq: bFreq,
       logRatio: Math.log2(aFreq / bFreq),
+      g2: keynessG2(aCount, a.totalSignTokens, bCount, b.totalSignTokens),
       scribeCount: aCount,
       cmpCount: bCount,
     });
@@ -132,6 +135,7 @@ export default function ScribeComparison() {
   const initialIntent = useWorkbench.getState().moduleIntent;
   const [scribeA, setScribeA] = useState(initialIntent?.focus ?? "");
   const [scribeB, setScribeB] = useState("");
+  const [bySignificance, setBySignificance] = useState(false);
 
   const profiles = useMemo(
     () => buildScribeProfiles(inscriptions),
@@ -191,14 +195,19 @@ export default function ScribeComparison() {
     [a, comparison],
   );
 
-  // Top "distinctive" signs by absolute log-ratio (most divergent usage)
+  // Top "distinctive" signs — by absolute log-ratio (most divergent usage)
+  // or, when ranked by significance, by Dunning's G² (strongest evidence).
   const distinctive = useMemo(
     () =>
       [...signature]
         .filter((s) => s.scribeCount + s.cmpCount >= 3)
-        .sort((x, y) => Math.abs(y.logRatio) - Math.abs(x.logRatio))
+        .sort((x, y) =>
+          bySignificance
+            ? y.g2 - x.g2
+            : Math.abs(y.logRatio) - Math.abs(x.logRatio),
+        )
         .slice(0, 20),
-    [signature],
+    [signature, bySignificance],
   );
 
   // Top-frequency signs for the primary scribe
@@ -293,6 +302,20 @@ export default function ScribeComparison() {
               ))}
           </select>
         </label>
+        {a && (
+          <label
+            className="dim"
+            style={{ display: "flex", alignItems: "center", gap: 4 }}
+            title="Rank distinctive signs by Dunning's G² (strength of evidence) instead of raw |log-ratio| — rare-sign flukes stop outranking well-attested divergences"
+          >
+            <input
+              type="checkbox"
+              checked={bySignificance}
+              onChange={(e) => setBySignificance(e.target.checked)}
+            />
+            rank by significance (G²)
+          </label>
+        )}
         {sim !== null && (
           <span
             className="dim"
@@ -317,6 +340,7 @@ export default function ScribeComparison() {
                 "scribe_freq_per_1k_smoothed",
                 "comparison_freq_per_1k_smoothed",
                 "log2_ratio",
+                "g2",
               ];
               const rowsCsv = [header.map(csvEscape).join(",")];
               for (const s of signature) {
@@ -330,6 +354,7 @@ export default function ScribeComparison() {
                     s.scribeFreq.toFixed(2),
                     s.cmpFreq.toFixed(2),
                     s.logRatio.toFixed(3),
+                    s.g2.toFixed(3),
                   ]
                     .map(csvEscape)
                     .join(","),
@@ -376,8 +401,13 @@ export default function ScribeComparison() {
                   },
                   align: "right",
                 },
+                {
+                  label: "G²",
+                  render: (s) => esc(s.g2.toFixed(2)),
+                  align: "right",
+                },
               ];
-              const meta = `Scribe ${scribeA} vs ${cmpLabelTxt}.${sim !== null ? ` Jaccard overlap ${(sim * 100).toFixed(1)}%.` : ""} Top ${distinctive.length} distinctive signs by |log-ratio|.`;
+              const meta = `Scribe ${scribeA} vs ${cmpLabelTxt}.${sim !== null ? ` Jaccard overlap ${(sim * 100).toFixed(1)}%.` : ""} Top ${distinctive.length} distinctive signs by ${bySignificance ? "G² significance" : "|log-ratio|"}.`;
               return {
                 html: snippetWrap(meta, snippetTable(distinctive, cols)),
                 markdown: `_${meta}_\n\n` + snippetTableMd(distinctive, cols),
@@ -460,12 +490,19 @@ export default function ScribeComparison() {
                 {b ? "Most distinctive signs" : "Most over/under-used vs corpus"}
               </h4>
               <div className="sub" style={{ marginBottom: 8 }}>
-                Sorted by absolute log-ratio of {scribeA}'s sign frequency
-                vs.{" "}
-                <b>
-                  {cmpLabelTxt}
-                </b>
-                . Add-one smoothing so zero-count signs don't dominate.
+                {bySignificance ? (
+                  <>
+                    Ranked by G² — strength of evidence that {scribeA}'s use
+                    differs from{" "}
+                  </>
+                ) : (
+                  <>
+                    Sorted by absolute log-ratio of {scribeA}'s sign
+                    frequency vs.{" "}
+                  </>
+                )}
+                <b>{cmpLabelTxt}</b>. Add-one smoothing so zero-count signs
+                don't dominate the ratio.
               </div>
               <div style={{ display: "grid", gap: 3 }}>
                 {distinctive.map((s) => {
@@ -536,8 +573,14 @@ export default function ScribeComparison() {
                           fontSize: 10,
                           textAlign: "right",
                         }}
+                        title={`log2 ratio ${s.logRatio > 0 ? "+" : ""}${s.logRatio.toFixed(2)} · Dunning G² = ${s.g2.toFixed(2)} (3.84 ≈ p<.05, 6.63 ≈ p<.01)`}
                       >
                         {s.scribeCount}/{s.cmpCount}
+                        {bySignificance && (
+                          <span style={{ marginLeft: 5, opacity: 0.75 }}>
+                            G²{s.g2.toFixed(1)}
+                          </span>
+                        )}
                       </span>
                     </div>
                   );

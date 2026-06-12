@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useScopedCorpus } from "../store/scope";
+import { useWorkbench } from "../store/workbench";
 import { csvEscape, downloadFile } from "../lib/helpers";
+import { keynessG2 } from "../lib/algorithms";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { useSort, SortHeader } from "../components/sort";
@@ -36,12 +38,13 @@ function dominant(d: Stat): "first" | "mid" | "last" {
 
 export default function PositionalGrammar() {
   const inscriptions = useScopedCorpus().inscriptions;
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const [q, setQ] = useState("");
   const [minCount, setMinCount] = useState(3);
   const [bias, setBias] = useState<Bias>("any");
   const { sort, toggle, sortRows } = useSort("count", "desc");
 
-  const all = useMemo(() => {
+  const { all, posTotals } = useMemo(() => {
     const map = new Map<string, Stat>();
     for (const ins of inscriptions) {
       const ws = ins.words.filter((w) => w.includes("-"));
@@ -60,8 +63,51 @@ export default function PositionalGrammar() {
         else s.mid++;
       });
     }
-    return [...map.entries()].filter(([, d]) => d.count >= 2);
+    // Corpus-wide slot totals (over every word, hapax included) — the
+    // baseline each word's positional rate is tested against.
+    let first = 0;
+    let mid = 0;
+    let last = 0;
+    for (const d of map.values()) {
+      first += d.first;
+      mid += d.mid;
+      last += d.last;
+    }
+    return {
+      all: [...map.entries()].filter(([, d]) => d.count >= 2),
+      posTotals: { first, mid, last, grand: first + mid + last },
+    };
   }, [inscriptions]);
+
+  // Signed G² for each word's dominant position: does this word sit in
+  // that slot more often than the rest of the corpus does? Corrects for
+  // medial slots simply being common in long documents — a word can be
+  // "mostly medial" yet not medial-biased at all.
+  const biasG2 = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const [w, d] of all) {
+      const p = dominant(d);
+      const slots = d.first + d.mid + d.last;
+      const inPos = p === "first" ? d.first : p === "mid" ? d.mid : d.last;
+      const totPos =
+        p === "first"
+          ? posTotals.first
+          : p === "mid"
+            ? posTotals.mid
+            : posTotals.last;
+      const g2 = keynessG2(
+        inPos,
+        slots,
+        totPos - inPos,
+        posTotals.grand - slots,
+      );
+      const rate = slots > 0 ? inPos / slots : 0;
+      const rest = posTotals.grand - slots;
+      const baseRate = rest > 0 ? (totPos - inPos) / rest : 0;
+      m.set(w, rate >= baseRate ? g2 : -g2);
+    }
+    return m;
+  }, [all, posTotals]);
 
   const filtered = useMemo(() => {
     const u = q.toUpperCase();
@@ -79,6 +125,7 @@ export default function PositionalGrammar() {
     initial: ([, d]) => d.first,
     medial: ([, d]) => d.mid,
     final: ([, d]) => d.last,
+    bias: ([w]) => biasG2.get(w) ?? 0,
   });
   const display = sorted.slice(0, DISPLAY_CAP);
 
@@ -100,10 +147,18 @@ export default function PositionalGrammar() {
 
   function exportCsv() {
     const rows: (string | number)[][] = [
-      ["word", "count", "initial", "medial", "final"],
+      ["word", "count", "initial", "medial", "final", "dominant", "bias_g2"],
     ];
     for (const [w, d] of sorted) {
-      rows.push([w, d.count, d.first, d.mid, d.last]);
+      rows.push([
+        w,
+        d.count,
+        d.first,
+        d.mid,
+        d.last,
+        BIAS_LABEL[dominant(d)],
+        (biasG2.get(w) ?? 0).toFixed(3),
+      ]);
     }
     downloadFile(
       "linear_a_positional_grammar.csv",
@@ -120,7 +175,10 @@ export default function PositionalGrammar() {
           Where each word tends to sit within an inscription. Strong positional
           preference often signals a grammatical role — auxiliaries, particles,
           or terminal markers. Filter to words dominated by one position to
-          isolate candidates.
+          isolate candidates. The <b>Bias G²</b> column tests the dominant
+          position against the corpus-wide slot baseline — a word that is
+          "mostly medial" only because medial slots are common scores near
+          zero, while a genuine slot preference scores high.
         </p>
       </div>
       <div className="dim" style={{ margin: "6px 0 12px" }}>
@@ -200,6 +258,14 @@ export default function PositionalGrammar() {
                   return `<span style="color:${c};">${dom}</span>`;
                 },
               },
+              {
+                label: "Bias G²",
+                render: ([w]) => {
+                  const g = biasG2.get(w) ?? 0;
+                  return `${g >= 0 ? "+" : "−"}${Math.abs(g).toFixed(1)}`;
+                },
+                align: "right",
+              },
             ];
             const meta = `${filtered.length} words with positional distribution (${filterDesc}). ${slice.length < filtered.length ? `Showing first ${cap}.` : ""}`;
             return {
@@ -222,7 +288,15 @@ export default function PositionalGrammar() {
               <SortHeader label="Initial" sortKey="initial" sort={sort} onToggle={toggle} />
               <SortHeader label="Medial" sortKey="medial" sort={sort} onToggle={toggle} />
               <SortHeader label="Final" sortKey="final" sort={sort} onToggle={toggle} />
+              <SortHeader
+                label="Bias G²"
+                sortKey="bias"
+                sort={sort}
+                onToggle={toggle}
+                title="Signed Dunning G² for the dominant position vs the corpus-wide slot baseline. + = genuinely over-represented there, − = under-represented despite being the word's most common slot. 3.84 ≈ p<.05, 6.63 ≈ p<.01"
+              />
               <th>Distribution</th>
+              <th></th>
             </tr>
           </thead>
           <tbody>
@@ -231,6 +305,8 @@ export default function PositionalGrammar() {
               const pi = t ? (d.first / t) * 100 : 0;
               const pm = t ? (d.mid / t) * 100 : 0;
               const pf = t ? (d.last / t) * 100 : 0;
+              const g = biasG2.get(w) ?? 0;
+              const dom = dominant(d);
               return (
                 <tr key={w}>
                   <td>
@@ -240,6 +316,23 @@ export default function PositionalGrammar() {
                   <td className="dim">{d.first}</td>
                   <td className="dim">{d.mid}</td>
                   <td className="dim">{d.last}</td>
+                  <td
+                    className="numeral"
+                    style={{
+                      color:
+                        g >= 3.84
+                          ? dom === "first"
+                            ? "var(--gn)"
+                            : dom === "mid"
+                              ? "var(--ac)"
+                              : "var(--am)"
+                          : "var(--text-muted)",
+                    }}
+                    title={`${BIAS_LABEL[dom]}-dominant; G² vs corpus slot baseline = ${g >= 0 ? "+" : "−"}${Math.abs(g).toFixed(2)}`}
+                  >
+                    {g >= 0 ? "+" : "−"}
+                    {Math.abs(g).toFixed(1)}
+                  </td>
                   <td>
                     <div className="pos-bar" style={{ width: 120 }}>
                       <div className="pos-first" style={{ width: `${pi}%` }} />
@@ -247,12 +340,21 @@ export default function PositionalGrammar() {
                       <div className="pos-last" style={{ width: `${pf}%` }} />
                     </div>
                   </td>
+                  <td>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => setActiveModule("kwic", { focus: w })}
+                      title="See every occurrence in context (Concordance)"
+                    >
+                      KWIC
+                    </button>
+                  </td>
                 </tr>
               );
             })}
             {display.length === 0 && (
               <tr>
-                <td colSpan={6} className="dim" style={{ padding: 12 }}>
+                <td colSpan={8} className="dim" style={{ padding: 12 }}>
                   No words match these filters.
                 </td>
               </tr>

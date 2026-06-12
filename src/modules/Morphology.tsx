@@ -12,6 +12,7 @@ import {
   type SnippetColumn,
 } from "../lib/reportSnippet";
 import { useWorkbench } from "../store/workbench";
+import { keynessG2 } from "../lib/algorithms";
 
 type Mode = "suf" | "pre";
 type Affix = [string, { count: number; words: string[] }];
@@ -20,6 +21,7 @@ const DISPLAY_CAP = 200;
 
 export default function Morphology() {
   const words = useScopedMultiWords();
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const initialIntent = useWorkbench.getState().moduleIntent;
   const [mode, setMode] = useState<Mode>(
     initialIntent?.tab === "pre" ? "pre" : "suf",
@@ -32,10 +34,16 @@ export default function Morphology() {
   const { sort, toggle, sortRows } = useSort("total", "desc");
 
   // Affixes of the chosen length (in signs). Requires a remaining stem, so a
-  // word must have more signs than the affix length.
-  const { suffixes, prefixes } = useMemo(() => {
+  // word must have more signs than the affix length. Alongside the edge
+  // tallies, count every length-n window (token-weighted) so each affix can
+  // be tested for *edge bias*: does this sequence occur at the word edge
+  // more often than its interior rate predicts?
+  const { suffixes, prefixes, windowStats } = useMemo(() => {
     const sm = new Map<string, { count: number; words: string[] }>();
     const pm = new Map<string, { count: number; words: string[] }>();
+    const aw = new Map<string, number>(); // every window position, token-weighted
+    let edgeTotal = 0; // one edge slot per word token (same for both modes)
+    let windowTotal = 0;
     for (const { word, entry } of words) {
       const parts = word.split("-");
       if (parts.length <= afxLen) continue;
@@ -49,16 +57,40 @@ export default function Morphology() {
       p.count += entry.count;
       p.words.push(word);
       pm.set(pre, p);
+      edgeTotal += entry.count;
+      for (let i = 0; i + afxLen <= parts.length; i++) {
+        const win = parts.slice(i, i + afxLen).join("-");
+        aw.set(win, (aw.get(win) ?? 0) + entry.count);
+        windowTotal += entry.count;
+      }
     }
     return {
       suffixes: [...sm.entries()] as Affix[],
       prefixes: [...pm.entries()] as Affix[],
+      windowStats: { all: aw, edgeTotal, interiorTotal: windowTotal - edgeTotal },
     };
   }, [words, afxLen]);
 
   const all = mode === "suf" ? suffixes : prefixes;
   const unit = mode === "suf" ? "suffixes" : "prefixes";
   const fmt = (s: string) => (mode === "suf" ? `-${s}` : `${s}-`);
+
+  // Edge bias per affix: Dunning's G² comparing the sequence's rate in the
+  // edge slot (final for suffixes, initial for prefixes) against its rate
+  // across all other window positions. Signed: + edge-leaning (affix-like),
+  // − interior-leaning.
+  const edgeBias = useMemo(() => {
+    const m = new Map<string, { interior: number; signed: number }>();
+    const { all: aw, edgeTotal, interiorTotal } = windowStats;
+    for (const [s, d] of all) {
+      const interior = Math.max(0, (aw.get(s) ?? 0) - d.count);
+      const g2 = keynessG2(d.count, edgeTotal, interior, interiorTotal);
+      const edgeRate = edgeTotal > 0 ? d.count / edgeTotal : 0;
+      const intRate = interiorTotal > 0 ? interior / interiorTotal : 0;
+      m.set(s, { interior, signed: edgeRate >= intRate ? g2 : -g2 });
+    }
+    return m;
+  }, [all, windowStats]);
 
   const filtered = useMemo(() => {
     const u = q.toUpperCase();
@@ -74,6 +106,7 @@ export default function Morphology() {
     total: ([, d]) => d.count,
     distinct: ([, d]) => d.words.length,
     affix: ([s]) => s,
+    bias: ([s]) => edgeBias.get(s)?.signed ?? 0,
   });
   const display = sorted.slice(0, DISPLAY_CAP);
 
@@ -92,10 +125,25 @@ export default function Morphology() {
 
   function exportCsv() {
     const rows: (string | number)[][] = [
-      [mode === "suf" ? "suffix" : "prefix", "total_count", "distinct_words", "example_words"],
+      [
+        mode === "suf" ? "suffix" : "prefix",
+        "total_count",
+        "distinct_words",
+        "interior_count",
+        "edge_bias_g2",
+        "example_words",
+      ],
     ];
     for (const [s, d] of sorted) {
-      rows.push([fmt(s), d.count, d.words.length, d.words.slice(0, 20).join(" ")]);
+      const b = edgeBias.get(s);
+      rows.push([
+        fmt(s),
+        d.count,
+        d.words.length,
+        b?.interior ?? 0,
+        (b?.signed ?? 0).toFixed(3),
+        d.words.slice(0, 20).join(" "),
+      ]);
     }
     downloadFile(
       `linear_a_morphology_${unit}_${afxLen}sign.csv`,
@@ -111,7 +159,10 @@ export default function Morphology() {
       <p className="panel-desc">
         Recurring word edges — candidates for inflection or derivation. Choose
         affix length, set a minimum distinct-word count, and sort or expand any
-        row to see its full word family.
+        row to see its full word family. The <b>Edge G²</b> column tests
+        whether a sequence is genuinely edge-leaning (over-represented at the
+        word edge versus interior positions) — a stronger affix signal than
+        raw frequency.
       </p>
 
       <div className="tab-row">
@@ -144,6 +195,7 @@ export default function Morphology() {
               affix: s,
               count: d.count,
               distinct: d.words.length,
+              bias: edgeBias.get(s)?.signed ?? 0,
               words: d.words,
             }));
             type R = (typeof slice)[number];
@@ -167,6 +219,15 @@ export default function Morphology() {
               {
                 label: "Distinct words",
                 render: (a) => esc(a.distinct),
+                align: "right",
+              },
+              {
+                label: "Edge G²",
+                render: (a) => {
+                  const c = a.bias >= 0 ? "#16a34a" : "#b45309";
+                  return `<span style="color:${c};">${a.bias >= 0 ? "+" : "−"}${Math.abs(a.bias).toFixed(1)}</span>`;
+                },
+                md: (a) => `${a.bias >= 0 ? "+" : "−"}${Math.abs(a.bias).toFixed(1)}`,
                 align: "right",
               },
               {
@@ -273,6 +334,13 @@ export default function Morphology() {
                 sort={sort}
                 onToggle={toggle}
               />
+              <SortHeader
+                label="Edge G²"
+                sortKey="bias"
+                sort={sort}
+                onToggle={toggle}
+                title="Signed Dunning G²: is this sequence over-represented in the edge slot vs interior positions? + = edge-leaning (affix-like), − = interior-leaning. 3.84 ≈ p<.05, 6.63 ≈ p<.01"
+              />
               <th>Examples</th>
             </tr>
           </thead>
@@ -298,9 +366,40 @@ export default function Morphology() {
                       >
                         {fmt(s)}
                       </b>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        style={{
+                          padding: "0 6px",
+                          fontSize: 10,
+                          marginLeft: 8,
+                          minWidth: 0,
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setActiveModule("stems", { focus: s });
+                        }}
+                        title={`Stem families touching ${fmt(s)} — words that appear to share a stem and differ by a productive suffix`}
+                      >
+                        Stems
+                      </button>
                     </td>
                     <td className="numeral">{d.count}</td>
                     <td className="dim">{d.words.length}</td>
+                    <td
+                      className="numeral"
+                      style={{
+                        color:
+                          (edgeBias.get(s)?.signed ?? 0) >= 3.84
+                            ? "var(--gn)"
+                            : (edgeBias.get(s)?.signed ?? 0) <= -3.84
+                              ? "var(--am)"
+                              : "var(--text-muted)",
+                      }}
+                      title={`${fmt(s)} at the ${mode === "suf" ? "final" : "initial"} slot: ${d.count}/${windowStats.edgeTotal} tokens vs ${edgeBias.get(s)?.interior ?? 0}/${windowStats.interiorTotal} interior windows`}
+                    >
+                      {(edgeBias.get(s)?.signed ?? 0) >= 0 ? "+" : "−"}
+                      {Math.abs(edgeBias.get(s)?.signed ?? 0).toFixed(1)}
+                    </td>
                     <td style={{ fontSize: 11 }}>
                       {shown.map((w) => (
                         <WordToken key={w} word={w} />
@@ -315,7 +414,7 @@ export default function Morphology() {
             })}
             {display.length === 0 && (
               <tr>
-                <td colSpan={4} className="dim" style={{ padding: 12 }}>
+                <td colSpan={5} className="dim" style={{ padding: 12 }}>
                   No {unit} match these filters.
                 </td>
               </tr>
