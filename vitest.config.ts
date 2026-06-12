@@ -11,6 +11,9 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
+    // Keeps jsdom's localStorage visible on Nodes that define their own
+    // experimental webstorage getter (see the file for the full story).
+    setupFiles: ["src/test/jsdomStorageFix.ts"],
     // Headroom for jsdom component/integration tests under coverage
     // instrumentation (which slows renders) so CI can't flake on a timeout.
     testTimeout: 20000,
