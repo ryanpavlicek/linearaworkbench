@@ -232,6 +232,7 @@ export type ModuleId =
   | "metrology"
   | "timeline"
   | "reader"
+  | "school"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the

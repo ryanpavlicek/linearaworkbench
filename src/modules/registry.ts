@@ -185,6 +185,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "guided reader learn tutorial walkthrough beginner read tablet step by step teach",
       },
+      {
+        id: "school",
+        name: "Scribe School",
+        group: "Learn",
+        keywords:
+          "scribe school practice exercise balance kuro total compute numerals fractions compose ledger sandbox game quiz",
+      },
     ],
   },
   {
@@ -289,5 +296,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   metrology: lazy(() => import("./MetrologyLab")),
   timeline: lazy(() => import("./Timeline")),
   reader: lazy(() => import("./GuidedReader")),
+  school: lazy(() => import("./ScribeSchool")),
   help: lazy(() => import("./Help")),
 };

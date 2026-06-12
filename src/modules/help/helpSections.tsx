@@ -1606,6 +1606,35 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-school",
+    group: "Interpretation modules",
+    title: "Scribe School",
+    keywords:
+      "scribe school practice balance kuro total exercise compose ledger sandbox quiz game",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="school">Scribe School</ModuleLink> is the one
+          part of Linear A anyone can do exactly as the Minoans did: the
+          arithmetic. <b>Balance the account</b> shows a real, intact
+          accounting tablet with its KU-RO figure hidden — add the entries
+          (fractions included, via the fraction buttons) and check your
+          total. The grader knows two right answers: the scribe's own
+          figure, and the true sum when they disagree — reproducing a
+          scribe's half-unit slip counts as a win, because noticing it is
+          the skill.
+        </P>
+        <P>
+          <b>Compose a ledger</b> is the sandbox: add entries (word ·
+          commodity · quantity), and your tablet renders in glyphs with
+          the KU-RO writing itself. Damaged tablets and wildly unbalanced
+          accounts are excluded from the drill — a missing-text lacuna
+          isn't a math puzzle.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-reader",
     group: "Interpretation modules",
     title: "Guided Reader",
