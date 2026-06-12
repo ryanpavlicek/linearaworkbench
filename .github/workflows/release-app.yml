@@ -1,0 +1,73 @@
+name: Release workbench app build
+
+# Builds the app and publishes the static build as a release asset, so
+# pyaegean's `aegean workbench` command can fetch and serve it locally
+# (never re-hosted). Run manually from the Actions tab.
+#
+# Release tags are IMMUTABLE: pyaegean pins the asset URL + sha256, so an
+# existing asset is never replaced — each app release ships under its own
+# workbench-app-v<semver> tag. The tar is deterministic (sorted entries,
+# zeroed owners/mtime, gzip -n). The images and papers mirrors are excluded:
+# they are huge, and pyaegean already caches the imagery as its own
+# lineara-images asset, which it can serve at upstream/images/.
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag (immutable; match the app version, e.g. workbench-app-v1.1.0)"
+        required: true
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Refuse to overwrite an existing release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            echo "::error::Release $TAG already exists. Tags are immutable — bump the version instead."
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build (relative base — servable from any directory)
+        run: npm run build
+
+      - name: Build app tarball (deterministic)
+        run: |
+          tar --sort=name --owner=0 --group=0 --numeric-owner \
+              --mtime='UTC 2020-01-01' \
+              --exclude='./upstream/images' \
+              --exclude='./upstream/papers' \
+              -cf - -C dist . | gzip -n > workbench-app.tar.gz
+          ls -lh workbench-app.tar.gz
+          sha256sum workbench-app.tar.gz | tee sha256.txt
+          {
+            echo '### workbench-app.tar.gz'
+            echo '```'
+            cat sha256.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Publish release asset
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag }}
+        run: |
+          notes="The built Linear A Research Workbench (static site, relative asset paths, self-hosted fonts, corpus + commentary + static data API included; the facsimile-image and GORILA-PDF mirrors are excluded — pyaegean serves the imagery from its own cached lineara-images asset). Fetched (not re-hosted) by pyaegean's \`aegean workbench\` command."
+          gh release create "$TAG" workbench-app.tar.gz \
+            --title "Workbench app build" --notes "$notes"

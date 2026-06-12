@@ -6,6 +6,18 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+- **Embed mode**: `?embed=1#/i/HT13` renders a chromeless single-tablet
+  card (glyphs, transliteration, facsimile thumbnail, link back) sized for
+  an iframe — course pages and blog posts get a live embed instead of a
+  screenshot.
+- **pyaegean integration**: the Query Builder and each tablet's detail view
+  can copy ready-to-run pyaegean code (same field ids, same data);
+  `public/corpus/manifest.json` stamps the upstream commit and a parity
+  checksum both projects verify in CI; docs/DATA.md records the data
+  contracts (corpus files, immutable release assets, shared test values);
+  and a workflow publishes the built app as a release asset for pyaegean's
+  `aegean workbench` command. The README and in-app credits note the
+  Python toolkit.
 - **Permalinks**: the URL now carries the active module, open tablet/word,
   and corpus scope (`#/i/HT13`, `#/m/freq?site=Haghia+Triada`) — links are
   shareable, bookmarkable, and back/forward retraces your steps. Detail
