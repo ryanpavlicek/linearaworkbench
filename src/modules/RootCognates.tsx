@@ -3,6 +3,7 @@ import { csvEscape, downloadFile } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
 import { extractRoot } from "../lib/algorithms";
+import { PHONETIC_MAP } from "../data/phoneticMap";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
@@ -16,6 +17,41 @@ import {
 type SortKey = "size" | "total" | "root";
 
 const DISPLAY_CAP = 120;
+
+// The vowel melody of a word under the conventional AB values: the vowel
+// of each sign in order ("SA-RU" → "a-u"). Signs without a Linear B value
+// contribute "?". Within a root family the consonants are identical by
+// construction, so the melody is exactly what distinguishes the members.
+function melodyOf(word: string): string {
+  return word
+    .split("-")
+    .map((s) => {
+      const p = PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")];
+      const m = p ? /([aeiou]+)$/.exec(p.toLowerCase()) : null;
+      return m ? m[1] : "?";
+    })
+    .join("-");
+}
+
+// How many member pairs are attested MINIMAL PAIRS (equal length, exactly
+// one sign different)? A skeleton family corroborated by minimal pairs is
+// far more likely to be real morphology than a consonant coincidence.
+function minPairCount(members: { word: string }[]): number {
+  let n = 0;
+  for (let i = 0; i < members.length; i++) {
+    const a = members[i].word.split("-");
+    for (let j = i + 1; j < members.length; j++) {
+      const b = members[j].word.split("-");
+      if (a.length !== b.length) continue;
+      let diff = 0;
+      for (let k = 0; k < a.length && diff < 2; k++) {
+        if (a[k] !== b[k]) diff++;
+      }
+      if (diff === 1) n++;
+    }
+  }
+  return n;
+}
 
 export default function RootCognates() {
   const words = useScopedMultiWords();
@@ -68,6 +104,39 @@ export default function RootCognates() {
   }, [families, q, minSize, minTotal, minRootLen, sortKey]);
 
   const display = filtered.slice(0, DISPLAY_CAP);
+
+  // Vowel-melody alternations recurring ACROSS families: when the same
+  // pair of melodies (say a-u ↔ a-a) shows up in many unrelated skeleton
+  // families, that's systematic vowel alternation — the corpus's best
+  // ablaut/inflection candidates.
+  const melodyAlternations = useMemo(() => {
+    const tally = new Map<string, { n: number; examples: string[] }>();
+    for (const [r, d] of families) {
+      const melodies = [
+        ...new Set(d.words.map((w) => melodyOf(w.word))),
+      ].filter((m) => !m.includes("?"));
+      for (let i = 0; i < melodies.length; i++) {
+        for (let j = i + 1; j < melodies.length; j++) {
+          // Same-length melodies only — those are slot-for-slot vowel
+          // substitutions rather than affixation.
+          if (
+            melodies[i].split("-").length !== melodies[j].split("-").length
+          )
+            continue;
+          const [x, y] = [melodies[i], melodies[j]].sort();
+          const k = `${x} ↔ ${y}`;
+          const t = tally.get(k) ?? { n: 0, examples: [] };
+          t.n++;
+          if (t.examples.length < 3) t.examples.push(`/${r}/`);
+          tally.set(k, t);
+        }
+      }
+    }
+    return [...tally.entries()]
+      .filter(([, t]) => t.n >= 2)
+      .sort((a, b) => b[1].n - a[1].n)
+      .slice(0, 14);
+  }, [families]);
 
   const filterDesc = [
     q && `“${q}”`,
@@ -270,13 +339,24 @@ export default function RootCognates() {
         {filtered.length > DISPLAY_CAP ? ` — showing first ${DISPLAY_CAP}` : ""}
       </div>
       <div>
-        {display.map(([r, d]) => (
+        {display.map(([r, d]) => {
+          const mp = minPairCount(d.words);
+          return (
           <div key={r} className="card">
             <h4 style={{ color: "var(--pu)" }}>
               /{r}/{" "}
               <span className="dim">
                 ({d.words.length} words, {d.totalCount} attestations)
               </span>
+              {mp > 0 && (
+                <span
+                  className="tag tag-success"
+                  style={{ marginLeft: 8, cursor: "help" }}
+                  title={`${mp} member pair${mp === 1 ? "" : "s"} differ in exactly one sign at equal length — attested minimal pairs corroborate this family as morphology rather than consonant coincidence`}
+                >
+                  ✓ {mp} minimal pair{mp === 1 ? "" : "s"}
+                </span>
+              )}
             </h4>
             <div style={{ marginTop: 6 }}>
               {[...d.words]
@@ -284,18 +364,74 @@ export default function RootCognates() {
                 .map((e) => (
                   <span key={e.word}>
                     <WordToken word={e.word} />
-                    <span className="dim">×{e.count} </span>
+                    <span className="dim">×{e.count}</span>
+                    <span
+                      className="dim"
+                      style={{
+                        fontSize: 10,
+                        fontFamily: "var(--mono)",
+                        marginRight: 8,
+                        marginLeft: 2,
+                      }}
+                      title={`Vowel melody under the conventional AB values: ${melodyOf(e.word)}`}
+                    >
+                      ({melodyOf(e.word)})
+                    </span>
                   </span>
                 ))}
             </div>
           </div>
-        ))}
+          );
+        })}
         {display.length === 0 && (
           <p className="dim" style={{ padding: 12 }}>
             No root families match these filters.
           </p>
         )}
       </div>
+
+      {melodyAlternations.length > 0 && (
+        <div className="card" style={{ marginTop: 12, maxWidth: 560 }}>
+          <h4>Recurring vowel alternations</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Melody pairs (same length, slot-for-slot vowel substitution)
+            recurring across <em>independent</em> skeleton families. One
+            family alternating a-u with a-a means little; a dozen unrelated
+            families doing it is systematic — the corpus's ablaut and
+            inflection candidates. Conventional AB values throughout.
+          </div>
+          <div style={{ display: "grid", gap: 3 }}>
+            {melodyAlternations.map(([k, t]) => (
+              <div
+                key={k}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  fontSize: 11,
+                  flexWrap: "wrap",
+                }}
+              >
+                <b
+                  style={{
+                    fontFamily: "var(--mono)",
+                    color: "var(--pu)",
+                    minWidth: 110,
+                  }}
+                >
+                  {k}
+                </b>
+                <span className="numeral" style={{ minWidth: 60 }}>
+                  {t.n} famil{t.n === 1 ? "y" : "ies"}
+                </span>
+                <span className="dim" style={{ fontFamily: "var(--mono)" }}>
+                  e.g. {t.examples.join(", ")}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

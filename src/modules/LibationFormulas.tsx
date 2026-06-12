@@ -1,7 +1,8 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useScopedCorpus } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
 import { csvEscape, downloadFile } from "../lib/helpers";
+import { sequenceDistance } from "../lib/algorithms";
 import { WordToken } from "../components/WordToken";
 import { InscriptionLink } from "../components/InscriptionLink";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -31,6 +32,112 @@ export default function LibationFormulas() {
     () => inscriptions.filter((i) => i.words.some((w) => libSet.has(w))),
     [inscriptions, libSet],
   );
+
+  // Canonical anchor order, computed from the data: each formula word's
+  // mean relative position across the libation inscriptions. The formula's
+  // slot structure (opener … deity … closing pair) emerges from the corpus
+  // instead of being asserted.
+  const anchors = useMemo(() => {
+    const pos = new Map<string, { sum: number; n: number }>();
+    for (const ins of hits) {
+      const ws = ins.words.filter((w) => w.includes("-"));
+      // Single-word inscriptions (the I-DA-MA-TE double-axe dedications)
+      // carry no ordering information — they don't vote.
+      if (ws.length < 2) continue;
+      ws.forEach((w, i) => {
+        if (!libSet.has(w)) return;
+        const p = pos.get(w) ?? { sum: 0, n: 0 };
+        p.sum += i / (ws.length - 1);
+        p.n++;
+        pos.set(w, p);
+      });
+    }
+    return [...pos.entries()]
+      .filter(([, p]) => p.n >= 2)
+      .sort((a, b) => a[1].sum / a[1].n - b[1].sum / b[1].n)
+      .map(([w, p]) => ({ word: w, n: p.n }))
+      .slice(0, 6);
+  }, [hits, libSet]);
+
+  // Anchored alignment: place each inscription's words into the slots
+  // between consecutive canonical anchors. Anchors found out of canonical
+  // order fall into a gap as ordinary (visible) fillers — the alignment
+  // never silently reorders a text.
+  const aligned = useMemo(() => {
+    const names = anchors.map((a) => a.word);
+    return hits.map((ins) => {
+      const ws = ins.words.filter((w) => w.includes("-"));
+      const gaps: string[][] = Array.from(
+        { length: names.length + 1 },
+        () => [],
+      );
+      const present: boolean[] = new Array(names.length).fill(false);
+      let cursor = 0;
+      for (const w of ws) {
+        const ai = names.indexOf(w);
+        if (ai >= 0 && ai >= cursor) {
+          present[ai] = true;
+          cursor = ai + 1;
+        } else {
+          gaps[cursor].push(w);
+        }
+      }
+      return { ins, gaps, present };
+    });
+  }, [hits, anchors]);
+
+  // Slot fillers: what actually occupies each gap, aggregated across the
+  // aligned inscriptions — the dedicant names sit between the opener and
+  // the deity word, and so on.
+  const slotFillers = useMemo(() => {
+    const tallies: Map<string, number>[] = Array.from(
+      { length: anchors.length + 1 },
+      () => new Map(),
+    );
+    for (const { gaps } of aligned) {
+      gaps.forEach((g, i) => {
+        for (const w of g) tallies[i].set(w, (tallies[i].get(w) ?? 0) + 1);
+      });
+    }
+    return tallies.map((t) =>
+      [...t.entries()].sort((a, b) => b[1] - a[1]).slice(0, 8),
+    );
+  }, [aligned, anchors]);
+
+  // Candidate spelling variants: corpus words within sign-level edit
+  // distance ≤ 2 of a formula word (≥3 signs, not themselves formula
+  // words) — JA-SA-SA-RA-MA-NA next to JA-SA-SA-RA-ME, and the like.
+  const variants = useMemo(() => {
+    const out: {
+      formula: string;
+      variant: string;
+      count: number;
+      dist: number;
+    }[] = [];
+    for (const f of LIB_WORDS) {
+      const fSigns = f.split("-");
+      // Length-scaled threshold: one sign of slack for short formula
+      // words, two for the long ones — otherwise every 3-sign word is
+      // "near" TA-NA-TE and the list is noise.
+      const maxD = fSigns.length >= 5 ? 2 : 1;
+      for (const [w, e] of wordIndex) {
+        if (!w.includes("-") || libSet.has(w)) continue;
+        const signs = w.split("-");
+        if (signs.length < 3) continue;
+        const d = sequenceDistance(fSigns, signs);
+        if (d > 0 && d <= maxD) {
+          out.push({ formula: f, variant: w, count: e.count, dist: d });
+        }
+      }
+    }
+    out.sort(
+      (a, b) =>
+        a.formula.localeCompare(b.formula) ||
+        a.dist - b.dist ||
+        b.count - a.count,
+    );
+    return out;
+  }, [wordIndex, libSet]);
 
   const findingSummary =
     `${hits.length} libation inscriptions sharing formula words.\n` +
@@ -282,61 +389,173 @@ export default function LibationFormulas() {
             color: "var(--text-muted)",
             textTransform: "uppercase",
             letterSpacing: 0.6,
-            marginBottom: 8,
+            marginBottom: 4,
           }}
         >
-          Structural alignment
+          Anchored alignment
         </h4>
+        <div className="sub" style={{ marginBottom: 8 }}>
+          Each text aligned on the formula anchors, in the canonical order
+          the corpus itself yields (mean relative position). ✓ = the anchor
+          is present; the cells between hold whatever fills that slot on
+          that vessel — dedicant names, places, additions. Words appearing
+          out of canonical order stay visible as slot content; nothing is
+          reordered.
+        </div>
         <div className="table-wrap">
-          <table>
+          <table style={{ fontSize: 11 }}>
             <thead>
               <tr>
                 <th>Inscription</th>
                 <th>Site</th>
-                <th>Slot 1</th>
-                <th>Slot 2</th>
-                <th>Slot 3</th>
-                <th>Slot 4+</th>
+                <th className="dim">(pre)</th>
+                {anchors.map((a) => (
+                  <th
+                    key={a.word}
+                    style={{ color: "var(--pu)", whiteSpace: "nowrap" }}
+                    title={`${a.word} — in ${a.n} of the libation texts`}
+                  >
+                    {a.word}
+                  </th>
+                ))}
+                <th className="dim">(post)</th>
               </tr>
             </thead>
             <tbody>
-              {hits.slice(0, 80).map((ins) => {
-                const ws = ins.words.filter((w) => w.includes("-"));
-                const cells: React.ReactNode[] = [];
-                for (let i = 0; i < 4; i++) {
-                  const w = ws[i];
-                  if (!w) {
-                    cells.push(
-                      <td key={i} className="dim">
-                        —
-                      </td>,
+              {aligned.slice(0, 80).map(({ ins, gaps, present }) => (
+                <tr key={ins.id}>
+                  <td>
+                    <InscriptionLink id={ins.id} />
+                  </td>
+                  <td className="site-text">{ins.site}</td>
+                  {gaps.map((g, i) => {
+                    const gapCell = (
+                      <td key={`g${i}`} style={{ maxWidth: 180 }}>
+                        {g.slice(0, 3).map((w) => (
+                          <WordToken key={w + i} word={w} />
+                        ))}
+                        {g.length > 3 && (
+                          <span className="dim">+{g.length - 3}</span>
+                        )}
+                      </td>
                     );
-                  } else if (libSet.has(w)) {
-                    cells.push(
-                      <td key={i}>
-                        <b style={{ color: "var(--pu)" }}>{w}</b>
-                      </td>,
+                    if (i === gaps.length - 1) return gapCell;
+                    return (
+                      <Fragment key={i}>
+                        {gapCell}
+                        <td
+                          style={{
+                            textAlign: "center",
+                            color: present[i]
+                              ? "var(--pu)"
+                              : "var(--text-faint)",
+                          }}
+                        >
+                          {present[i] ? "✓" : "·"}
+                        </td>
+                      </Fragment>
                     );
-                  } else {
-                    cells.push(
-                      <td key={i}>
-                        <WordToken word={w} />
-                      </td>,
-                    );
-                  }
-                }
-                return (
-                  <tr key={ins.id}>
-                    <td>
-                      <InscriptionLink id={ins.id} />
-                    </td>
-                    <td className="site-text">{ins.site}</td>
-                    {cells}
-                  </tr>
-                );
-              })}
+                  })}
+                </tr>
+              ))}
             </tbody>
           </table>
+        </div>
+      </div>
+
+      <div className="col2" style={{ marginTop: 12, alignItems: "start" }}>
+        <div className="card">
+          <h4>What fills each slot</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            The non-formula words occupying each gap, aggregated across the
+            aligned texts. The slot between the opener and the deity word is
+            where the dedicant names live.
+          </div>
+          <div style={{ display: "grid", gap: 8 }}>
+            {slotFillers.map((fillers, i) => {
+              if (fillers.length === 0) return null;
+              const before = i === 0 ? null : anchors[i - 1]?.word;
+              const after = i < anchors.length ? anchors[i]?.word : null;
+              const label =
+                before && after
+                  ? `${before} → ${after}`
+                  : before
+                    ? `after ${before}`
+                    : `before ${after}`;
+              return (
+                <div key={i} style={{ fontSize: 11 }}>
+                  <div
+                    className="dim"
+                    style={{
+                      font: "600 9px var(--sans)",
+                      textTransform: "uppercase",
+                      letterSpacing: 0.5,
+                      marginBottom: 2,
+                    }}
+                  >
+                    {label}
+                  </div>
+                  <div style={{ lineHeight: 1.9 }}>
+                    {fillers.map(([w, c]) => (
+                      <span key={w} style={{ marginRight: 6 }}>
+                        <WordToken word={w} />
+                        <span className="dim" style={{ fontSize: 10 }}>
+                          ×{c}
+                        </span>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="card">
+          <h4>
+            Candidate variants{" "}
+            <span className="dim">({variants.length})</span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Corpus words within sign-level edit distance ≤ 2 of a formula
+            word — candidate spellings, inflections, or damaged readings of
+            the formula vocabulary. Judge each by eye; proximity is not
+            identity.
+          </div>
+          {variants.length === 0 ? (
+            <div className="dim" style={{ fontSize: 12 }}>
+              No near-miss words in the current scope.
+            </div>
+          ) : (
+            <div style={{ display: "grid", gap: 3 }}>
+              {variants.slice(0, 20).map((v) => (
+                <div
+                  key={`${v.formula}|${v.variant}`}
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 6,
+                    fontSize: 11,
+                    flexWrap: "wrap",
+                  }}
+                >
+                  <b style={{ color: "var(--pu)", fontFamily: "var(--mono)" }}>
+                    {v.formula}
+                  </b>
+                  <span className="dim">≈</span>
+                  <WordToken word={v.variant} />
+                  <span className="dim" style={{ fontSize: 10 }}>
+                    ×{v.count} · {v.dist} sign{v.dist === 1 ? "" : "s"} apart
+                  </span>
+                </div>
+              ))}
+              {variants.length > 20 && (
+                <span className="dim" style={{ fontSize: 11 }}>
+                  +{variants.length - 20} more
+                </span>
+              )}
+            </div>
+          )}
         </div>
       </div>
     </div>

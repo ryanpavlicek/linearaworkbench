@@ -13,6 +13,8 @@ export const LIBATION_WORDS: readonly string[] = [
   "DI-KI-SE",
   "A-SA-SA-RA-ME",
   "PI-TE-RI",
+  "U-NA-KA-NA-SI",
+  "I-PI-NA-MA",
 ];
 
 export const LIBATION_WORD_SET: ReadonlySet<string> = new Set(LIBATION_WORDS);

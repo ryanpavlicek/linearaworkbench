@@ -3,6 +3,7 @@ import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { hasValue, parseValue } from "../lib/numerals";
+import { commodityHead } from "../data/commodities";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { useSort, SortHeader } from "../components/sort";
@@ -42,6 +43,8 @@ interface Candidate {
   occLines: number; // total line occurrences considered
   entryRate: number;
   score: number;
+  vir: number; // same-line co-occurrences with the VIR (man) logogram
+  mul: number; // same-line co-occurrences with the MUL (woman) logogram
 }
 
 
@@ -56,23 +59,36 @@ function findCandidates(
 ): Candidate[] {
   const agg = new Map<
     string,
-    { entryCount: number; beforeNumber: number; occLines: number }
+    {
+      entryCount: number;
+      beforeNumber: number;
+      occLines: number;
+      vir: number;
+      mul: number;
+    }
   >();
 
   for (const ins of inscriptions) {
     for (const line of ins.lines) {
       if (!hasValue(line)) continue; // only counted lines matter here
       const firstNumberIdx = line.findIndex((t) => parseValue(t) !== null);
+      // The person logograms: a name sharing a counted line with VIR or
+      // MUL is being counted AS a person — the strongest distributional
+      // evidence the corpus offers for namehood.
+      const hasVir = line.some((t) => commodityHead(t) === "VIR");
+      const hasMul = line.some((t) => commodityHead(t) === "MUL");
       line.forEach((tok, idx) => {
         if (!tok.includes("-")) return;
         let a = agg.get(tok);
         if (!a) {
-          a = { entryCount: 0, beforeNumber: 0, occLines: 0 };
+          a = { entryCount: 0, beforeNumber: 0, occLines: 0, vir: 0, mul: 0 };
           agg.set(tok, a);
         }
         a.occLines++;
         if (idx === 0) a.entryCount++;
         if (firstNumberIdx >= 0 && idx < firstNumberIdx) a.beforeNumber++;
+        if (hasVir) a.vir++;
+        if (hasMul) a.mul++;
       });
     }
   }
@@ -101,6 +117,8 @@ function findCandidates(
       occLines: a.occLines,
       entryRate,
       score,
+      vir: a.vir,
+      mul: a.mul,
     });
   }
   return out;
@@ -172,8 +190,33 @@ export default function Onomastics() {
       sites: (c) => c.sites,
       initial: (c) => c.entryCount,
       score: (c) => c.score,
+      person: (c) => c.vir + c.mul,
     },
   );
+
+  // Name morphology: the word-final signs among the candidates currently
+  // shown (verdict filter applied). Recurring endings across independent
+  // name candidates are the corpus's best hint at name-class morphology.
+  // Plain computation — it's a single O(n) pass over at most a few hundred
+  // rows, cheaper than memo bookkeeping.
+  const endingTally = (() => {
+    const m = new Map<string, { n: number; examples: string[] }>();
+    for (const c of shown) {
+      const parts = c.word.split("-");
+      const last = parts[parts.length - 1];
+      let e = m.get(last);
+      if (!e) {
+        e = { n: 0, examples: [] };
+        m.set(last, e);
+      }
+      e.n++;
+      if (e.examples.length < 4) e.examples.push(c.word);
+    }
+    return [...m.entries()]
+      .filter(([, e]) => e.n >= 3)
+      .sort((a, b) => b[1].n - a[1].n)
+      .slice(0, 12);
+  })();
 
   const counts = { accepted: 0, dismissed: 0, undecided: 0 };
   for (const c of filtered) counts[verdictOf(c.word)]++;
@@ -202,7 +245,7 @@ export default function Onomastics() {
 
   function exportCsv() {
     const rows: (string | number)[][] = [
-      ["word", "verdict", "count", "sites", "tablets", "line_initial", "before_number", "counted_lines", "entry_rate", "score"],
+      ["word", "verdict", "count", "sites", "tablets", "line_initial", "before_number", "counted_lines", "entry_rate", "vir_lines", "mul_lines", "score"],
     ];
     for (const c of shown) {
       rows.push([
@@ -215,6 +258,8 @@ export default function Onomastics() {
         c.beforeNumber,
         c.occLines,
         c.entryRate.toFixed(3),
+        c.vir,
+        c.mul,
         c.score.toFixed(3),
       ]);
     }
@@ -398,6 +443,13 @@ export default function Onomastics() {
                 title="Line-initial occurrences on counted lines"
               />
               <SortHeader
+                label="VIR/MUL"
+                sortKey="person"
+                sort={sort}
+                onToggle={toggle}
+                title="Counted lines shared with the person logograms — VIR (man) or MUL (woman). A name being counted AS a person is the strongest distributional evidence of namehood the corpus offers."
+              />
+              <SortHeader
                 label="Score"
                 sortKey="score"
                 sort={sort}
@@ -460,6 +512,24 @@ export default function Onomastics() {
                 <td className="dim">{c.sites}</td>
                 <td className="dim">
                   {c.entryCount}/{c.occLines}
+                </td>
+                <td
+                  style={{ fontSize: 11 }}
+                  title={
+                    c.vir + c.mul > 0
+                      ? `${c.vir} counted line${c.vir === 1 ? "" : "s"} with VIR, ${c.mul} with MUL`
+                      : "Never shares a counted line with VIR or MUL"
+                  }
+                >
+                  {c.vir + c.mul > 0 ? (
+                    <span style={{ color: "var(--gn)" }}>
+                      {c.vir > 0 && `VIR×${c.vir}`}
+                      {c.vir > 0 && c.mul > 0 && " "}
+                      {c.mul > 0 && `MUL×${c.mul}`}
+                    </span>
+                  ) : (
+                    <span className="dim">—</span>
+                  )}
                 </td>
                 <td className="numeral">{c.score.toFixed(2)}</td>
                 <td>
@@ -524,6 +594,56 @@ export default function Onomastics() {
           </div>
         )}
       </div>
+
+      {endingTally.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h4>Recurring name endings</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Word-final signs across the candidates currently shown (verdict
+            filter applied). The same ending recurring on many independent
+            name candidates is the corpus's best hint at name-class
+            morphology — filter to <b>accepted</b> to read it off your own
+            vetted list.
+          </div>
+          <div style={{ display: "grid", gap: 4 }}>
+            {endingTally.map(([ending, e]) => (
+              <div
+                key={ending}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  fontSize: 11,
+                  flexWrap: "wrap",
+                }}
+              >
+                <b
+                  style={{
+                    color: "var(--am)",
+                    fontFamily: "var(--mono)",
+                    minWidth: 52,
+                  }}
+                >
+                  -{ending}
+                </b>
+                <span className="numeral" style={{ minWidth: 28 }}>
+                  {e.n}
+                </span>
+                <span style={{ lineHeight: 1.8 }}>
+                  {e.examples.map((w) => (
+                    <span key={w} style={{ marginRight: 4 }}>
+                      <WordToken word={w} />
+                    </span>
+                  ))}
+                  {e.n > e.examples.length && (
+                    <span className="dim">+{e.n - e.examples.length}</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
