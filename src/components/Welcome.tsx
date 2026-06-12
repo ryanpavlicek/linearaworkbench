@@ -10,6 +10,7 @@ const SEEN_KEY = "welcome-seen-v1";
 // for a future major release).
 export function Welcome() {
   const setActive = useWorkbench((s) => s.setActiveModule);
+  const showInscription = useWorkbench((s) => s.showInscription);
   const loaded = useWorkbench((s) => s.loaded);
   const [open, setOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
@@ -174,6 +175,57 @@ export function Welcome() {
               /
             </kbd>{" "}
             at any time to open the full How to Use guide.
+          </div>
+
+          <div
+            style={{
+              padding: 12,
+              background: "var(--surface-1)",
+              border: "1px solid var(--border)",
+              borderRadius: 6,
+              fontSize: 12,
+              color: "var(--text-dim)",
+              marginBottom: 12,
+            }}
+          >
+            <b style={{ color: "var(--text)" }}>Or try one right now:</b>
+            <div
+              style={{
+                display: "flex",
+                gap: 8,
+                flexWrap: "wrap",
+                marginTop: 8,
+              }}
+            >
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  dismiss(false);
+                  setActive("arith");
+                  showInscription("HT13");
+                }}
+              >
+                Does this tablet's arithmetic balance?
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  dismiss(false);
+                  setActive("onomastics");
+                }}
+              >
+                Which words look like names?
+              </button>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={() => {
+                  dismiss(false);
+                  setActive("scribes");
+                }}
+              >
+                Compare two scribes
+              </button>
+            </div>
           </div>
 
           <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
