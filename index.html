@@ -5,12 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="dark" />
     <title>Linear A Research Workbench</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Noto+Sans+Linear+A&display=swap"
-      rel="stylesheet"
+    <meta
+      name="description"
+      content="A browser-based research environment for the undeciphered Linear A script: the full 1,721-inscription corpus, searchable scholarly commentary, accounting verification, cross-linguistic hypothesis testing, and publication-ready exports."
     />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Linear A Research Workbench" />
+    <meta
+      property="og:description"
+      content="Explore the undeciphered Minoan script: 1,721 inscriptions, 37 analysis modules, searchable commentary, and machine-verified Bronze Age accounting."
+    />
+    <meta
+      property="og:url"
+      content="https://ryanpavlicek.github.io/linearaworkbench/"
+    />
+    <meta
+      property="og:image"
+      content="https://ryanpavlicek.github.io/linearaworkbench/social-preview.jpg"
+    />
+    <meta name="twitter:card" content="summary_large_image" />
+    <!-- Fonts are self-hosted (see scripts/fetch-fonts.mjs) so the app has no
+         external runtime dependency — the Linear A glyph font included. -->
+    <link
+      rel="preload"
+      href="fonts/noto-sans-linear-a-linear-a-400.woff2"
+      as="font"
+      type="font/woff2"
+      crossorigin
+    />
+    <link rel="stylesheet" href="fonts/fonts.css" />
   </head>
   <body>
     <div id="root"></div>

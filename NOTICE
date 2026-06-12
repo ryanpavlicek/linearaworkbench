@@ -28,5 +28,7 @@ This product includes data and assets from third-party sources:
 * GORILA PDF citations (public/upstream/papers/) are © École Française
   d'Athènes and are bundled for academic reference only on the same terms.
 
-* The Noto Sans Linear A font, used to render Linear A glyphs in the UI,
-  is licensed under the SIL Open Font License 1.1 by Google.
+* The UI webfonts are self-hosted in public/fonts/ and are all licensed
+  under the SIL Open Font License 1.1: Noto Sans Linear A (Google — renders
+  the Linear A glyphs), Inter (Rasmus Andersson), JetBrains Mono (JetBrains),
+  and Crimson Pro (Jacques Le Bailly).
