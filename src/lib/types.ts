@@ -228,6 +228,7 @@ export type ModuleId =
   | "pyaegean"
   | "health"
   | "doctypes"
+  | "dossiers"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the

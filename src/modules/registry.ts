@@ -97,6 +97,14 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
     group: "Accounts & content",
     items: [
       { id: "arith", name: "Accounting & Metrology", group: "Accounts & content", category: "descriptive" },
+      {
+        id: "dossiers",
+        name: "Account Dossiers",
+        group: "Accounts & content",
+        category: "exploratory",
+        keywords:
+          "dossier account holder name entries quantities commodities ledger follow person prosopography",
+      },
       { id: "commodities", name: "Commodity Catalog", group: "Accounts & content", category: "descriptive" },
       { id: "struct", name: "Tablet Structure", group: "Accounts & content", category: "descriptive" },
       {
@@ -249,5 +257,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   pyaegean: lazy(() => import("./PythonToolkit")),
   health: lazy(() => import("./CorpusHealth")),
   doctypes: lazy(() => import("./DocumentTypes")),
+  dossiers: lazy(() => import("./AccountDossiers")),
   help: lazy(() => import("./Help")),
 };

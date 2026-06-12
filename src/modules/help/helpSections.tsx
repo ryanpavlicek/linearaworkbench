@@ -1606,6 +1606,35 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-dossiers",
+    group: "Interpretation modules",
+    title: "Account Dossiers",
+    keywords:
+      "dossier account holder name entries quantities ledger follow person prosopography",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="dossiers">Account Dossiers</ModuleLink> gathers
+          every counted entry a word heads — the ledger pattern of{" "}
+          <i>name · commodity · quantity</i> — into one file per word:
+          entries with their actual line text and parsed values, total
+          quantities, commodity mix, tablets, and the words listed
+          alongside on the same documents. SA-RA₂'s fifteen Haghia Triada
+          entries make the pattern obvious in one click.
+        </P>
+        <P>
+          "Account holder" is a working hypothesis, not a claim: an entry
+          head can be a person, a place, an institution, or a transaction
+          term — the <Btn>Name? →</Btn> pivot hands the word to the Name
+          Candidates verdict, and KWIC shows every context. Accounting
+          operators (KU-RO, PO-TO-KU-RO, KI-RO) are excluded by
+          construction. Quantity sums mix units; read them as volume of
+          activity, not a measured total.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-doctypes",
     group: "Interpretation modules",
     title: "Document Types",
