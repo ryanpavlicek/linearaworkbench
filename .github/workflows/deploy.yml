@@ -1,7 +1,12 @@
 name: Deploy to GitHub Pages
 
+# Deploys only after CI succeeds on main (a commit that fails typecheck,
+# tests, or the e2e smoke never reaches Pages). Manual runs are still
+# available via workflow_dispatch.
 on:
-  push:
+  workflow_run:
+    workflows: [CI]
+    types: [completed]
     branches: [main]
   workflow_dispatch:
 
@@ -17,12 +22,17 @@ permissions:
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
+        with:
+          # Deploy the exact commit CI validated (empty on manual runs,
+          # which then build the branch head).
+          ref: ${{ github.event.workflow_run.head_sha }}
       - uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
       - run: npm ci
       - run: npm run build
