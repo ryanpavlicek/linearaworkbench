@@ -6,7 +6,6 @@ import { TopBar } from "./components/TopBar";
 import { FooterBar } from "./components/FooterBar";
 import { DetailModal } from "./components/DetailModal";
 import { PinRail } from "./components/PinRail";
-import { Welcome } from "./components/Welcome";
 import { CommandPalette } from "./components/CommandPalette";
 import { CategoryBadge } from "./components/CategoryBadge";
 import { ModuleErrorBoundary } from "./components/ModuleErrorBoundary";
@@ -74,8 +73,8 @@ export function App() {
   }, []);
 
   // One-shot what's-new note when the version changes underneath a
-  // returning user. A fresh install stays quiet — the Welcome modal owns
-  // that moment — so the toast only fires when a previous version was seen.
+  // returning user. A fresh install stays quiet — it lands on the Home
+  // page — so the toast only fires when a previous version was seen.
   const toastShow = useWorkbench((s) => s.toast_show);
   useEffect(() => {
     if (!loaded) return;
@@ -144,7 +143,7 @@ export function App() {
   // Fall back to the default module if a persisted activeModule id is no
   // longer valid (e.g. restored from a prior version that had a module since
   // removed/renamed) — guards against a blank screen on rehydrate.
-  const ActiveModule = MODULE_COMPONENTS[activeModule] ?? MODULE_COMPONENTS.search;
+  const ActiveModule = MODULE_COMPONENTS[activeModule] ?? MODULE_COMPONENTS.home;
   const appClass = [
     "app",
     showRail ? "with-pin-rail" : "",
@@ -212,7 +211,6 @@ export function App() {
       <PinRail />
       <FooterBar />
       <DetailModal />
-      <Welcome />
       <CommandPalette
         open={paletteOpen}
         onClose={() => setPaletteOpen(false)}

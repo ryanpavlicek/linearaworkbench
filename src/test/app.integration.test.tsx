@@ -57,14 +57,6 @@ describe("App integration — boot, search, open a tablet", () => {
     const { container } = render(<App />);
     await screen.findByRole("heading", { name: /corpus search/i });
 
-    // A fresh visit shows the first-run Welcome modal whose scrim overlays the
-    // page; dismiss it first, mirroring the browser-level smoke (the Playwright
-    // run caught that a real click is blocked by this scrim until dismissed).
-    const welcome = screen.queryByRole("button", {
-      name: /got it — let me explore/i,
-    });
-    welcome?.click();
-
     const input = screen.getByPlaceholderText(
       /search words or inscription ids/i,
     ) as HTMLInputElement;

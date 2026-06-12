@@ -5,6 +5,18 @@ import type { ModuleDef, ModuleId } from "../lib/types";
 // first. Within each group, modules are ordered by likely frequency of use.
 export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
   {
+    group: "Start",
+    items: [
+      {
+        id: "home",
+        name: "Home",
+        group: "Start",
+        keywords:
+          "home getting started welcome landing overview intro first credits",
+      },
+    ],
+  },
+  {
     group: "Research",
     items: [
       // My Research merges the annotation notebook, collections, the findings
@@ -275,6 +287,7 @@ const ResearchHub = lazy(() => import("./ResearchHub"));
 const SoundShiftTabs = lazy(() => import("./SoundShiftTabs"));
 
 export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
+  home: lazy(() => import("./Home")),
   search: lazy(() => import("./CorpusSearch")),
   browse: lazy(() => import("./CorpusBrowser")),
   freq: lazy(() => import("./WordFrequency")),

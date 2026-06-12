@@ -296,8 +296,9 @@ export const useWorkbench = create<State>((set, get) => ({
   // of their working state already persists; the active view should too). The
   // transient moduleIntent (a one-shot focus/tab deep-link) is intentionally
   // NOT persisted, so a refresh restores the module without re-firing a stale
-  // pivot. App.tsx falls back to "search" if a stored id is no longer valid.
-  activeModule: loadJson<ModuleId>(KEYS.activeModule, "search"),
+  // pivot. A fresh install lands on the Home page; App.tsx falls back to
+  // "home" if a stored id is no longer valid.
+  activeModule: loadJson<ModuleId>(KEYS.activeModule, "home"),
   moduleIntent: null,
   intentSeq: 0,
   toast: null,

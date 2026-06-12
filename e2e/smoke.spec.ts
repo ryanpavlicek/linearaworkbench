@@ -1,18 +1,19 @@
 import { test, expect } from "@playwright/test";
 
-// Real-browser smoke: boot the deployed build, run a search, open a tablet.
-// Selectors mirror src/test/app.integration.test.tsx (verified against the real
-// component DOM), so this stays in lockstep with the jsdom integration test.
-test("boot → search → open a tablet detail", async ({ page }) => {
+// Real-browser smoke: boot the deployed build, land on Home, run a search,
+// open a tablet. Selectors mirror src/test/app.integration.test.tsx
+// (verified against the real component DOM), so this stays in lockstep with
+// the jsdom integration test.
+test("boot → home → search → open a tablet detail", async ({ page }) => {
   await page.goto("/");
 
-  // A fresh browser always shows the first-run Welcome modal; its scrim covers
-  // the page, so dismiss it the way a new user would before interacting.
-  await page
-    .getByRole("button", { name: /got it — let me explore/i })
-    .click({ timeout: 30_000 });
+  // A fresh browser lands on the Home page (no first-run modal anymore).
+  await expect(
+    page.getByRole("heading", { name: /linear a research workbench/i }),
+  ).toBeVisible({ timeout: 30_000 });
 
-  // App boots by fetching the corpus, then renders the default Corpus Search.
+  // Navigate to Corpus Search via the sidebar, the way a new user would.
+  await page.getByRole("button", { name: /^corpus search$/i }).click();
   await expect(
     page.getByRole("heading", { name: /corpus search/i }),
   ).toBeVisible();

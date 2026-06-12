@@ -182,6 +182,7 @@ export interface CorpusScope {
 }
 
 export type ModuleId =
+  | "home"
   | "search"
   | "browse"
   | "freq"
