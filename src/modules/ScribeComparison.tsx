@@ -147,33 +147,40 @@ export default function ScribeComparison() {
     [profiles],
   );
 
-  // Corpus-wide baseline (all scribed inscriptions combined) — used when
-  // a scribe is selected but no comparison scribe is picked.
+  const a = scribeA ? profiles.get(scribeA) : null;
+  // scribeB can be a real scribe id, "" (corpus baseline), or "__site__"
+  // (average of the selected scribe's own site(s)).
+  const b = scribeB && scribeB !== "__site__" ? profiles.get(scribeB) : null;
+
+  // Corpus-wide baseline: all OTHER scribed inscriptions combined — scribe
+  // A's own tablets are excluded so "over/under-used vs corpus" means vs
+  // the rest of the corpus (the standard keyness contrast), not vs a pool
+  // A dilutes.
   const corpusBaseline = useMemo(() => {
     const signCounts = new Map<string, number>();
     let total = 0;
     for (const p of profiles.values()) {
+      if (a && p.scribe === a.scribe) continue;
       for (const [s, c] of p.signCounts) {
         signCounts.set(s, (signCounts.get(s) ?? 0) + c);
         total += c;
       }
     }
     return { signCounts, totalSignTokens: total };
-  }, [profiles]);
+  }, [profiles, a]);
 
-  const a = scribeA ? profiles.get(scribeA) : null;
-  // scribeB can be a real scribe id, "" (corpus baseline), or "__site__"
-  // (average of the selected scribe's own site(s)).
-  const b = scribeB && scribeB !== "__site__" ? profiles.get(scribeB) : null;
-
-  // Site-average baseline: all scribed inscriptions at the selected scribe's
-  // site(s) combined. Controls for regional vocabulary so a scribe's
-  // "distinctive" signs reflect the hand, not just where they worked.
+  // Site-average baseline: the OTHER scribed inscriptions at the selected
+  // scribe's site(s). Controls for regional vocabulary so a scribe's
+  // "distinctive" signs reflect the hand, not just where they worked —
+  // again excluding A's own tablets from the average they're compared to.
   const siteBaseline = useMemo(() => {
     if (!a || a.sites.size === 0) return null;
     const sset = a.sites;
     return tallySigns(
-      inscriptions.filter((i) => i.scribe && i.site && sset.has(i.site)),
+      inscriptions.filter(
+        (i) =>
+          i.scribe && i.scribe !== a.scribe && i.site && sset.has(i.site),
+      ),
     );
   }, [a, inscriptions]);
 
@@ -231,7 +238,7 @@ export default function ScribeComparison() {
       <div className="callout">
         <h4>Sign-frequency profile per scribe</h4>
         <p>
-          For each of the 102 attested scribes, compare which signs they
+          For each of the {profiles.size} attested scribes, compare which signs they
           used and how often. Strong divergence between two scribes
           (especially in their distinctive signs) suggests different
           scribal training or specialization. This is a quantitative

@@ -970,7 +970,8 @@ function navigate(
 ) {
   if (kind === "ins") return ctx.showInscription(value);
   if (kind === "word") return ctx.showWord(value);
-  if (kind === "sign") return ctx.setActiveModule("signref");
+  if (kind === "sign")
+    return ctx.setActiveModule("signref", { focus: value });
   if (kind === "annotation") return ctx.setActiveTab("notebook");
   if (kind === "collection") return ctx.setActiveTab("collections");
   if (kind === "finding") return ctx.setActiveTab("findings");

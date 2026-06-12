@@ -5,6 +5,7 @@ import { csvEscape, downloadFile } from "../lib/helpers";
 import { hasValue, parseValue } from "../lib/numerals";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
+import { useSort, SortHeader } from "../components/sort";
 import {
   esc,
   snippetTable,
@@ -43,7 +44,6 @@ interface Candidate {
   score: number;
 }
 
-type SortKey = "score" | "count" | "entryRate" | "sites";
 
 // Heuristic onomastic detector. Personal names on the accounting tablets
 // behave distributionally like *counted entries*: they head a line
@@ -115,7 +115,7 @@ export default function Onomastics() {
   const addToCollection = useWorkbench((s) => s.addToCollection);
   const removeFromCollection = useWorkbench((s) => s.removeFromCollection);
   const toast = useWorkbench((s) => s.toast_show);
-  const [sortKey, setSortKey] = useState<SortKey>("score");
+  const { sort, toggle, sortRows } = useSort("score", "desc");
   const [minOcc, setMinOcc] = useState(2);
   const [localOnly, setLocalOnly] = useState(false);
   const [q, setQ] = useState("");
@@ -133,14 +133,8 @@ export default function Onomastics() {
     );
     if (localOnly) rows = rows.filter((c) => c.sites <= 2);
     if (u) rows = rows.filter((c) => c.word.toUpperCase().includes(u));
-    rows.sort((a, b) => {
-      if (sortKey === "count") return b.count - a.count;
-      if (sortKey === "entryRate") return b.entryRate - a.entryRate;
-      if (sortKey === "sites") return a.sites - b.sites;
-      return b.score - a.score;
-    });
     return rows;
-  }, [candidates, minOcc, localOnly, q, sortKey]);
+  }, [candidates, minOcc, localOnly, q]);
 
   // ── Vetting (accept / dismiss) ──────────────────────────────────────
   const acceptColl = collections.find((c) => c.name === ACCEPTED_COLLECTION);
@@ -166,10 +160,19 @@ export default function Onomastics() {
   const verdictOf = (w: string): Verdict =>
     accepted.has(w) ? "accepted" : dismissed.has(w) ? "dismissed" : "undecided";
 
-  const shown =
+  const shown = sortRows(
     verdictFilter === "all"
       ? filtered
-      : filtered.filter((c) => verdictOf(c.word) === verdictFilter);
+      : filtered.filter((c) => verdictOf(c.word) === verdictFilter),
+    {
+      word: (c) => c.word,
+      count: (c) => c.count,
+      entryRate: (c) => c.entryRate,
+      sites: (c) => c.sites,
+      initial: (c) => c.entryCount,
+      score: (c) => c.score,
+    },
+  );
 
   const counts = { accepted: 0, dismissed: 0, undecided: 0 };
   for (const c of filtered) counts[verdictOf(c.word)]++;
@@ -299,7 +302,7 @@ export default function Onomastics() {
             (q ? ` matching "${q}"` : "") +
             ` · ${counts.accepted} accepted, ${counts.dismissed} dismissed, ${counts.undecided} undecided.`
           }
-          payload={{ sortKey, minOcc, localOnly, q, verdictFilter }}
+          payload={{ sort, minOcc, localOnly, q, verdictFilter }}
           disabled={shown.length === 0}
           reportFn={() => {
             const cap = 60;
@@ -376,33 +379,30 @@ export default function Onomastics() {
         <table>
           <thead>
             <tr>
-              <th
-                onClick={() => setSortKey("score")}
-                style={{ cursor: "pointer", color: sortKey === "score" ? "var(--ac)" : undefined }}
-              >
-                Word {sortKey === "score" ? "▾" : ""}
-              </th>
-              <th
-                onClick={() => setSortKey("count")}
-                style={{ cursor: "pointer", color: sortKey === "count" ? "var(--ac)" : undefined }}
-              >
-                Count {sortKey === "count" ? "▾" : ""}
-              </th>
-              <th
-                onClick={() => setSortKey("entryRate")}
-                style={{ cursor: "pointer", color: sortKey === "entryRate" ? "var(--ac)" : undefined }}
+              <SortHeader label="Word" sortKey="word" sort={sort} onToggle={toggle} />
+              <SortHeader label="Count" sortKey="count" sort={sort} onToggle={toggle} />
+              <SortHeader
+                label="Entry rate"
+                sortKey="entryRate"
+                sort={sort}
+                onToggle={toggle}
                 title="Fraction of counted-line occurrences where the word is line-initial"
-              >
-                Entry rate {sortKey === "entryRate" ? "▾" : ""}
-              </th>
-              <th
-                onClick={() => setSortKey("sites")}
-                style={{ cursor: "pointer", color: sortKey === "sites" ? "var(--ac)" : undefined }}
-              >
-                Sites {sortKey === "sites" ? "▾" : ""}
-              </th>
-              <th title="Line-initial occurrences on counted lines">Initial</th>
-              <th title="Heuristic name-likeness score">Score</th>
+              />
+              <SortHeader label="Sites" sortKey="sites" sort={sort} onToggle={toggle} />
+              <SortHeader
+                label="Initial"
+                sortKey="initial"
+                sort={sort}
+                onToggle={toggle}
+                title="Line-initial occurrences on counted lines"
+              />
+              <SortHeader
+                label="Score"
+                sortKey="score"
+                sort={sort}
+                onToggle={toggle}
+                title="Heuristic name-likeness score"
+              />
               <th title="Your verdict — accept as a name, or dismiss">
                 Verdict
               </th>
@@ -506,6 +506,12 @@ export default function Onomastics() {
             })}
           </tbody>
         </table>
+        {shown.length > 250 && (
+          <div className="dim" style={{ fontSize: 11, padding: "6px 4px" }}>
+            Showing 250 of {shown.length} candidates — narrow with the
+            filters, or export CSV for the full list.
+          </div>
+        )}
       </div>
     </div>
   );

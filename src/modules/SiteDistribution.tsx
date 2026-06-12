@@ -12,6 +12,7 @@ import {
   type SnippetColumn,
 } from "../lib/reportSnippet";
 import { siteSimilarities, siteWordSets } from "../lib/siteSimilarity";
+import { useSort, SortHeader } from "../components/sort";
 
 type Tab = "sites" | "jaccard" | "exclusive";
 
@@ -35,8 +36,17 @@ export default function SiteDistribution() {
     [siteIndex],
   );
 
-  const topSites = sortedSites.slice(0, 24);
-  const maxIns = topSites[0]?.[1].count ?? 1;
+  const [showAllSites, setShowAllSites] = useState(false);
+  const { sort, toggle, sortRows } = useSort("count", "desc");
+  const topSites = sortRows(
+    showAllSites ? sortedSites : sortedSites.slice(0, 24),
+    {
+      site: ([s]) => s,
+      count: ([, d]) => d.count,
+      words: ([s]) => siteWords.get(s)?.size ?? 0,
+    },
+  );
+  const maxIns = sortedSites[0]?.[1].count ?? 1;
 
   // Shared-vocabulary Jaccard over the ten biggest sites — the same shared
   // implementation the Findspot Map's site-links arcs draw from.
@@ -205,9 +215,9 @@ export default function SiteDistribution() {
           <table>
             <thead>
               <tr>
-                <th>Site</th>
-                <th>Inscriptions</th>
-                <th>Unique words</th>
+                <SortHeader label="Site" sortKey="site" sort={sort} onToggle={toggle} />
+                <SortHeader label="Inscriptions" sortKey="count" sort={sort} onToggle={toggle} />
+                <SortHeader label="Unique words" sortKey="words" sort={sort} onToggle={toggle} />
                 <th>Distribution</th>
               </tr>
             </thead>
@@ -238,6 +248,17 @@ export default function SiteDistribution() {
               })}
             </tbody>
           </table>
+          {sortedSites.length > 24 && (
+            <button
+              className="btn btn-outline btn-sm"
+              style={{ margin: "6px 4px" }}
+              onClick={() => setShowAllSites((v) => !v)}
+            >
+              {showAllSites
+                ? "Show top 24"
+                : `Show all ${sortedSites.length} sites`}
+            </button>
+          )}
         </div>
       )}
 

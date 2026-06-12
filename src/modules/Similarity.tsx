@@ -7,6 +7,7 @@ import { InscriptionLink } from "../components/InscriptionLink";
 import { WordToken } from "../components/WordToken";
 import { GlyphRun } from "../components/Glyph";
 import { SaveFindingButton } from "../components/SaveFindingButton";
+import { useSort, SortHeader } from "../components/sort";
 import {
   esc,
   snippetTable,
@@ -96,6 +97,18 @@ export default function Similarity() {
     return out.slice(0, 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pivotIns, eligible, sameSite, samePeriod, mode, hypothesis]);
+
+  // Re-sortable view over the top-50 (selection stays by score; the table
+  // then sorts by whatever column the researcher clicks).
+  const { sort, toggle, sortRows } = useSort("score", "desc");
+  const sortedResults = sortRows(results, {
+    id: (r) => r.id,
+    site: (r) => r.site,
+    period: (r) => r.period,
+    score: (r) => r.score,
+    shared: (r) => r.shared,
+    tokens: (r) => r.wordCount,
+  });
 
   // ── Clusters view ──────────────────────────────────────────────────────
   // Group mutually-similar inscriptions via connected components: build the
@@ -490,17 +503,17 @@ export default function Similarity() {
               <thead>
                 <tr>
                   <th>#</th>
-                  <th>Inscription</th>
-                  <th>Site</th>
-                  <th>Period</th>
-                  <th>Similarity</th>
-                  <th>Shared words</th>
-                  <th>Tokens</th>
+                  <SortHeader label="Inscription" sortKey="id" sort={sort} onToggle={toggle} />
+                  <SortHeader label="Site" sortKey="site" sort={sort} onToggle={toggle} />
+                  <SortHeader label="Period" sortKey="period" sort={sort} onToggle={toggle} />
+                  <SortHeader label="Similarity" sortKey="score" sort={sort} onToggle={toggle} />
+                  <SortHeader label="Shared words" sortKey="shared" sort={sort} onToggle={toggle} />
+                  <SortHeader label="Tokens" sortKey="tokens" sort={sort} onToggle={toggle} />
                   <th style={{ width: 1 }}>Open in</th>
                 </tr>
               </thead>
               <tbody>
-                {results.map((r, i) => {
+                {sortedResults.map((r, i) => {
                   const cls =
                     r.score >= 0.6
                       ? "score-hi"

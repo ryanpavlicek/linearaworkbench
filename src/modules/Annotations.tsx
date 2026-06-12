@@ -32,6 +32,7 @@ export default function Annotations() {
   const remove = useWorkbench((s) => s.deleteAnnotation);
   const showWord = useWorkbench((s) => s.showWord);
   const showInscription = useWorkbench((s) => s.showInscription);
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const toast = useWorkbench((s) => s.toast_show);
   const fileRef = useRef<HTMLInputElement>(null);
 
@@ -262,7 +263,10 @@ export default function Annotations() {
                             ? showWord(a.target.value)
                             : a.target.kind === "inscription"
                               ? showInscription(a.target.value)
-                              : null
+                              : // sign — open the Sign Inventory focused on it
+                                setActiveModule("signref", {
+                                  focus: a.target.value,
+                                })
                         }
                       >
                         Open

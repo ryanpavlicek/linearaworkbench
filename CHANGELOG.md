@@ -4,6 +4,52 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## Unreleased
+
+Correctness fixes from a module-by-module review:
+
+- **Accounting**: a PO-TO-KU-RO grand total is now checked against the
+  stated KU-RO subtotals it restates (plus any trailing unsummed items)
+  instead of an empty section, and a total with nothing to check against
+  yields no check rather than a spurious discrepancy — the balance-rate
+  stats no longer count false failures. KI-RO deficit lines still stay
+  out of the sums. The table also says when it's showing 200 of more.
+- **Co-occurrence**: the word filter and "collocates of" now apply
+  before the top-250 display cap — previously collocates of any
+  mid-frequency word were silently incomplete.
+- **Sequence Patterns**: the tokenizer now uses the full ligature-aware
+  commodity catalog (figs, cyperus, livestock and the rest no longer
+  tokenize as words), the real numeral parser, PO-TO-KU-RO as a total,
+  and a new deficit class for KI-RO; example tablets are de-duplicated.
+- **Tablet classification**: the structure heuristic and Libation
+  Formulas now share one libation word list (they used to disagree), and
+  fraction-only tablets count as accounting documents.
+- **Semantic Classifier**: ideogram groups now come from the shared
+  commodity catalog (ligatures included) and count co-occurrence per
+  line, not per tablet — matching how the Commodity Catalog reads
+  entries.
+- **Sound Shift**: editing a sign now evaluates the words that actually
+  contain it (up to 50) instead of a fixed top-20 — rare-sign
+  hypotheses no longer show an all-zero table; an unattested sign says
+  so. The Hypothesis Workspace diff and compare-all views do the same.
+- **Scribes**: the corpus and site-average baselines now exclude the
+  selected scribe's own tablets, and the scribe count in the intro is
+  computed, not hardcoded.
+- **Scope, everywhere it was silently ignored**: Corpus Search, the
+  Sign Inventory (attestation counts, top words, and an
+  attested-in-scope tally), all Data Export cards, and Cross-Linguistic's
+  Bulk view now honor the global Scope, each with a visible note;
+  Diachronic gains an opt-in "respect Scope" toggle for site- or
+  support-conditioned phase comparisons.
+- **Diachronic**: specific phases list chronologically (MM before LM).
+- **Wordlist Manager**: the documented CSV header row is no longer
+  imported as a (bogus) vocabulary entry.
+- Sign-target annotations and note references now open the Sign
+  Inventory focused on the sign instead of doing nothing; Onomastics,
+  Similarity, and Site Distribution tables use the shared sortable
+  headers (Site Distribution gains a show-all-sites toggle, Onomastics
+  says when the 250-row cap engages).
+
 ## 1.4.0 — 2026-06-12
 
 - **A real coastline under the map**: the Findspot Map now draws Natural
