@@ -1606,6 +1606,33 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-metrology",
+    group: "Interpretation modules",
+    title: "Metrology Lab",
+    keywords:
+      "metrology fractions klasmatogram numerals units measures denominators counted measured",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="metrology">Metrology Lab</ModuleLink> profiles
+          the number system: a census of every fractional value attested
+          (½ leads at ×121), and a counted-vs-measured table per commodity
+          — share of fractional quantities, denominators in use, magnitude
+          profile. People and livestock run ~0% fractional (counted);
+          oil, wine, and spices run high (measured) — CYP at 58% with a
+          median of half a unit is the picture of a good weighed out in
+          small amounts.
+        </P>
+        <Note>
+          The source transcription already resolves the Linear A fraction
+          signs (klasmatograms) into numbers under the conventional
+          readings, so this module analyzes the value system; it cannot
+          test alternative sign-value assignments.
+        </Note>
+      </>
+    ),
+  },
+  {
     id: "mod-dossiers",
     group: "Interpretation modules",
     title: "Account Dossiers",

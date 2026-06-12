@@ -229,6 +229,7 @@ export type ModuleId =
   | "health"
   | "doctypes"
   | "dossiers"
+  | "metrology"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the

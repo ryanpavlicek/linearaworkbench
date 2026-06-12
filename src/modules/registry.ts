@@ -105,6 +105,14 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "dossier account holder name entries quantities commodities ledger follow person prosopography",
       },
+      {
+        id: "metrology",
+        name: "Metrology Lab",
+        group: "Accounts & content",
+        category: "descriptive",
+        keywords:
+          "metrology fractions klasmatogram numerals units measures denominators quantities counted measured",
+      },
       { id: "commodities", name: "Commodity Catalog", group: "Accounts & content", category: "descriptive" },
       { id: "struct", name: "Tablet Structure", group: "Accounts & content", category: "descriptive" },
       {
@@ -258,5 +266,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   health: lazy(() => import("./CorpusHealth")),
   doctypes: lazy(() => import("./DocumentTypes")),
   dossiers: lazy(() => import("./AccountDossiers")),
+  metrology: lazy(() => import("./MetrologyLab")),
   help: lazy(() => import("./Help")),
 };
