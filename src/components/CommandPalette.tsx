@@ -20,8 +20,15 @@ const ALL: FlatModule[] = MODULE_GROUPS.flatMap((g) =>
   })),
 );
 
-// Fuzzy-ish command palette for jumping to any of the modules by name.
-// Substring + initials match, ranked so prefix matches come first.
+// One palette result: a module to open, or a corpus entity to jump to —
+// an inscription (opens its detail), a word (opens its detail), or a site
+// (becomes the global scope).
+type PaletteResult =
+  | { kind: "module"; module: FlatModule; name: string; tag: string }
+  | { kind: "inscription" | "word" | "site"; value: string; name: string; tag: string };
+
+// Fuzzy-ish matching for modules: substring + initials, ranked so prefix
+// matches come first.
 function score(query: string, m: FlatModule): number | null {
   const q = query.toLowerCase();
   const name = m.name.toLowerCase();
@@ -40,6 +47,26 @@ function score(query: string, m: FlatModule): number | null {
   return null;
 }
 
+// Cap per category so the corpus (1,721 ids, thousands of words) can't
+// swamp the list; exact matches always surface first.
+function matchKeys(
+  keys: Iterable<string>,
+  q: string,
+  cap: number,
+): string[] {
+  const exact: string[] = [];
+  const partial: string[] = [];
+  for (const k of keys) {
+    const K = k.toUpperCase();
+    if (K === q) exact.push(k);
+    else if (K.includes(q)) {
+      if (partial.length < cap) partial.push(k);
+    }
+    if (exact.length + partial.length >= cap && exact.length > 0) break;
+  }
+  return [...exact, ...partial].slice(0, cap);
+}
+
 export function CommandPalette({
   open,
   onClose,
@@ -48,6 +75,10 @@ export function CommandPalette({
   onClose: () => void;
 }) {
   const setActive = useWorkbench((s) => s.setActiveModule);
+  const showInscription = useWorkbench((s) => s.showInscription);
+  const showWord = useWorkbench((s) => s.showWord);
+  const setScope = useWorkbench((s) => s.setScope);
+  const corpus = useWorkbench((s) => s.corpus);
   const [query, setQuery] = useState("");
   const [highlight, setHighlight] = useState(0);
   const boxRef = useRef<HTMLDivElement>(null);
@@ -62,15 +93,34 @@ export function CommandPalette({
     }
   }, [open]);
 
-  const results = useMemo(() => {
+  const results = useMemo<PaletteResult[]>(() => {
     const scored: { m: FlatModule; s: number }[] = [];
     for (const m of ALL) {
       const s = score(query, m);
       if (s !== null) scored.push({ m, s });
     }
     scored.sort((a, b) => b.s - a.s || a.m.name.localeCompare(b.m.name));
-    return scored.map((x) => x.m);
-  }, [query]);
+    const out: PaletteResult[] = scored.map((x) => ({
+      kind: "module",
+      module: x.m,
+      name: x.m.name,
+      tag: x.m.group,
+    }));
+    // Corpus entities join in once the query is specific enough.
+    if (query.trim().length >= 2) {
+      const q = query.trim().toUpperCase();
+      for (const id of matchKeys(corpus.byId.keys(), q, 6)) {
+        out.push({ kind: "inscription", value: id, name: id, tag: "Tablet" });
+      }
+      for (const w of matchKeys(corpus.wordIndex.keys(), q, 6)) {
+        out.push({ kind: "word", value: w, name: w, tag: "Word" });
+      }
+      for (const s of matchKeys(corpus.siteIndex.keys(), q, 4)) {
+        out.push({ kind: "site", value: s, name: s, tag: "Site → scope" });
+      }
+    }
+    return out;
+  }, [query, corpus]);
 
   // Keep highlight in range and scrolled into view
   useEffect(() => {
@@ -79,9 +129,12 @@ export function CommandPalette({
 
   if (!open) return null;
 
-  function choose(m: FlatModule | undefined) {
-    if (!m) return;
-    setActive(m.id);
+  function choose(r: PaletteResult | undefined) {
+    if (!r) return;
+    if (r.kind === "module") setActive(r.module.id);
+    else if (r.kind === "inscription") showInscription(r.value);
+    else if (r.kind === "word") showWord(r.value);
+    else setScope({ site: r.value });
     onClose();
   }
 
@@ -110,7 +163,7 @@ export function CommandPalette({
           className="input"
           autoFocus
           value={query}
-          placeholder="Jump to module… (type a name or initials)"
+          placeholder="Jump to a module, tablet, word, or site…"
           onChange={(e) => {
             setQuery(e.target.value);
             setHighlight(0);
@@ -144,14 +197,14 @@ export function CommandPalette({
         >
           {results.length === 0 && (
             <div className="dim" style={{ padding: 14, fontSize: 13 }}>
-              No module matches "{query}".
+              Nothing matches "{query}".
             </div>
           )}
-          {results.map((m, i) => (
+          {results.map((r, i) => (
             <div
-              key={m.id}
+              key={`${r.kind}:${r.kind === "module" ? r.module.id : r.value}`}
               onMouseEnter={() => setHighlight(i)}
-              onClick={() => choose(m)}
+              onClick={() => choose(r)}
               ref={(el) => {
                 if (i === highlight && el)
                   el.scrollIntoView({ block: "nearest" });
@@ -174,13 +227,13 @@ export function CommandPalette({
                   fontWeight: i === highlight ? 600 : 400,
                 }}
               >
-                {m.name}
+                {r.name}
               </span>
               <span
                 className="tag tag-domain"
                 style={{ fontSize: 9, flexShrink: 0 }}
               >
-                {m.group}
+                {r.tag}
               </span>
             </div>
           ))}

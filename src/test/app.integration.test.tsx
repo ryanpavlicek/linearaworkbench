@@ -100,7 +100,7 @@ describe("App integration — boot, search, open a tablet", () => {
 
     // Open the command palette and jump to the Accounting module by name.
     fireEvent.keyDown(window, { key: "k", ctrlKey: true });
-    const palette = screen.getByPlaceholderText(/jump to module/i);
+    const palette = screen.getByPlaceholderText(/jump to a module/i);
     fireEvent.change(palette, { target: { value: "Accounting" } });
     fireEvent.keyDown(palette, { key: "Enter" });
 

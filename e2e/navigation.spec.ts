@@ -12,7 +12,7 @@ test("command palette (Ctrl+K) jumps to another module", async ({ page }) => {
   ).toBeVisible();
 
   await page.keyboard.press("Control+k");
-  const palette = page.getByPlaceholder(/jump to module/i);
+  const palette = page.getByPlaceholder(/jump to a module/i);
   await expect(palette).toBeVisible();
   await palette.fill("Accounting");
   await palette.press("Enter");
