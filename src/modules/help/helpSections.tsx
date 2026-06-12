@@ -1606,6 +1606,31 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-constellation",
+    group: "Interpretation modules",
+    title: "Constellation",
+    keywords:
+      "constellation map overview embedding correspondence scatter starfield all tablets",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="constellation">Constellation</ModuleLink> plots
+          every substantial text in one sky: correspondence analysis of
+          the inscription × top-vocabulary table, so documents drift
+          toward the words they use — libation texts, the big ledgers,
+          and site idioms form visible asterisms. Color is find-site,
+          size is word count; hover identifies, click opens the tablet.
+        </P>
+        <Note>
+          Only documents with 3+ word tokens that share top vocabulary
+          can be placed honestly — the counts of what's excluded (most
+          nodules and roundels) are stated in the header, and the axes'
+          inertia share tells you how much structure the picture carries.
+        </Note>
+      </>
+    ),
+  },
+  {
     id: "mod-trainer",
     group: "Interpretation modules",
     title: "Sign Trainer",

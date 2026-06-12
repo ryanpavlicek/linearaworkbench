@@ -173,6 +173,14 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "timeline chronology periods MM LM protopalatial neopalatial dates ceramic phases history",
       },
+      {
+        id: "constellation",
+        name: "Constellation",
+        group: "Distribution",
+        category: "exploratory",
+        keywords:
+          "constellation map embedding correspondence analysis all tablets scatter overview starfield",
+      },
     ],
   },
   {
@@ -313,5 +321,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   school: lazy(() => import("./ScribeSchool")),
   write: lazy(() => import("./WriteLinearA")),
   trainer: lazy(() => import("./SignTrainer")),
+  constellation: lazy(() => import("./Constellation")),
   help: lazy(() => import("./Help")),
 };
