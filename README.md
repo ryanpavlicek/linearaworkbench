@@ -53,7 +53,7 @@ for the count distinction. We can read most of the *sounds* (the script
 shares ~60% of its signs with the deciphered Linear B), but not the
 language. The corpus is small, fragmentary, and mostly administrative.
 
-This workbench gives you **39 interactive modules** for analyzing that
+This workbench gives you **50 interactive modules** for analyzing that
 corpus: searching, browsing, statistics, sign concordances, accounting verification,
 cross-language phonetic alignment, hypothesis testing, annotation, mapping,
 comparison. Everything is keyboard-accessible, mostly works offline, and

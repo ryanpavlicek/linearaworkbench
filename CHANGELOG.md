@@ -11,6 +11,32 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   the social-preview metadata all point there. Old github.io links
   redirect.
 
+Eleven new modules — the workbench now has **50**:
+
+- **Corpus Health** — the dataset's own condition: metadata coverage
+  bars with click-throughs, damaged-token share, per-site completeness.
+  Check it before trusting any per-scribe or per-period claim.
+- **Document Types** — the corpus by physical object, each class with a
+  function note, writing profile, top vocabulary, and one-click Scope.
+- **Account Dossiers** — follow a candidate account-holder: every
+  counted entry a word heads, with the actual ledger lines, totals,
+  commodity mix, and co-listed words (SA-RA₂'s fifteen entries lead).
+- **Metrology Lab** — the fraction census and a counted-vs-measured
+  table per commodity; people ~0% fractional, spices 58%.
+- **Timeline** — the corpus on a date line by ceramic phase, with the
+  honesty notes (dating-by-deposit, the LM IA debate, the undated share).
+- **Constellation** — every substantial text in one correspondence-
+  analysis starfield; libation texts and ledgers form visible asterisms.
+- **Plate Workbench** — autopsy mode: the published image beside the
+  line-by-line transliteration, ←/→ across all 1,721 imaged documents.
+- A new **Learn** group: **Guided Reader** (a real tablet token by
+  token, steps generated from the data — HT13's half-unit crux is lesson
+  one), **Scribe School** (balance a real account with its KU-RO hidden;
+  compose your own ledger and the total writes itself), **Sign Trainer**
+  (Leitner flashcards, frequency-first), and **Write in Linear A** (your
+  name in signs, with every adaptation the script forces listed).
+- Also: the GORILA credits entry now links to the CEFAEL digitization.
+
 New quantitative techniques, each with its caveats in
 [METHODOLOGY](docs/METHODOLOGY.md):
 
