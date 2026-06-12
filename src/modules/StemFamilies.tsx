@@ -27,6 +27,7 @@ import {
 // candidate morphological relationships for closer inspection.
 export default function StemFamilies() {
   const words = useScopedMultiWords();
+  const showWord = useWorkbench((s) => s.showWord);
   const wordsForCluster = useMemo(
     () => words.map((w) => ({ word: w.word, count: w.entry.count })),
     [words],
@@ -73,6 +74,59 @@ export default function StemFamilies() {
     () => clusters.reduce((s, c) => s + c.members.length, 0),
     [clusters],
   );
+
+  // The Kober grid: words sharing a stem (all signs but the last),
+  // arranged stem × ending. Alice Kober's bridge from pattern to grammar —
+  // stems that repeat the SAME ending set are paradigm candidates; her
+  // "triplets" (one stem, three endings) did this for Linear B a decade
+  // before the decipherment. Rows sort by ending-set signature so stems
+  // inflecting alike sit together as visible bands.
+  const kober = useMemo(() => {
+    const stems = new Map<string, Map<string, number>>();
+    for (const { word, entry } of words) {
+      const parts = word.split("-");
+      if (parts.length < 2) continue;
+      const stem = parts.slice(0, -1).join("-");
+      const ending = parts[parts.length - 1];
+      let m = stems.get(stem);
+      if (!m) {
+        m = new Map();
+        stems.set(stem, m);
+      }
+      m.set(ending, (m.get(ending) ?? 0) + entry.count);
+    }
+    const paradigmRows = [...stems.entries()].filter(([, m]) => m.size >= 2);
+    const endingBreadth = new Map<string, number>();
+    for (const [, m] of paradigmRows)
+      for (const e of m.keys())
+        endingBreadth.set(e, (endingBreadth.get(e) ?? 0) + 1);
+    const columns = [...endingBreadth.entries()]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 12)
+      .map(([e]) => e);
+    const colSet = new Set(columns);
+    const display = paradigmRows
+      .map(([stem, m]) => ({
+        stem,
+        cells: columns.map((c) => m.get(c) ?? 0),
+        inCols: [...m.keys()].filter((e) => colSet.has(e)).length,
+        extra: [...m.keys()].filter((e) => !colSet.has(e)).length,
+        sig: columns.map((c) => (m.has(c) ? "1" : "0")).join(""),
+      }))
+      .filter((r) => r.inCols >= 2)
+      .sort(
+        (a, b) =>
+          b.sig.localeCompare(a.sig) ||
+          b.inCols - a.inCols ||
+          a.stem.localeCompare(b.stem),
+      );
+    return {
+      columns,
+      rows: display.slice(0, 60),
+      totalRows: display.length,
+      triplets: display.filter((r) => r.inCols >= 3).length,
+    };
+  }, [words]);
 
   const coverage =
     words.length > 0
@@ -343,6 +397,120 @@ export default function StemFamilies() {
         <div className="dim" style={{ fontSize: 11, padding: 8 }}>
           Showing first 250 of {filtered.length}. Narrow the filters to see
           more.
+        </div>
+      )}
+
+      {kober.rows.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h4>
+            Kober grid{" "}
+            <span className="dim">
+              ({kober.totalRows} paradigm rows · {kober.triplets} with 3+
+              endings)
+            </span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Alice Kober's bridge from pattern to grammar: words sharing a
+            stem (all signs but the last), arranged stem × ending. Rows are
+            sorted by their ending-set signature, so stems that inflect with
+            the <em>same</em> endings sit together as visible bands — those
+            bands are the paradigm candidates, and a stem attesting three or
+            more endings is the Linear A equivalent of her famous triplets.
+            Token counts in the cells; click one to open the word.
+          </div>
+          <div className="table-wrap" style={{ maxHeight: 480, overflowY: "auto" }}>
+            <table style={{ fontSize: 11, fontFamily: "var(--mono)" }}>
+              <thead>
+                <tr>
+                  <th
+                    style={{
+                      position: "sticky",
+                      left: 0,
+                      background: "var(--bg)",
+                    }}
+                  >
+                    Stem
+                  </th>
+                  {kober.columns.map((c) => (
+                    <th
+                      key={c}
+                      style={{
+                        color: "var(--am)",
+                        textAlign: "center",
+                        whiteSpace: "nowrap",
+                      }}
+                      title={`Words ending in -${c}`}
+                    >
+                      -{c}
+                    </th>
+                  ))}
+                  <th
+                    className="dim"
+                    title="Endings attested for this stem that fall outside the displayed columns"
+                  >
+                    other
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {kober.rows.map((r) => (
+                  <tr key={r.stem}>
+                    <th
+                      style={{
+                        position: "sticky",
+                        left: 0,
+                        background: "var(--bg)",
+                        textAlign: "right",
+                        padding: "1px 6px",
+                        color:
+                          r.inCols >= 3 ? "var(--gn)" : "var(--text-dim)",
+                        fontWeight: r.inCols >= 3 ? 600 : 400,
+                      }}
+                      title={
+                        r.inCols >= 3
+                          ? `${r.stem}- attests ${r.inCols} of the displayed endings — a triplet-class paradigm row`
+                          : `${r.stem}-`
+                      }
+                    >
+                      {r.stem}-
+                    </th>
+                    {r.cells.map((n, ci) => (
+                      <td
+                        key={ci}
+                        onClick={() =>
+                          n > 0 && showWord(`${r.stem}-${kober.columns[ci]}`)
+                        }
+                        style={{
+                          textAlign: "center",
+                          width: 36,
+                          cursor: n > 0 ? "pointer" : "default",
+                          background:
+                            n > 0 ? "rgba(91, 158, 255, 0.16)" : undefined,
+                          color: n > 0 ? "var(--text)" : "var(--text-faint)",
+                        }}
+                        title={
+                          n > 0
+                            ? `${r.stem}-${kober.columns[ci]} ×${n} — click to open`
+                            : undefined
+                        }
+                      >
+                        {n || "·"}
+                      </td>
+                    ))}
+                    <td className="dim" style={{ textAlign: "center" }}>
+                      {r.extra || ""}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          {kober.totalRows > kober.rows.length && (
+            <div className="dim" style={{ fontSize: 11, marginTop: 6 }}>
+              Showing the first {kober.rows.length} of {kober.totalRows}{" "}
+              paradigm rows (signature-sorted, multi-ending bands first).
+            </div>
+          )}
         </div>
       )}
     </div>
