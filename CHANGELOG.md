@@ -4,7 +4,7 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
-## Unreleased
+## 1.4.0 — 2026-06-12
 
 - **A real coastline under the map**: the Findspot Map now draws Natural
   Earth's 1:10m land polygons (public domain, clipped and simplified at
