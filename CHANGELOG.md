@@ -57,6 +57,37 @@ Deeper analysis in the existing modules:
   top carrier inline, and the evaluation table can run against one of
   your word collections instead of the auto-selected words.
 - **N-grams** rows expand to the tablets carrying the sequence.
+- **KWIC** matches wildcards (`KU-*`, `?-RO-JA`), can sort by the
+  keyword's position in its word (with a slot column), and lists the
+  top in-window companion words under the table.
+- **Stem Families** adds a *Kober grid* — stems × their most-shared
+  endings, rows sorted by ending-set signature so stems inflecting the
+  same way band together; a stem attesting 3+ endings is flagged as a
+  triplet-class row, after Kober's Linear B triplets.
+- **Scribes** adds a distinctive-vocabulary card — the words a hand
+  over-uses against the rest of the corpus, smoothed log-ratio with the
+  same significance option as the sign signature.
+- **Diachronic** charts a per-phase trajectory for any word or sign
+  from the comparison lists (KU-RO: 0/31 word tokens in LM IA tablets,
+  35/844 in LM IB).
+- **My Lexicon** reports corpus coverage (how far your glosses reach,
+  by tokens and types), edits glosses inline, and reads whole tablets
+  interlinearly through your lexicon — gloss under word, "?" where work
+  remains.
+- **Wordlist Manager** opens any wordlist for browsing and filtering
+  in place, and previews how strongly a list engages the corpus (share
+  of entries with a close phonetic match, with the best pairs listed).
+- **Similarity** adds a *rarity overlap* column — shared vocabulary
+  weighted by inverse document frequency, so sharing A-DU counts for
+  more than sharing KU-RO.
+- **Compare Inscriptions** shades near-matches (one sign apart) in the
+  alignment grid and exports the alignment as CSV.
+- **Commentary Browser** search results preview a snippet around the
+  hit, and tablet references in the running text (HT 13, PK Za 11)
+  become clickable corpus links.
+- **Notes** are searchable; **Data Export** adds a one-row-per-token
+  long-format CSV; **Corpus Search** gains exact / starts-with /
+  ends-with match modes and can save a result set as a collection.
 
 Statistical rigor, on by choice:
 
@@ -98,6 +129,13 @@ Modules now hand off to each other:
   Sound Shift's evaluation table, Hypothesis Workspace diffs, Commentary
   Browser searches, the Network graph's edge list, and the Query
   Builder's result tables (now sortable, too).
+- Saved findings **re-open live**: a finding records the parameters
+  that produced it, and re-opening restores the module to that state —
+  query, filters, thresholds — in Corpus Search, KWIC, and
+  Co-occurrence, even when the module is already on screen.
+- Research Report sections can be **curated**: a per-section checklist
+  excludes individual annotations, findings, collections, or hypotheses
+  from the built report without deleting them from the workspace.
 
 Correctness fixes from a module-by-module review:
 
