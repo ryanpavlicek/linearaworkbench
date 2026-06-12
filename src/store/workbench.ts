@@ -264,7 +264,7 @@ export const useWorkbench = create<State>((set, get) => ({
   hypothesis: {},
   overrideEvidence: {},
   savedHypotheses: loadJson<SavedHypothesis[]>(KEYS.savedHypotheses, []),
-  customLanguages: {},
+  customLanguages: loadJson<ComparisonLanguages>(KEYS.customLanguages, {}),
   annotations: loadJson<Annotation[]>(KEYS.annotations, []),
   pins: loadJson<Pin[]>(KEYS.pins, []),
   collections: loadJson<Collection[]>(KEYS.collections, []),
@@ -381,13 +381,16 @@ export const useWorkbench = create<State>((set, get) => ({
     }),
 
   addCustomLanguage: (name, entries) =>
-    set((s) => ({
-      customLanguages: { ...s.customLanguages, [name]: entries },
-    })),
+    set((s) => {
+      const next = { ...s.customLanguages, [name]: entries };
+      saveJson(KEYS.customLanguages, next);
+      return { customLanguages: next };
+    }),
   removeCustomLanguage: (name) =>
     set((s) => {
       const next = { ...s.customLanguages };
       delete next[name];
+      saveJson(KEYS.customLanguages, next);
       return { customLanguages: next };
     }),
 

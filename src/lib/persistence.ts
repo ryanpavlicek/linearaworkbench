@@ -37,6 +37,7 @@ export const KEYS = {
   pins: "pins",
   collections: "collections",
   tabletCategories: "tablet-categories",
+  customLanguages: "custom-languages",
   findings: "findings",
   sidebarCollapsed: "sidebar-collapsed",
   reportLayout: "report-layout",

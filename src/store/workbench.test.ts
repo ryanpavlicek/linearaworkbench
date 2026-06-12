@@ -380,11 +380,17 @@ describe("settings & custom languages", () => {
     expect(store().settings.pinRailVisible).toBe(true);
   });
 
-  it("adds and removes a custom comparison language", () => {
+  it("adds and removes a custom comparison language, persisting both ways", () => {
+    const stored = () =>
+      JSON.parse(
+        localStorage.getItem("linear-a-workbench:custom-languages") ?? "{}",
+      );
     store().addCustomLanguage("Etruscan", [{ w: "mi", m: "I", d: "pron" }]);
     expect(store().customLanguages.Etruscan).toHaveLength(1);
+    expect(stored().Etruscan).toHaveLength(1);
     store().removeCustomLanguage("Etruscan");
     expect(store().customLanguages.Etruscan).toBeUndefined();
+    expect(stored().Etruscan).toBeUndefined();
   });
 });
 
