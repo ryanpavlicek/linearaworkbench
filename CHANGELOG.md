@@ -4,6 +4,25 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## Unreleased
+
+- **My Lexicon**: a new Research module that aggregates every annotation
+  into a working glossary — proposed meaning, confidence, evidence, and
+  live corpus attestation counts — with filters, CSV export, and
+  save-to-findings.
+- **Referenced by your research**: a tablet's detail view now shows where
+  it figures in your own work — annotations citing it as evidence, the
+  collections it belongs to, the notes that reference it.
+- **Installable**: a web app manifest and icons make the workbench
+  installable from the browser (it already worked offline); scope presets
+  let you name the corpus slice you keep coming back to and re-apply it in
+  one click; the command palette gained a "Random tablet" entry.
+- README rewritten for newcomers (a "Use it right now" tour, plain-words
+  Node.js install steps); the full module-by-module table moved to
+  [docs/FEATURES.md](docs/FEATURES.md); two new step-by-step recipes in
+  Help (building a case for a word's meaning; testing whether a tablet
+  is a copy).
+
 ## 1.2.0 — 2026-06-12
 
 - **Embed mode**: `?embed=1#/i/HT13` renders a chromeless single-tablet

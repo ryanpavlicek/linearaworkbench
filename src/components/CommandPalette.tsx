@@ -25,7 +25,8 @@ const ALL: FlatModule[] = MODULE_GROUPS.flatMap((g) =>
 // (becomes the global scope).
 type PaletteResult =
   | { kind: "module"; module: FlatModule; name: string; tag: string }
-  | { kind: "inscription" | "word" | "site"; value: string; name: string; tag: string };
+  | { kind: "inscription" | "word" | "site"; value: string; name: string; tag: string }
+  | { kind: "command"; command: "random"; name: string; tag: string };
 
 // Fuzzy-ish matching for modules: substring + initials, ranked so prefix
 // matches come first.
@@ -106,6 +107,15 @@ export function CommandPalette({
       name: x.m.name,
       tag: x.m.group,
     }));
+    // "Surprise me" for explorers — listed when idle or when typed for.
+    if (!query.trim() || "random tablet".includes(query.trim().toLowerCase())) {
+      out.push({
+        kind: "command",
+        command: "random",
+        name: "🎲 Random tablet",
+        tag: "Command",
+      });
+    }
     // Corpus entities join in once the query is specific enough.
     if (query.trim().length >= 2) {
       const q = query.trim().toUpperCase();
@@ -134,7 +144,12 @@ export function CommandPalette({
     if (r.kind === "module") setActive(r.module.id);
     else if (r.kind === "inscription") showInscription(r.value);
     else if (r.kind === "word") showWord(r.value);
-    else setScope({ site: r.value });
+    else if (r.kind === "command") {
+      const ids = [...corpus.byId.keys()];
+      if (ids.length) {
+        showInscription(ids[Math.floor(Math.random() * ids.length)]);
+      }
+    } else setScope({ site: r.value });
     onClose();
   }
 
@@ -202,7 +217,7 @@ export function CommandPalette({
           )}
           {results.map((r, i) => (
             <div
-              key={`${r.kind}:${r.kind === "module" ? r.module.id : r.value}`}
+              key={`${r.kind}:${r.kind === "module" ? r.module.id : r.kind === "command" ? r.command : r.value}`}
               onMouseEnter={() => setHighlight(i)}
               onClick={() => choose(r)}
               ref={(el) => {
