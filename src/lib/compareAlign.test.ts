@@ -1,3 +1,6 @@
+// NOTE: the expected values in this file are extracted into pyaegean's
+// golden parity fixtures (tests/fixtures/golden/) — changing an expectation
+// here means re-extracting the fixtures there. See docs/DATA.md.
 import { describe, it, expect } from "vitest";
 import { alignSequences, addSequence, buildCompareReport } from "./compareAlign";
 import type { Inscription } from "./types";

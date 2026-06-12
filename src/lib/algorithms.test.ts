@@ -1,3 +1,7 @@
+// NOTE: the expected values in this file are extracted into pyaegean's
+// golden parity fixtures (tests/fixtures/golden/), so its Python ports
+// assert against the SAME numbers. Changing an expectation here means
+// re-extracting the fixtures there in the same change — see docs/DATA.md.
 import { describe, it, expect } from "vitest";
 import {
   wordToPhonetic,

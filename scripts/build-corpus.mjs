@@ -9,8 +9,10 @@
 // Re-run with: node scripts/build-corpus.mjs
 
 import { readFileSync, writeFileSync, mkdirSync } from "node:fs";
+import { createHash } from "node:crypto";
 import { resolve, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
+import { UPSTREAM_REPO, UPSTREAM_SHA } from "./upstream.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
@@ -192,6 +194,38 @@ writeFileSync(
   JSON.stringify(inscriptions),
 );
 writeFileSync(resolve(outDir, "signs.json"), JSON.stringify(signs, null, 2));
+
+// The corpus manifest: which upstream snapshot this data reflects, plus a
+// checksum over the canonical 12-field projection — the fields pyaegean's
+// bundled copy of this corpus shares. Both repos recompute the same
+// projection from their own data and compare against this value, so silent
+// drift between the two fails CI on whichever side drifted. Deliberately
+// deterministic (no timestamps): rebuilding unchanged data changes nothing.
+const PARITY_FIELDS = [
+  "id", "site", "support", "scribe", "findspot", "context", "name",
+  "words", "translations", "lines", "glyphs", "transcription",
+];
+const canonical = JSON.stringify(
+  inscriptions.map((ins) =>
+    Object.fromEntries(PARITY_FIELDS.map((f) => [f, ins[f]])),
+  ),
+);
+const paritySha256 = createHash("sha256").update(canonical, "utf8").digest("hex");
+writeFileSync(
+  resolve(outDir, "manifest.json"),
+  JSON.stringify(
+    {
+      sourceRepo: UPSTREAM_REPO,
+      sourceCommit: UPSTREAM_SHA,
+      inscriptionCount: inscriptions.length,
+      signCount: signs.length,
+      parityFields: PARITY_FIELDS,
+      paritySha256,
+    },
+    null,
+    2,
+  ),
+);
 
 const sites = new Set(inscriptions.map((i) => i.site).filter(Boolean));
 const scribes = new Set(inscriptions.map((i) => i.scribe).filter(Boolean));
