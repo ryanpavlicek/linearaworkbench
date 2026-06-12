@@ -1606,6 +1606,28 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-plates",
+    group: "Interpretation modules",
+    title: "Plate Workbench",
+    keywords:
+      "plate workbench facsimile photograph image side by side autopsy viewer drawing",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="plates">Plate Workbench</ModuleLink> is autopsy
+          mode: the published image large on the left, the line-by-line
+          transliteration (with glyphs) on the right, so any reading can
+          be checked against the plate it descends from. <Kbd>←</Kbd>/
+          <Kbd>→</Kbd> walk every imaged document; facsimile drawings
+          come before photographs — and remember a drawing is the
+          edition's own reading, not neutral evidence. Links jump to the
+          full record, SigLA's paleography, and the GORILA volumes at
+          CEFAEL.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-constellation",
     group: "Interpretation modules",
     title: "Constellation",

@@ -52,6 +52,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "health dashboard coverage completeness damage uncertain metadata quality missing scribe period image translation",
       },
+      {
+        id: "plates",
+        name: "Plate Workbench",
+        group: "Research",
+        keywords:
+          "plates facsimile images photographs gorila side by side compare drawing autopsy viewer",
+      },
     ],
   },
   {
@@ -322,5 +329,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   write: lazy(() => import("./WriteLinearA")),
   trainer: lazy(() => import("./SignTrainer")),
   constellation: lazy(() => import("./Constellation")),
+  plates: lazy(() => import("./PlateWorkbench")),
   help: lazy(() => import("./Help")),
 };

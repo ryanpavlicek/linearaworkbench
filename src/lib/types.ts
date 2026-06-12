@@ -236,6 +236,7 @@ export type ModuleId =
   | "write"
   | "trainer"
   | "constellation"
+  | "plates"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the
