@@ -12,6 +12,7 @@ import {
   H3,
   type Section,
 } from "./helpPrimitives";
+import { GORILA_CEFAEL_URL } from "../../lib/citations";
 
 export const SECTIONS: Section[] = [
   // ─────────────────────────── ORIENTATION ─────────────────────────────
@@ -2999,7 +3000,12 @@ export const SECTIONS: Section[] = [
           repository. That project transcribed and structured the corpus
           from the <b>GORILA</b> ("Recueil des inscriptions en linéaire A")
           publications by Louis Godart and Jean-Pierre Olivier (École
-          Française d'Athènes, 1976–1985).
+          Française d'Athènes, 1976–1985). All five GORILA volumes are
+          digitized in open access in the EfA's CEFAEL library —{" "}
+          <a href={GORILA_CEFAEL_URL} target="_blank" rel="noreferrer">
+            read the edition of record there
+          </a>
+          .
         </P>
         <P>
           I use the data with full credit. Their site at{" "}
