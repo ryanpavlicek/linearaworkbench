@@ -4,6 +4,13 @@ import { useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { cooccurrencePairs } from "../lib/algorithms";
 import { SaveFindingButton } from "../components/SaveFindingButton";
+import {
+  esc,
+  snippetTable,
+  snippetTableMd,
+  snippetWrap,
+  type SnippetColumn,
+} from "../lib/reportSnippet";
 
 interface Node {
   word: string;
@@ -45,10 +52,18 @@ export default function Network() {
   const scoped = useScopedCorpus();
   const inscriptions = scoped.inscriptions;
   const showWord = useWorkbench((s) => s.showWord);
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const wordIndex = scoped.wordIndex;
+  // A "Graph" pivot from the Co-occurrence table lands focused on its word.
+  const initialIntent = useWorkbench.getState().moduleIntent;
   const [topN, setTopN] = useState(60);
   const [minJoint, setMinJoint] = useState(3);
-  const [focusWord, setFocusWord] = useState<string | null>(null);
+  const [focusWord, setFocusWord] = useState<string | null>(
+    initialIntent?.focus?.toUpperCase().trim() || null,
+  );
+  const [nodeQuery, setNodeQuery] = useState(
+    initialIntent?.focus?.toUpperCase().trim() ?? "",
+  );
 
   const svgRef = useRef<SVGSVGElement>(null);
   const nodesRef = useRef<Node[]>([]);
@@ -331,13 +346,51 @@ export default function Network() {
         >
           ↻ Reload layout
         </button>
+        <input
+          className="input"
+          list="network-node-words"
+          placeholder="Find node…"
+          value={nodeQuery}
+          onChange={(e) => {
+            const v = e.target.value;
+            setNodeQuery(v);
+            const u = v.toUpperCase().trim();
+            if (!u) setFocusWord(null);
+            else if (nodesRef.current.some((n) => n.word === u))
+              setFocusWord(u);
+          }}
+          style={{ width: 150 }}
+          title="Type a word to focus its node and neighborhood (exact match)"
+        />
+        <datalist id="network-node-words">
+          {nodesRef.current.map((n) => (
+            <option key={n.word} value={n.word} />
+          ))}
+        </datalist>
         {focusWord && (
-          <button
-            className="btn btn-outline btn-sm"
-            onClick={() => setFocusWord(null)}
-          >
-            Clear focus
-          </button>
+          <>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() =>
+                setActiveModule("cooc", {
+                  tab: "collocates",
+                  focus: focusWord,
+                })
+              }
+              title={`Every pair involving ${focusWord}, with PMI and significance — opens the Co-occurrence table in collocates-of mode`}
+            >
+              In table →
+            </button>
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => {
+                setFocusWord(null);
+                setNodeQuery("");
+              }}
+            >
+              Clear focus
+            </button>
+          </>
         )}
         <span className="dim" style={{ marginLeft: "auto" }}>
           {stats.nodeCount} nodes · {stats.edgeCount} edges
@@ -351,8 +404,47 @@ export default function Network() {
           defaultTitle="Co-occurrence network"
           summary={findingSummary}
           payload={{ topN, minJoint }}
+          reportFn={() => {
+            const slice = pairs.slice(0, 50).map((p, i) => ({
+              ...p,
+              rank: i + 1,
+            }));
+            type R = (typeof slice)[number];
+            const cols: SnippetColumn<R>[] = [
+              {
+                label: "#",
+                render: (p) => `<span style="color:#6b7280;">${p.rank}</span>`,
+                align: "right",
+              },
+              { label: "Word A", render: (p) => `<code>${esc(p.a)}</code>` },
+              { label: "Word B", render: (p) => `<code>${esc(p.b)}</code>` },
+              {
+                label: "PMI",
+                render: (p) => esc(p.pmi.toFixed(2)),
+                align: "right",
+              },
+              {
+                label: "Joint",
+                render: (p) => esc(p.joint),
+                align: "right",
+              },
+            ];
+            const meta = `Co-occurrence network edge list: top ${pairs.length} pairs by PMI (min joint ${minJoint}); ${stats.nodeCount} nodes. ${slice.length < pairs.length ? `Showing the first ${slice.length}.` : ""}`;
+            return {
+              html: snippetWrap(meta, snippetTable(slice, cols)),
+              markdown: `_${meta}_\n\n` + snippetTableMd(slice, cols),
+            };
+          }}
         />
       </div>
+
+      {focusWord && !nodesRef.current.some((n) => n.word === focusWord) && (
+        <div className="dim" style={{ fontSize: 11, margin: "2px 0 6px" }}>
+          <b>{focusWord}</b> isn't among the current top-{topN} PMI pairs —
+          raise “Top N edges” or lower “min joint count” to pull its
+          neighborhood into the graph.
+        </div>
+      )}
 
       <div
         style={{

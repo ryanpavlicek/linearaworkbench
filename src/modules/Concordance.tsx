@@ -37,6 +37,7 @@ interface Row {
 export default function Concordance() {
   const inscriptions = useScopedCorpus().inscriptions;
   const words = useScopedMultiWords();
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
 
   const [target, setTarget] = useState(
     () => useWorkbench.getState().moduleIntent?.focus ?? "",
@@ -184,6 +185,20 @@ export default function Concordance() {
           ))}
         </select>
         <span className="dim">{rows.length} attestations</span>
+        {target.trim() && (
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() =>
+              setActiveModule("cooc", {
+                tab: "collocates",
+                focus: target.toUpperCase().trim(),
+              })
+            }
+            title="Which words share a tablet with this one more often than chance? Opens Co-occurrence in collocates-of mode."
+          >
+            Collocates →
+          </button>
+        )}
         {sortedRows.length > 0 && (
           <>
           <button

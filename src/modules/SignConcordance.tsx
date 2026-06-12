@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { useScopedCorpus } from "../store/scope";
+import { useWorkbench } from "../store/workbench";
 import { csvEscape, downloadFile, siglaSignListUrl } from "../lib/helpers";
 import { PHONETIC_MAP } from "../data/phoneticMap";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -22,7 +23,9 @@ interface SignStat {
 
 export default function SignConcordance() {
   const wordIndex = useScopedCorpus().wordIndex;
-  const [q, setQ] = useState("");
+  // Pivots from other modules (e.g. a Sign Inventory row) land filtered.
+  const initialIntent = useWorkbench.getState().moduleIntent;
+  const [q, setQ] = useState(initialIntent?.focus ?? "");
   const [minCount, setMinCount] = useState(1);
   const [abOnly, setAbOnly] = useState(false);
   const { sort, toggle, sortRows } = useSort("total", "desc");

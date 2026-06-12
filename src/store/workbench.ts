@@ -66,6 +66,11 @@ interface State {
   undoStack: UndoAction[];
   activeModule: ModuleId;
   moduleIntent: ModuleIntent | null;
+  // Bumped on every intent-carrying setActiveModule call. App.tsx keys the
+  // active module by it, so a pivot INTO the currently mounted module (or a
+  // consolidated tab wrapper that maps several ids to one component, e.g.
+  // cooc/network) remounts and actually honors the new focus/tab intent.
+  intentSeq: number;
   toast: { message: string; tone: "info" | "error" } | null;
   detail:
     | { kind: "word"; value: string }
@@ -294,6 +299,7 @@ export const useWorkbench = create<State>((set, get) => ({
   // pivot. App.tsx falls back to "search" if a stored id is no longer valid.
   activeModule: loadJson<ModuleId>(KEYS.activeModule, "search"),
   moduleIntent: null,
+  intentSeq: 0,
   toast: null,
   detail: null,
 
@@ -368,7 +374,12 @@ export const useWorkbench = create<State>((set, get) => ({
 
   setActiveModule: (id, intent = null) => {
     saveJson(KEYS.activeModule, id);
-    set({ activeModule: id, moduleIntent: intent, detail: null });
+    set((s) => ({
+      activeModule: id,
+      moduleIntent: intent,
+      detail: null,
+      intentSeq: intent ? s.intentSeq + 1 : s.intentSeq,
+    }));
   },
   showWord: (word) => set({ detail: { kind: "word", value: word } }),
   showInscription: (id) => set({ detail: { kind: "inscription", value: id } }),

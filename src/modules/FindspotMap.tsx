@@ -84,9 +84,20 @@ export default function FindspotMap() {
   const inscriptions = scoped.inscriptions;
   const wordIndex = scoped.wordIndex;
   const setActive = useWorkbench((s) => s.setActiveModule);
+  // Deep link: other modules can open the map with an overlay preset via
+  // setActiveModule("map", { tab: <overlay mode>, focus: <value> }) — e.g.
+  // the Commodity Catalog's "View on map".
+  const initialIntent = useWorkbench.getState().moduleIntent;
+  const intentMode = OVERLAY_MODES.find(
+    (m) => m.id === initialIntent?.tab,
+  )?.id;
   const [focusedSite, setFocusedSite] = useState<string | null>(null);
-  const [overlayMode, setOverlayMode] = useState<OverlayMode>("word");
-  const [overlayValue, setOverlayValue] = useState("");
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>(
+    intentMode ?? "word",
+  );
+  const [overlayValue, setOverlayValue] = useState(
+    intentMode ? (initialIntent?.focus ?? "") : "",
+  );
   const [showLinks, setShowLinks] = useState(false);
   const [viewBox, setViewBox] = useState<ViewBox>(DEFAULT_VIEWBOX);
   const svgRef = useRef<SVGSVGElement>(null);
@@ -1281,6 +1292,8 @@ function FocusedSitePanel({
   inscriptions: Inscription[];
   clear: () => void;
 }) {
+  const setScope = useWorkbench((s) => s.setScope);
+  const toast = useWorkbench((s) => s.toast_show);
   return (
     <div
       style={{
@@ -1324,6 +1337,22 @@ function FocusedSitePanel({
             Pleiades ↗
           </a>
         )}
+        <button
+          className="btn btn-outline btn-sm"
+          onClick={() => {
+            setScope({
+              site,
+              period: null,
+              scribe: null,
+              support: null,
+              collectionId: null,
+            });
+            toast(`Scope set to ${site}`);
+          }}
+          title={`Use ${site} as the global corpus scope — every module will compute over its ${count} inscriptions`}
+        >
+          ◇ Scope
+        </button>
         <button className="btn btn-outline btn-sm" onClick={clear}>
           Clear
         </button>

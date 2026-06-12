@@ -28,6 +28,7 @@ export function App() {
   const loaded = useWorkbench((s) => s.loaded);
   const loadError = useWorkbench((s) => s.loadError);
   const activeModule = useWorkbench((s) => s.activeModule);
+  const intentSeq = useWorkbench((s) => s.intentSeq);
   const loadCorpus = useWorkbench((s) => s.loadCorpusFromUrl);
   const setActive = useWorkbench((s) => s.setActiveModule);
   const closeDetail = useWorkbench((s) => s.closeDetail);
@@ -197,7 +198,12 @@ export function App() {
                   </div>
                 }
               >
-                <ActiveModule />
+                {/* Keyed by id + intent sequence: a pivot that lands on the
+                    already-mounted component (same id, or an alias mapped to
+                    the same tab wrapper) remounts it so the one-shot
+                    moduleIntent is read. Plain sidebar navigation carries no
+                    intent and never forces a spurious remount. */}
+                <ActiveModule key={`${activeModule}:${intentSeq}`} />
               </Suspense>
             </ModuleErrorBoundary>
           </>

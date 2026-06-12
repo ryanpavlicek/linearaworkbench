@@ -86,6 +86,7 @@ const LOW_N_NOTE =
 
 export default function Cooccurrence() {
   const inscriptions = useScopedCorpus().inscriptions;
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const initialIntent = useWorkbench.getState().moduleIntent;
   const initialMetric: Metric =
     initialIntent?.tab === "loglik"
@@ -102,7 +103,11 @@ export default function Cooccurrence() {
   const [sigOnly, setSigOnly] = useState(false);
   const [fisherFor, setFisherFor] = useState<string | null>(null);
   const [showCI, setShowCI] = useState(false);
-  const [collocatesOnly, setCollocatesOnly] = useState(false);
+  // A "collocates" pivot (e.g. KWIC's "Collocates →") lands in exact
+  // collocates-of mode rather than substring filtering.
+  const [collocatesOnly, setCollocatesOnly] = useState(
+    initialIntent?.tab === "collocates" && !!initialIntent?.focus,
+  );
 
   const { pairs, total } = useMemo(
     () => computePairs(inscriptions),
@@ -466,16 +471,33 @@ export default function Cooccurrence() {
                     {p.countA} · {p.countB}
                   </td>
                   <td>
-                    <button
-                      className="btn btn-outline btn-sm"
-                      style={{ padding: "2px 6px", fontSize: 10 }}
-                      onClick={() =>
-                        setFisherFor(fisherFor === key ? null : key)
-                      }
-                      title="Compute Fisher's exact p-value for this pair"
-                    >
-                      F
-                    </button>
+                    <span style={{ display: "flex", gap: 4 }}>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: "2px 6px", fontSize: 10 }}
+                        onClick={() =>
+                          setFisherFor(fisherFor === key ? null : key)
+                        }
+                        title="Compute Fisher's exact p-value for this pair"
+                      >
+                        F
+                      </button>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: "2px 6px", fontSize: 10 }}
+                        onClick={() => {
+                          // In collocates-of mode every row contains the
+                          // target — focus the OTHER word; otherwise word A.
+                          const qn = q.toUpperCase().trim();
+                          const focus =
+                            collocatesOnly && qn && p.a === qn ? p.b : p.a;
+                          setActiveModule("network", { focus });
+                        }}
+                        title="Highlight this pair's neighborhood in the Network graph"
+                      >
+                        Graph
+                      </button>
+                    </span>
                   </td>
                 </tr>
               );

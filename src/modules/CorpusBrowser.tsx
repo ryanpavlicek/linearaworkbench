@@ -28,6 +28,7 @@ export default function CorpusBrowser() {
   const wordIndex = scoped.wordIndex;
   const signsByLabel = scoped.signsByLabel;
   const showInscription = useWorkbench((s) => s.showInscription);
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const initialIntent = useWorkbench.getState().moduleIntent;
 
   const [tab, setTab] = useState<Tab>(
@@ -279,14 +280,35 @@ export default function CorpusBrowser() {
     safeImgPage * IMG_PAGE_SIZE + IMG_PAGE_SIZE,
   );
 
+  // Walk the imagery set without leaving the lightbox: prev/next buttons
+  // and ←/→ keys move through `withImagery` in display order.
+  const lightboxIdx = useMemo(
+    () =>
+      lightbox ? withImagery.findIndex((i) => i.id === lightbox.id) : -1,
+    [lightbox, withImagery],
+  );
+  const lightboxStep = (delta: number) => {
+    if (lightboxIdx < 0) return;
+    const next = withImagery[lightboxIdx + delta];
+    if (next) setLightbox(next);
+  };
+
   useEffect(() => {
     if (!lightbox) return;
     function onKey(e: KeyboardEvent) {
       if (e.key === "Escape") setLightbox(null);
+      else if (e.key === "ArrowLeft") {
+        const idx = withImagery.findIndex((i) => i.id === lightbox!.id);
+        if (idx > 0) setLightbox(withImagery[idx - 1]);
+      } else if (e.key === "ArrowRight") {
+        const idx = withImagery.findIndex((i) => i.id === lightbox!.id);
+        if (idx >= 0 && idx < withImagery.length - 1)
+          setLightbox(withImagery[idx + 1]);
+      }
     }
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [lightbox]);
+  }, [lightbox, withImagery]);
 
   return (
     <div className="panel">
@@ -585,6 +607,49 @@ export default function CorpusBrowser() {
                     {glyphDetail.insList.length} inscriptions
                   </span>
                   <span style={{ flex: 1 }} />
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() =>
+                      setActiveModule("signref", { focus: selectedSign })
+                    }
+                    title="Open the Sign Inventory focused on this sign (Linear B value, status, confidence)"
+                  >
+                    Inventory
+                  </button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() =>
+                      setActiveModule("signtrans", { focus: selectedSign })
+                    }
+                    title="Which signs precede and follow this one? Opens Sign Transitions focused on it"
+                  >
+                    Transitions
+                  </button>
+                  <button
+                    className="btn btn-outline btn-sm"
+                    onClick={() => {
+                      const rows: (string | number)[][] = [
+                        ["kind", "value", "count", "site", "period"],
+                      ];
+                      for (const e of glyphDetail.wordList)
+                        rows.push(["word", e.word, e.count, "", ""]);
+                      for (const ins of glyphDetail.insList)
+                        rows.push([
+                          "inscription",
+                          ins.id,
+                          "",
+                          ins.site,
+                          ins.context,
+                        ]);
+                      downloadFile(
+                        `linear_a_sign_${selectedSign.replace(/\W+/g, "_")}.csv`,
+                        rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+                      );
+                    }}
+                    title="Download the complete word and inscription lists for this sign (the panel shows the first 150 of each)"
+                  >
+                    Export CSV
+                  </button>
                   <SaveFindingButton
                     module="browse"
                     moduleLabel="Corpus Browser"
@@ -831,7 +896,28 @@ export default function CorpusBrowser() {
                   {lightbox.context ? ` · ${lightbox.context}` : ""}
                   {lightbox.scribe ? ` · ${lightbox.scribe}` : ""}
                 </span>
+                <span style={{ opacity: 0.5, fontSize: 11 }}>
+                  {lightboxIdx + 1} / {withImagery.length}
+                </span>
                 <span style={{ flex: 1 }} />
+                <button
+                  className="btn btn-sm btn-outline"
+                  disabled={lightboxIdx <= 0}
+                  onClick={() => lightboxStep(-1)}
+                  title="Previous tablet with imagery (←)"
+                >
+                  ← Prev
+                </button>
+                <button
+                  className="btn btn-sm btn-outline"
+                  disabled={
+                    lightboxIdx < 0 || lightboxIdx >= withImagery.length - 1
+                  }
+                  onClick={() => lightboxStep(1)}
+                  title="Next tablet with imagery (→)"
+                >
+                  Next →
+                </button>
                 <button
                   className="btn btn-sm"
                   onClick={() => {

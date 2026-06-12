@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile } from "../lib/helpers";
@@ -37,6 +37,7 @@ export default function SiteDistribution() {
   );
 
   const [showAllSites, setShowAllSites] = useState(false);
+  const [openPair, setOpenPair] = useState<number | null>(null);
   const { sort, toggle, sortRows } = useSort("count", "desc");
   const topSites = sortRows(
     showAllSites ? sortedSites : sortedSites.slice(0, 24),
@@ -264,6 +265,9 @@ export default function SiteDistribution() {
 
       {tab === "jaccard" && (
         <div className="table-wrap">
+          <div className="dim" style={{ fontSize: 11, margin: "4px 0 6px" }}>
+            Click a pair to see the words the two sites share.
+          </div>
           <table>
             <thead>
               <tr>
@@ -277,21 +281,57 @@ export default function SiteDistribution() {
               {jaccard.slice(0, 30).map((j, i) => {
                 const cls =
                   j.sim > 0.3 ? "score-hi" : j.sim > 0.15 ? "score-md" : "score-lo";
+                const isOpen = openPair === i;
+                const sharedWords = isOpen
+                  ? [...(siteWords.get(j.a) ?? [])]
+                      .filter((w) => siteWords.get(j.b)?.has(w))
+                      .sort()
+                  : [];
                 return (
-                  <tr key={i}>
-                    <td>
-                      <b style={{ color: "var(--cy)" }}>{j.a}</b>
-                    </td>
-                    <td>
-                      <b style={{ color: "var(--cy)" }}>{j.b}</b>
-                    </td>
-                    <td>
-                      <span className={`score ${cls}`}>
-                        {(j.sim * 100).toFixed(1)}%
-                      </span>
-                    </td>
-                    <td className="dim">{j.shared}</td>
-                  </tr>
+                  <Fragment key={i}>
+                    <tr
+                      style={{ cursor: "pointer" }}
+                      onClick={() => setOpenPair(isOpen ? null : i)}
+                      title="Click to list the shared vocabulary"
+                    >
+                      <td>
+                        <span
+                          style={{ marginRight: 6, color: "var(--text-muted)" }}
+                        >
+                          {isOpen ? "▾" : "▸"}
+                        </span>
+                        <b style={{ color: "var(--cy)" }}>{j.a}</b>
+                      </td>
+                      <td>
+                        <b style={{ color: "var(--cy)" }}>{j.b}</b>
+                      </td>
+                      <td>
+                        <span className={`score ${cls}`}>
+                          {(j.sim * 100).toFixed(1)}%
+                        </span>
+                      </td>
+                      <td className="dim">{j.shared}</td>
+                    </tr>
+                    {isOpen && (
+                      <tr>
+                        <td colSpan={4} style={{ padding: "6px 12px" }}>
+                          {sharedWords.length > 0 ? (
+                            <div style={{ lineHeight: 1.9 }}>
+                              {sharedWords.map((w) => (
+                                <span key={w} style={{ marginRight: 6 }}>
+                                  <WordToken word={w} />
+                                </span>
+                              ))}
+                            </div>
+                          ) : (
+                            <span className="dim">
+                              No shared multi-sign words.
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                  </Fragment>
                 );
               })}
             </tbody>

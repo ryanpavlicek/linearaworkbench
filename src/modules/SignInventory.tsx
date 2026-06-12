@@ -20,6 +20,7 @@ type Filter = "all" | "shared" | "aOnly" | "unknown";
 export default function SignInventory() {
   const signs = useWorkbench((s) => s.corpus.signs);
   const scope = useWorkbench((s) => s.scope);
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   // Scope-aware: top words and attestation counts reflect the active Scope
   // (sign metadata — status, confidence, codepoint — stays corpus-wide).
   const wordIndex = useScopedCorpus().wordIndex;
@@ -353,7 +354,7 @@ export default function SignInventory() {
                 onToggle={toggle}
               />
               <th>Top words</th>
-              <th style={{ width: 1 }}>Paleography</th>
+              <th style={{ width: 1 }}></th>
             </tr>
           </thead>
           <tbody>
@@ -404,16 +405,44 @@ export default function SignInventory() {
                     ))}
                   </td>
                   <td>
-                    <a
-                      className="btn btn-outline btn-sm"
-                      style={{ padding: "2px 6px", fontSize: 10, whiteSpace: "nowrap" }}
-                      href={siglaSignListUrl(s.label)}
-                      target="_blank"
-                      rel="noreferrer"
-                      title={`Open SigLA's sign list and scroll to ${s.label} — see how each scribe drew this sign across the corpus`}
+                    <span
+                      style={{
+                        display: "flex",
+                        gap: 4,
+                        whiteSpace: "nowrap",
+                      }}
                     >
-                      ↗ SigLA
-                    </a>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: "2px 6px", fontSize: 10 }}
+                        onClick={() =>
+                          setActiveModule("signtrans", { focus: s.label })
+                        }
+                        title={`Which signs precede and follow ${s.label}? Opens Sign Transitions focused on it`}
+                      >
+                        Transitions
+                      </button>
+                      <button
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: "2px 6px", fontSize: 10 }}
+                        onClick={() =>
+                          setActiveModule("signs", { focus: s.label })
+                        }
+                        title={`Positional stats and full word list for ${s.label} — opens the Sign Concordance filtered to it`}
+                      >
+                        Words
+                      </button>
+                      <a
+                        className="btn btn-outline btn-sm"
+                        style={{ padding: "2px 6px", fontSize: 10 }}
+                        href={siglaSignListUrl(s.label)}
+                        target="_blank"
+                        rel="noreferrer"
+                        title={`Open SigLA's sign list and scroll to ${s.label} — see how each scribe drew this sign across the corpus`}
+                      >
+                        ↗ SigLA
+                      </a>
+                    </span>
                   </td>
                 </tr>
               );

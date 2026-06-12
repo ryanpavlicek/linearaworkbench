@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
+import { useWorkbench } from "../store/workbench";
 import { findMorphologicalClusters } from "../lib/algorithms";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -34,7 +35,10 @@ export default function StemFamilies() {
   const [minSuffixProd, setMinSuffixProd] = useState(5);
   const [minClusterSize, setMinClusterSize] = useState(2);
   const [maxSuffixLen, setMaxSuffixLen] = useState(2);
-  const [q, setQ] = useState("");
+  // Pivots (e.g. from a Morphology affix row) land pre-filtered.
+  const [q, setQ] = useState(
+    () => useWorkbench.getState().moduleIntent?.focus ?? "",
+  );
   const [expandedStem, setExpandedStem] = useState<string | null>(null);
   const { sort, toggle, sortRows } = useSort("members", "desc");
 

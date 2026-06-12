@@ -115,6 +115,7 @@ export default function Onomastics() {
   const addToCollection = useWorkbench((s) => s.addToCollection);
   const removeFromCollection = useWorkbench((s) => s.removeFromCollection);
   const toast = useWorkbench((s) => s.toast_show);
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
   const { sort, toggle, sortRows } = useSort("score", "desc");
   const [minOcc, setMinOcc] = useState(2);
   const [localOnly, setLocalOnly] = useState(false);
@@ -498,6 +499,16 @@ export default function Onomastics() {
                       }}
                     >
                       ✕
+                    </button>
+                    <button
+                      className="btn btn-sm btn-outline"
+                      onClick={() =>
+                        setActiveModule("comp", { focus: c.word })
+                      }
+                      title="Compare this candidate against the ancient-language wordlists (Cross-Linguistic)"
+                      style={{ padding: "0 7px", minWidth: 0 }}
+                    >
+                      ≈
                     </button>
                   </div>
                 </td>

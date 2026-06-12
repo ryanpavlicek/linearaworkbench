@@ -6,6 +6,7 @@ import {
   siglaSignListUrl,
 } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
+import { useWorkbench } from "../store/workbench";
 import { Glyph } from "../components/Glyph";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -93,7 +94,12 @@ function buildTransitions(
 
 export default function SignTransitions() {
   const words = useScopedMultiWords();
-  const [selected, setSelected] = useState<string | null>(null);
+  // Pivots from other modules (e.g. a Sign Inventory row) open straight to
+  // a sign's in/out profile.
+  const initialIntent = useWorkbench.getState().moduleIntent;
+  const [selected, setSelected] = useState<string | null>(
+    initialIntent?.focus ? normalizeSignLabel(initialIntent.focus) : null,
+  );
   const [hoverCell, setHoverCell] = useState<string | null>(null);
   const [probMode, setProbMode] = useState(false);
 

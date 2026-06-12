@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useScopedCorpus } from "../store/scope";
+import { useWorkbench } from "../store/workbench";
 import { WordToken } from "../components/WordToken";
+import { InscriptionLink } from "../components/InscriptionLink";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
   esc,
@@ -30,6 +32,8 @@ interface CommodityAgg {
   periods: Set<string>;
   variants: Map<string, number>; // full token (e.g. OLE+U) → count
   terms: Map<string, number>; // co-occurring transaction terms → count
+  lines: number; // lines containing this commodity (for PMI)
+  termLines: Map<string, number>; // term → lines containing both (for PMI)
 }
 
 const CATEGORY_LABEL: Record<CommodityCategory, string> = {
@@ -49,59 +53,90 @@ const CATEGORY_COLOR: Record<CommodityCategory, string> = {
 
 export default function Commodities() {
   const inscriptions = useScopedCorpus().inscriptions;
+  const setActiveModule = useWorkbench((s) => s.setActiveModule);
+  const createCollectionWithItems = useWorkbench(
+    (s) => s.createCollectionWithItems,
+  );
+  const setScope = useWorkbench((s) => s.setScope);
+  const toast = useWorkbench((s) => s.toast_show);
   const [selected, setSelected] = useState<string | null>(null);
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState<"all" | CommodityCategory>("all");
+  const [termRank, setTermRank] = useState<"count" | "pmi">("count");
   const { sort, toggle, sortRows } = useSort("occ", "desc");
 
-  const { commodities, undeciphered } = useMemo(() => {
-    const map = new Map<string, CommodityAgg>();
-    const undec = new Map<string, number>();
+  const { commodities, undeciphered, lineTermCounts, totalLines } =
+    useMemo(() => {
+      const map = new Map<string, CommodityAgg>();
+      const undec = new Map<string, number>();
+      const termLineTally = new Map<string, number>(); // term → lines containing it
+      let lineCount = 0;
 
-    for (const ins of inscriptions) {
-      for (const line of ins.lines) {
-        const value = lineValue(line);
-        const terms = line.filter((t) => t.includes("-"));
-        for (const token of line) {
-          if (isUndecipheredLogogram(token)) {
-            undec.set(token, (undec.get(token) ?? 0) + 1);
+      for (const ins of inscriptions) {
+        for (const line of ins.lines) {
+          lineCount++;
+          const value = lineValue(line);
+          const terms = line.filter((t) => t.includes("-"));
+          const termSet = new Set(terms);
+          for (const t of termSet)
+            termLineTally.set(t, (termLineTally.get(t) ?? 0) + 1);
+          const headsOnLine = new Set<string>();
+          for (const token of line) {
+            if (isUndecipheredLogogram(token)) {
+              undec.set(token, (undec.get(token) ?? 0) + 1);
+            }
+            const head = commodityHead(token);
+            if (!head) continue;
+            let agg = map.get(head);
+            if (!agg) {
+              agg = {
+                head,
+                gloss: COMMODITIES[head].gloss,
+                category: COMMODITIES[head].category,
+                occurrences: 0,
+                quantity: 0,
+                tablets: new Set(),
+                sites: new Set(),
+                periods: new Set(),
+                variants: new Map(),
+                terms: new Map(),
+                lines: 0,
+                termLines: new Map(),
+              };
+              map.set(head, agg);
+            }
+            agg.occurrences++;
+            agg.quantity += value;
+            agg.tablets.add(ins.id);
+            if (ins.site) agg.sites.add(ins.site);
+            if (ins.context) agg.periods.add(ins.context);
+            agg.variants.set(token, (agg.variants.get(token) ?? 0) + 1);
+            for (const t of terms)
+              agg.terms.set(t, (agg.terms.get(t) ?? 0) + 1);
+            headsOnLine.add(head);
           }
-          const head = commodityHead(token);
-          if (!head) continue;
-          let agg = map.get(head);
-          if (!agg) {
-            agg = {
-              head,
-              gloss: COMMODITIES[head].gloss,
-              category: COMMODITIES[head].category,
-              occurrences: 0,
-              quantity: 0,
-              tablets: new Set(),
-              sites: new Set(),
-              periods: new Set(),
-              variants: new Map(),
-              terms: new Map(),
-            };
-            map.set(head, agg);
+          // Line-level joint counts (dedup within a line) — the event space
+          // the PMI ranking is computed over.
+          for (const head of headsOnLine) {
+            const agg = map.get(head)!;
+            agg.lines++;
+            for (const t of termSet)
+              agg.termLines.set(t, (agg.termLines.get(t) ?? 0) + 1);
           }
-          agg.occurrences++;
-          agg.quantity += value;
-          agg.tablets.add(ins.id);
-          if (ins.site) agg.sites.add(ins.site);
-          if (ins.context) agg.periods.add(ins.context);
-          agg.variants.set(token, (agg.variants.get(token) ?? 0) + 1);
-          for (const t of terms)
-            agg.terms.set(t, (agg.terms.get(t) ?? 0) + 1);
         }
       }
-    }
 
-    const commodities = [...map.values()].sort(
-      (a, b) => b.occurrences - a.occurrences,
-    );
-    const undeciphered = [...undec.entries()].sort((a, b) => b[1] - a[1]);
-    return { commodities, undeciphered };
-  }, [inscriptions]);
+      const commodities = [...map.values()].sort(
+        (a, b) => b.occurrences - a.occurrences,
+      );
+      const undeciphered = [...undec.entries()].sort((a, b) => b[1] - a[1]);
+      return {
+        commodities,
+        undeciphered,
+        lineTermCounts: termLineTally,
+        totalLines: lineCount,
+      };
+    }, [inscriptions]);
 
   const sel = selected ? commodities.find((c) => c.head === selected) : null;
 
@@ -371,6 +406,56 @@ export default function Commodities() {
                 </span>
               </div>
 
+              <div
+                style={{
+                  display: "flex",
+                  flexWrap: "wrap",
+                  gap: 6,
+                  marginBottom: 8,
+                }}
+              >
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    const ids = [...sel.tablets];
+                    const id = createCollectionWithItems(
+                      `Commodity • ${sel.head} (${ids.length})`,
+                      ids.map((v) => ({
+                        kind: "inscription" as const,
+                        value: v,
+                      })),
+                    );
+                    if (id) {
+                      setScope({
+                        site: null,
+                        period: null,
+                        scribe: null,
+                        support: null,
+                        collectionId: id,
+                      });
+                      toast(
+                        `Scope set to ${ids.length} ${sel.head} tablets`,
+                      );
+                    }
+                  }}
+                  title={`Use the ${sel.tablets.size} tablets mentioning ${sel.head} as the global corpus scope — every other module will compute over just these`}
+                >
+                  ◇ Use as scope
+                </button>
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() =>
+                    setActiveModule("map", {
+                      tab: "commodity",
+                      focus: sel.head,
+                    })
+                  }
+                  title={`Open the Geography map with the ${sel.head} overlay — where this commodity clusters`}
+                >
+                  View on map
+                </button>
+              </div>
+
               <div className="stat-grid" style={{ marginBottom: 8 }}>
                 <div className="stat-box">
                   <span className="val">{sel.occurrences}</span>
@@ -425,6 +510,81 @@ export default function Commodities() {
 
               <div
                 style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
+                  margin: "12px 0 4px",
+                }}
+              >
+                <span
+                  style={{
+                    font: "600 9px var(--sans)",
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  Top co-occurring terms
+                </span>
+                <select
+                  className="select"
+                  value={termRank}
+                  onChange={(e) =>
+                    setTermRank(e.target.value as "count" | "pmi")
+                  }
+                  style={{ fontSize: 10, padding: "1px 4px" }}
+                  title="Rank by raw count, or by PMI — how much more often than chance the term shares a line with this commodity. PMI demotes terms (like KU-RO) that appear with everything; pairs seen on at least 2 lines."
+                >
+                  <option value="count">by count</option>
+                  <option value="pmi">by PMI</option>
+                </select>
+              </div>
+              <div style={{ lineHeight: 1.9 }}>
+                {(termRank === "count"
+                  ? [...sel.terms.entries()]
+                      .sort((a, b) => b[1] - a[1])
+                      .slice(0, 24)
+                      .map(([t, c]) => ({ t, label: `×${c}` }))
+                  : [...sel.termLines.entries()]
+                      .filter(([, joint]) => joint >= 2)
+                      .map(([t, joint]) => ({
+                        t,
+                        pmi: Math.log2(
+                          (joint * totalLines) /
+                            (sel.lines * (lineTermCounts.get(t) ?? joint)),
+                        ),
+                      }))
+                      .sort((a, b) => b.pmi - a.pmi)
+                      .slice(0, 24)
+                      .map(({ t, pmi }) => ({
+                        t,
+                        label: `pmi ${pmi.toFixed(1)}`,
+                      }))
+                ).map(({ t, label }) => (
+                  <span key={t} style={{ marginRight: 4 }}>
+                    <WordToken word={t} />
+                    <span className="dim" style={{ fontSize: 10 }}>
+                      {label}
+                    </span>
+                  </span>
+                ))}
+                {sel.terms.size === 0 && (
+                  <span className="dim">
+                    No multi-sign terms share a line with this commodity.
+                  </span>
+                )}
+                {sel.terms.size > 0 &&
+                  termRank === "pmi" &&
+                  ![...sel.termLines.values()].some((j) => j >= 2) && (
+                    <span className="dim">
+                      No term shares a line with {sel.head} more than once —
+                      too sparse for PMI ranking.
+                    </span>
+                  )}
+              </div>
+
+              <div
+                style={{
                   font: "600 9px var(--sans)",
                   color: "var(--text-muted)",
                   textTransform: "uppercase",
@@ -432,23 +592,21 @@ export default function Commodities() {
                   margin: "12px 0 4px",
                 }}
               >
-                Top co-occurring terms
+                Tablets ({sel.tablets.size})
               </div>
-              <div style={{ lineHeight: 1.9 }}>
-                {[...sel.terms.entries()]
-                  .sort((a, b) => b[1] - a[1])
-                  .slice(0, 24)
-                  .map(([t, c]) => (
-                    <span key={t} style={{ marginRight: 4 }}>
-                      <WordToken word={t} />
-                      <span className="dim" style={{ fontSize: 10 }}>
-                        ×{c}
-                      </span>
+              <div style={{ lineHeight: 1.9, fontSize: 11 }}>
+                {[...sel.tablets]
+                  .sort((a, b) => a.localeCompare(b))
+                  .slice(0, 30)
+                  .map((id) => (
+                    <span key={id} style={{ marginRight: 6 }}>
+                      <InscriptionLink id={id} />
                     </span>
                   ))}
-                {sel.terms.size === 0 && (
+                {sel.tablets.size > 30 && (
                   <span className="dim">
-                    No multi-sign terms share a line with this commodity.
+                    +{sel.tablets.size - 30} more — “Use as scope” to work
+                    with all of them
                   </span>
                 )}
               </div>
@@ -466,7 +624,7 @@ export default function Commodities() {
             <div className="card">
               <div className="dim">
                 Select a commodity to see its quantity, ligature variants,
-                co-occurring transaction terms, and distribution.
+                co-occurring transaction terms, tablets, and distribution.
               </div>
             </div>
           )}
