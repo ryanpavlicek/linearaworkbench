@@ -226,6 +226,7 @@ export type ModuleId =
   | "signpat"
   | "commentary"
   | "pyaegean"
+  | "health"
   | "help";
 
 // Calibration badge surfaced inside each analytical module — makes the

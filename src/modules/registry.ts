@@ -45,6 +45,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
           "export csv json data backup restore wipe reset cache lost recover transfer",
       },
       { id: "wlm", name: "Wordlist Manager", group: "Research" },
+      {
+        id: "health",
+        name: "Corpus Health",
+        group: "Research",
+        keywords:
+          "health dashboard coverage completeness damage uncertain metadata quality missing scribe period image translation",
+      },
     ],
   },
   {
@@ -232,5 +239,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   signpat: lazy(() => import("./SignPatterns")),
   commentary: lazy(() => import("./CommentaryBrowser")),
   pyaegean: lazy(() => import("./PythonToolkit")),
+  health: lazy(() => import("./CorpusHealth")),
   help: lazy(() => import("./Help")),
 };

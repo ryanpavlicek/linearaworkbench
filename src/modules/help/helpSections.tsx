@@ -2936,6 +2936,39 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "health",
+    group: "Reference",
+    title: "Corpus Health",
+    keywords:
+      "health dashboard coverage completeness metadata quality damage uncertain missing scribe period image translation classified",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="health">Corpus Health</ModuleLink> reports the
+          dataset's own condition: how many inscriptions carry a scribal
+          hand, a dating period, a findspot, images, editorial glosses, and
+          an automatic document classification — plus the share of tablets
+          with damage/uncertainty marks in their transcription. Always
+          corpus-wide, ignoring the Scope.
+        </P>
+        <H3>Why it matters</H3>
+        <P>
+          Every analysis inherits these limits: a scribe comparison only
+          sees the ~third of tablets with an attributed hand, and a
+          diachronic claim only the dated share. Check here first, then
+          read other modules' results against what's actually covered. Each
+          coverage row clicks through to the module that uses that
+          metadata, and the per-site table exports as CSV.
+        </P>
+        <Tip>
+          Low coverage at a site usually reflects that site's publication
+          record, not a data-loading gap — GORILA's metadata varies by
+          site and volume.
+        </Tip>
+      </>
+    ),
+  },
+  {
     id: "methodology-page",
     group: "Reference",
     title: "Methodology page",
@@ -2953,7 +2986,7 @@ export const SECTIONS: Section[] = [
         </P>
         <H3>What's in it</H3>
         <P>
-          Twenty sections covering the math behind every analysis: corpus
+          Sections covering the math behind every analysis: corpus
           normalization, the empirical sign→Unicode glyph derivation,
           weighted Levenshtein for cross-linguistic comparison, PMI / G² /
           Yates-corrected χ² / Wilson-score intervals / Fisher's exact in the
