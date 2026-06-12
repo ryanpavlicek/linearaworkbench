@@ -2,9 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { SITE_COORDS } from "../data/siteCoords";
+import { AEGEAN_LAND } from "../data/aegeanLand";
+import { pleiadesUrl } from "../data/pleiades";
 import { InscriptionLink } from "../components/InscriptionLink";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { csvEscape, downloadFile, prefersReducedMotion } from "../lib/helpers";
+import {
+  OVERLAY_MODES,
+  overlayOptions,
+  overlaySiteCounts,
+  type OverlayMode,
+} from "../lib/geoOverlays";
+import { siteSimilarities } from "../lib/siteSimilarity";
 import { svgToPngDataUrl } from "../lib/svgSnapshot";
 import type { Inscription } from "../lib/types";
 
@@ -21,71 +30,10 @@ const VIEW_LON = { min: 22.5, max: 27.5 };
 const VIEW_LAT = { min: 34.5, max: 41.0 };
 const PAD = 30;
 
-// Approximate Crete coastline traced from west tip clockwise. Sourced by
-// hand from standard maps; precise to ~5 km — good enough for site
-// orientation, not for navigation.
-const CRETE_OUTLINE: [number, number][] = [
-  // [lon, lat]
-  [23.55, 35.55], // NW Khania peninsula
-  [23.7, 35.52],
-  [23.85, 35.51],
-  [24.05, 35.55],
-  [24.2, 35.5],
-  [24.35, 35.42],
-  [24.5, 35.4],
-  [24.65, 35.43],
-  [24.8, 35.4],
-  [24.95, 35.34],
-  [25.1, 35.34],
-  [25.18, 35.34],
-  [25.32, 35.34],
-  [25.5, 35.3],
-  [25.7, 35.22],
-  [25.85, 35.2],
-  [26.05, 35.19],
-  [26.18, 35.22],
-  [26.28, 35.27],
-  [26.3, 35.2],
-  [26.32, 35.13],
-  [26.27, 35.07],
-  [26.2, 35.0],
-  [26.1, 34.95],
-  [25.95, 34.93],
-  [25.8, 34.93],
-  [25.5, 34.95],
-  [25.2, 34.94],
-  [24.9, 34.94],
-  [24.6, 34.92],
-  [24.3, 34.94],
-  [24.0, 34.94],
-  [23.7, 34.95],
-  [23.55, 35.1],
-  [23.5, 35.25],
-  [23.5, 35.4],
-  [23.55, 35.55],
-];
-
-// Smaller outlines for Thera (Santorini) and Kythera since both host
-// significant Linear A material.
-const THERA_OUTLINE: [number, number][] = [
-  [25.34, 36.42],
-  [25.4, 36.46],
-  [25.45, 36.42],
-  [25.46, 36.36],
-  [25.42, 36.32],
-  [25.36, 36.34],
-  [25.34, 36.4],
-  [25.34, 36.42],
-];
-const KYTHERA_OUTLINE: [number, number][] = [
-  [22.95, 36.32],
-  [23.05, 36.25],
-  [23.05, 36.2],
-  [22.98, 36.16],
-  [22.92, 36.2],
-  [22.92, 36.28],
-  [22.95, 36.32],
-];
+// Land polygons come from Natural Earth's 1:10m layer, clipped to the
+// Aegean and simplified at build time — see scripts/fetch-coastline.mjs
+// and src/data/aegeanLand.ts. Real Crete, the Cyclades, mainland Greece,
+// and the Anatolian coast, fully offline.
 
 interface Point {
   site: string;
@@ -104,11 +52,42 @@ const DEFAULT_VIEWBOX: ViewBox = { x: 0, y: 0, w: VIEW_W, h: VIEW_H };
 const MIN_VIEW_W = 80; // most zoomed in (~11× linear)
 const MAX_VIEW_W = VIEW_W * 1.5; // a bit zoomed out
 
+// Equirectangular projection — fine for a small region. Y inverted because
+// SVG y grows downward while latitude grows upward. Module-scope because
+// the inputs are all constants.
+function projLon(lon: number) {
+  return (
+    PAD +
+    ((lon - VIEW_LON.min) / (VIEW_LON.max - VIEW_LON.min)) * (VIEW_W - 2 * PAD)
+  );
+}
+function projLat(lat: number) {
+  return (
+    PAD +
+    ((VIEW_LAT.max - lat) / (VIEW_LAT.max - VIEW_LAT.min)) * (VIEW_H - 2 * PAD)
+  );
+}
+
+// All land rings as one path, built once (evenodd keeps lake holes honest).
+const LAND_PATH = AEGEAN_LAND.map(
+  (ring) =>
+    ring
+      .map(
+        ([lon, lat], idx) =>
+          `${idx === 0 ? "M" : "L"}${projLon(lon).toFixed(1)},${projLat(lat).toFixed(1)}`,
+      )
+      .join(" ") + " Z",
+).join(" ");
+
 export default function FindspotMap() {
-  const inscriptions = useScopedCorpus().inscriptions;
+  const scoped = useScopedCorpus();
+  const inscriptions = scoped.inscriptions;
+  const wordIndex = scoped.wordIndex;
   const setActive = useWorkbench((s) => s.setActiveModule);
   const [focusedSite, setFocusedSite] = useState<string | null>(null);
-  const [overlayWord, setOverlayWord] = useState("");
+  const [overlayMode, setOverlayMode] = useState<OverlayMode>("word");
+  const [overlayValue, setOverlayValue] = useState("");
+  const [showLinks, setShowLinks] = useState(false);
   const [viewBox, setViewBox] = useState<ViewBox>(DEFAULT_VIEWBOX);
   const svgRef = useRef<SVGSVGElement>(null);
   const dragRef = useRef<{
@@ -134,19 +113,19 @@ export default function FindspotMap() {
     return map;
   }, [inscriptions]);
 
-  // Word overlay: per-site count of inscriptions containing an exact word.
-  // When set, markers recolor/scale by where that word appears.
-  const overlayWordU = overlayWord.toUpperCase().trim();
-  const overlayCounts = useMemo(() => {
-    if (!overlayWordU) return null;
-    const m = new Map<string, number>();
-    for (const ins of inscriptions) {
-      if (!ins.site) continue;
-      if (ins.words.some((w) => w.toUpperCase() === overlayWordU))
-        m.set(ins.site, (m.get(ins.site) ?? 0) + 1);
-    }
-    return m;
-  }, [inscriptions, overlayWordU]);
+  // Overlay: per-site count of inscriptions matching the selected mode and
+  // value — a word, a commodity logogram, a scribe, a dating phase, or a
+  // tablet-structure category. When set, markers recolor/scale by it.
+  const overlayValueNorm =
+    overlayMode === "word" ? overlayValue.toUpperCase().trim() : overlayValue;
+  const overlayCounts = useMemo(
+    () => overlaySiteCounts(inscriptions, overlayMode, overlayValueNorm),
+    [inscriptions, overlayMode, overlayValueNorm],
+  );
+  const overlayChoices = useMemo(
+    () => overlayOptions(inscriptions, overlayMode),
+    [inscriptions, overlayMode],
+  );
   const maxOverlay = overlayCounts
     ? Math.max(1, ...overlayCounts.values())
     : 1;
@@ -164,16 +143,8 @@ export default function FindspotMap() {
         coord.lon <= VIEW_LON.max &&
         coord.lat >= VIEW_LAT.min &&
         coord.lat <= VIEW_LAT.max;
-      // Equirectangular projection — fine for a small region. Y inverted
-      // because SVG y-axis grows downward while latitude grows upward.
-      const cx =
-        PAD +
-        ((coord.lon - VIEW_LON.min) / (VIEW_LON.max - VIEW_LON.min)) *
-          (viewW - 2 * PAD);
-      const cy =
-        PAD +
-        ((VIEW_LAT.max - coord.lat) / (VIEW_LAT.max - VIEW_LAT.min)) *
-          (viewH - 2 * PAD);
+      const cx = projLon(coord.lon);
+      const cy = projLat(coord.lat);
       list.push({
         site,
         count,
@@ -187,7 +158,7 @@ export default function FindspotMap() {
     }
     list.sort((a, b) => b.count - a.count);
     return list;
-  }, [siteCounts, viewW, viewH]);
+  }, [siteCounts]);
 
   const inViewPoints = points.filter((p) => p.inView);
   const outOfViewPoints = points.filter((p) => !p.inView);
@@ -204,26 +175,29 @@ export default function FindspotMap() {
     ? inscriptions.filter((i) => i.site === focusedSite)
     : [];
 
+  // Site links: arcs between mapped sites weighted by shared-vocabulary
+  // Jaccard (same math as Site Distribution's table — lib/siteSimilarity).
+  // Top pairs only, and both endpoints must be on the Aegean view.
+  const siteLinks = useMemo(() => {
+    if (!showLinks) return [];
+    const pos = new Map(
+      points.filter((p) => p.inView).map((p) => [p.site, p]),
+    );
+    return siteSimilarities(wordIndex)
+      .filter((l) => l.shared >= 2 && pos.has(l.a) && pos.has(l.b))
+      .slice(0, 15)
+      .map((l) => ({ ...l, pa: pos.get(l.a)!, pb: pos.get(l.b)! }));
+  }, [showLinks, points, wordIndex]);
+  const maxLinkSim = siteLinks[0]?.sim || 1;
+
   // Latitude/longitude grid lines, every 1° for context
   const gridLons: number[] = [];
   for (let v = Math.ceil(VIEW_LON.min); v < VIEW_LON.max; v++) gridLons.push(v);
   const gridLats: number[] = [];
   for (let v = Math.ceil(VIEW_LAT.min); v < VIEW_LAT.max; v++) gridLats.push(v);
 
-  function lonToX(lon: number) {
-    return (
-      PAD +
-      ((lon - VIEW_LON.min) / (VIEW_LON.max - VIEW_LON.min)) *
-        (viewW - 2 * PAD)
-    );
-  }
-  function latToY(lat: number) {
-    return (
-      PAD +
-      ((VIEW_LAT.max - lat) / (VIEW_LAT.max - VIEW_LAT.min)) *
-        (viewH - 2 * PAD)
-    );
-  }
+  const lonToX = projLon;
+  const latToY = projLat;
 
   // ─── Zoom & pan handlers ────────────────────────────────────────────
   // ─── Animated viewBox transitions ───────────────────────────────────
@@ -502,11 +476,14 @@ export default function FindspotMap() {
         <h4>Geographic distribution of Linear A inscriptions</h4>
         <p>
           Each marker is a find-site, sized by the log of attestation count.
-          Click a site to filter the list at the right. Type a word into{" "}
-          <b>Overlay</b> to recolor the map by where that word appears (brighter
-          = more attestations; other sites dim). Most inscriptions come from
-          Crete; a handful are from the Cycladic islands and the wider eastern
-          Mediterranean, listed separately below.
+          Click a site to filter the list at the right. The <b>Overlay</b>{" "}
+          recolors the map by where something appears — a word, a commodity
+          logogram, a scribe's hand, a dating phase, or a tablet type
+          (brighter = more attestations; other sites dim). <b>Site links</b>{" "}
+          draws the most vocabulary-alike site pairs as arcs (shared-word
+          Jaccard, same numbers as Site Distribution). Most inscriptions come
+          from Crete; a handful are from the Cycladic islands and the wider
+          eastern Mediterranean, listed separately below.
         </p>
       </div>
 
@@ -514,18 +491,51 @@ export default function FindspotMap() {
         <span className="dim" style={{ fontSize: 11 }}>
           {points.length} mapped sites
         </span>
-        <input
-          className="input"
-          placeholder="Overlay a word's sites… (e.g. KU-RO)"
-          value={overlayWord}
-          onChange={(e) => setOverlayWord(e.target.value)}
-          style={{ width: 220, fontSize: 11 }}
-          title="Highlight the find-sites where a given word is attested"
-        />
-        {overlayWord && (
+        <select
+          className="select"
+          value={overlayMode}
+          onChange={(e) => {
+            setOverlayMode(e.target.value as OverlayMode);
+            setOverlayValue("");
+          }}
+          style={{ fontSize: 11, padding: "4px 6px" }}
+          title="What the overlay highlights: where a word, commodity, scribe, dating phase, or tablet type appears"
+        >
+          {OVERLAY_MODES.map((m) => (
+            <option key={m.id} value={m.id}>
+              Overlay: {m.label}
+            </option>
+          ))}
+        </select>
+        {overlayMode === "word" ? (
+          <input
+            className="input"
+            placeholder="Word… (e.g. KU-RO)"
+            value={overlayValue}
+            onChange={(e) => setOverlayValue(e.target.value)}
+            style={{ width: 170, fontSize: 11 }}
+            title="Highlight the find-sites where a given word is attested"
+          />
+        ) : (
+          <select
+            className="select"
+            value={overlayValue}
+            onChange={(e) => setOverlayValue(e.target.value)}
+            style={{ fontSize: 11, padding: "4px 6px", maxWidth: 230 }}
+            title="Pick a value to highlight its find-sites"
+          >
+            <option value="">— pick —</option>
+            {overlayChoices.map((o) => (
+              <option key={o.value} value={o.value}>
+                {o.label} ({o.count})
+              </option>
+            ))}
+          </select>
+        )}
+        {overlayValue && (
           <button
             className="btn btn-outline btn-sm"
-            onClick={() => setOverlayWord("")}
+            onClick={() => setOverlayValue("")}
             title="Clear overlay"
           >
             ✕
@@ -536,9 +546,23 @@ export default function FindspotMap() {
             className="dim"
             style={{ fontSize: 11, color: "var(--cy)" }}
           >
-            {overlayWordU}: {overlayCounts.size} site
+            {overlayValueNorm}: {overlayCounts.size} site
             {overlayCounts.size === 1 ? "" : "s"} · {overlayTotal} tablet
             {overlayTotal === 1 ? "" : "s"}
+          </span>
+        )}
+        <button
+          className="btn btn-outline btn-sm"
+          aria-pressed={showLinks}
+          onClick={() => setShowLinks((v) => !v)}
+          style={showLinks ? { color: "var(--pu)", borderColor: "var(--pu)" } : undefined}
+          title="Draw the most vocabulary-alike site pairs as arcs (top 15 by shared-word Jaccard, at least 2 shared words)"
+        >
+          ⌒ Site links
+        </button>
+        {showLinks && (
+          <span className="dim" style={{ fontSize: 11, color: "var(--pu)" }}>
+            top {siteLinks.length} pairs by shared vocabulary
           </span>
         )}
         <span style={{ flex: 1 }} />
@@ -564,7 +588,9 @@ export default function FindspotMap() {
               : null;
             return {
               snapshot,
-              overlayWord: overlayWordU || undefined,
+              overlayMode: overlayValueNorm ? overlayMode : undefined,
+              overlayValue: overlayValueNorm || undefined,
+              siteLinks: showLinks || undefined,
               focusedSite,
               zoom: Number(zoom.toFixed(2)),
             };
@@ -710,28 +736,16 @@ export default function FindspotMap() {
             {/* Background sea */}
             <rect width={viewW} height={viewH} fill="var(--map-water)" />
 
-            {/* Island outlines (under the markers) */}
-            {[CRETE_OUTLINE, THERA_OUTLINE, KYTHERA_OUTLINE].map(
-              (outline, i) => {
-                const path =
-                  outline
-                    .map(
-                      ([lon, lat], idx) =>
-                        `${idx === 0 ? "M" : "L"}${lonToX(lon).toFixed(1)},${latToY(lat).toFixed(1)}`,
-                    )
-                    .join(" ") + " Z";
-                return (
-                  <path
-                    key={i}
-                    d={path}
-                    fill="var(--map-land)"
-                    stroke="#2a3550"
-                    strokeWidth={1}
-                    opacity={0.9}
-                  />
-                );
-              },
-            )}
+            {/* Land (under the markers) — Natural Earth 1:10m, see
+                scripts/fetch-coastline.mjs */}
+            <path
+              d={LAND_PATH}
+              fill="var(--map-land)"
+              fillRule="evenodd"
+              stroke="#2a3550"
+              strokeWidth={1}
+              opacity={0.9}
+            />
 
             {/* Lat/Lon grid */}
             {gridLons.map((lon) => (
@@ -798,6 +812,35 @@ export default function FindspotMap() {
             >
               Aegean — Crete & nearby islands
             </text>
+
+            {/* Site links — arcs weighted by shared-vocabulary Jaccard,
+                drawn under the markers. Curved so parallel pairs along the
+                Cretan coast stay distinguishable. */}
+            {siteLinks.map((l) => {
+              const dx = l.pb.cx - l.pa.cx;
+              const dy = l.pb.cy - l.pa.cy;
+              const mx = (l.pa.cx + l.pb.cx) / 2;
+              const my = (l.pa.cy + l.pb.cy) / 2;
+              const len = Math.hypot(dx, dy) || 1;
+              const qx = mx - (dy / len) * len * 0.14;
+              const qy = my + (dx / len) * len * 0.14;
+              const t = l.sim / maxLinkSim;
+              return (
+                <path
+                  key={`${l.a}|${l.b}`}
+                  d={`M${l.pa.cx.toFixed(1)},${l.pa.cy.toFixed(1)} Q${qx.toFixed(1)},${qy.toFixed(1)} ${l.pb.cx.toFixed(1)},${l.pb.cy.toFixed(1)}`}
+                  fill="none"
+                  stroke="var(--pu)"
+                  strokeWidth={(0.8 + 2.4 * t) / Math.sqrt(zoom)}
+                  strokeOpacity={0.3 + 0.45 * t}
+                  strokeLinecap="round"
+                >
+                  <title>
+                    {`${l.a} ↔ ${l.b} — Jaccard ${l.sim.toFixed(2)} · ${l.shared} shared words`}
+                  </title>
+                </path>
+              );
+            })}
 
             {/* Markers — sizes and labels stay constant pixel size on the
                 screen regardless of zoom. Labels collision-detect against
@@ -1186,6 +1229,12 @@ function Minimap({
           (e.target as Element).releasePointerCapture?.(e.pointerId);
         }}
       >
+        <path
+          d={LAND_PATH}
+          fill="var(--map-land)"
+          fillRule="evenodd"
+          opacity={0.9}
+        />
         {points.map((p) => {
           const color =
             p.region === "crete"
@@ -1264,6 +1313,17 @@ function FocusedSitePanel({
         </span>
         <span className="dim">×{count}</span>
         <span style={{ flex: 1 }} />
+        {pleiadesUrl(site) && (
+          <a
+            className="btn btn-outline btn-sm"
+            href={pleiadesUrl(site)!}
+            target="_blank"
+            rel="noopener noreferrer"
+            title="This site in Pleiades, the linked-open-data gazetteer of the ancient world"
+          >
+            Pleiades ↗
+          </a>
+        )}
         <button className="btn btn-outline btn-sm" onClick={clear}>
           Clear
         </button>

@@ -6,6 +6,20 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+- **A real coastline under the map**: the Findspot Map now draws Natural
+  Earth's 1:10m land polygons (public domain, clipped and simplified at
+  build time, bundled — still fully offline) instead of a hand-traced
+  Crete outline. The Cyclades, mainland Greece, and the Anatolian coast
+  now actually exist under their markers.
+- **Map overlays beyond words**: the overlay can recolor sites by
+  commodity logogram, scribe, dating phase, or tablet type, alongside the
+  existing word overlay — where does wine cluster, which sites are active
+  in MM vs LM, where do libation formulas live.
+- **Site links**: a map toggle draws the most vocabulary-alike site pairs
+  as arcs (shared-word Jaccard — one shared implementation with Site
+  Distribution's table).
+- **Pleiades links**: a focused site links out to its page in the
+  Pleiades gazetteer of the ancient world (33 sites aligned).
 - **GORILA, readable online**: the five GORILA volumes are digitized in
   the École française d'Athènes' CEFAEL library — the footer, the About
   panel, per-tablet citations (all four styles), and the docs now link
