@@ -191,8 +191,7 @@ export function AboutCorpus({
               experts; this is the inverse — an outsider's attempt to
               provide useful infrastructure that the actual specialists
               are free to pick up, ignore, or correct. If something here
-              is wrong, please open an issue. I'd rather ship something
-              honest than something flattering.
+              is wrong, please open an issue.
             </p>
           </Section>
 
