@@ -417,6 +417,7 @@ export default function CommentaryBrowser() {
                   key={doc.id}
                   doc={doc}
                   hits={hits}
+                  query={query}
                   selected={doc.id === selectedId}
                   onClick={() => setSelectedId(doc.id)}
                 />
@@ -828,14 +829,35 @@ function ImageLightbox({
   );
 }
 
+// KWIC-style snippet: the text around the query's first occurrence, with
+// the match itself emphasized. Gives the result list scannable context
+// instead of bare hit counts.
+function snippetFor(text: string, q: string): {
+  before: string;
+  match: string;
+  after: string;
+} | null {
+  const idx = text.toLowerCase().indexOf(q.toLowerCase());
+  if (idx < 0) return null;
+  const start = Math.max(0, idx - 48);
+  const end = Math.min(text.length, idx + q.length + 48);
+  return {
+    before: (start > 0 ? "…" : "") + text.slice(start, idx),
+    match: text.slice(idx, idx + q.length),
+    after: text.slice(idx + q.length, end) + (end < text.length ? "…" : ""),
+  };
+}
+
 function DocRow({
   doc,
   hits,
+  query,
   selected,
   onClick,
 }: {
   doc: CommentaryDoc;
   hits: number;
+  query: string;
   selected: boolean;
   onClick: () => void;
 }) {
@@ -847,14 +869,17 @@ function DocRow({
       ref.current.scrollIntoView({ block: "nearest" });
     }
   }, [selected]);
+  const snippet =
+    hits > 0 && query.trim() ? snippetFor(doc.text, query.trim()) : null;
   return (
     <button
       ref={ref}
       onClick={onClick}
       style={{
         display: "flex",
-        alignItems: "baseline",
-        gap: 6,
+        flexDirection: "column",
+        alignItems: "stretch",
+        gap: 1,
         width: "100%",
         textAlign: "left",
         padding: "4px 12px",
@@ -872,17 +897,35 @@ function DocRow({
         if (!selected) e.currentTarget.style.background = "transparent";
       }}
     >
-      <span style={{ flex: 1 }}>{doc.id}</span>
-      {hits > 0 && (
+      <span style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+        <span style={{ flex: 1 }}>{doc.id}</span>
+        {hits > 0 && (
+          <span
+            className="dim"
+            style={{
+              fontSize: 10,
+              font: "600 10px var(--sans)",
+              color: "var(--am)",
+            }}
+          >
+            {hits}×
+          </span>
+        )}
+      </span>
+      {snippet && (
         <span
-          className="dim"
           style={{
-            fontSize: 10,
-            font: "600 10px var(--sans)",
-            color: "var(--am)",
+            font: "10px var(--sans)",
+            color: "var(--text-muted)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
+          title={`${snippet.before}${snippet.match}${snippet.after}`}
         >
-          {hits}×
+          {snippet.before}
+          <b style={{ color: "var(--am)" }}>{snippet.match}</b>
+          {snippet.after}
         </span>
       )}
     </button>

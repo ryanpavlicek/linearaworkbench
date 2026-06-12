@@ -1,6 +1,9 @@
-import { useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { COMPARISON_LANGUAGES } from "../data/languages";
+import { useMultiWords } from "../lib/helpers";
+import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
+import { WordToken } from "../components/WordToken";
 import type { ComparisonEntry } from "../lib/types";
 
 function parseWordlistFile(file: File): Promise<ComparisonEntry[]> {
@@ -42,8 +45,66 @@ export default function WordlistManager() {
   const custom = useWorkbench((s) => s.customLanguages);
   const add = useWorkbench((s) => s.addCustomLanguage);
   const remove = useWorkbench((s) => s.removeCustomLanguage);
+  const hyp = useWorkbench((s) => s.hypothesis);
   const toast = useWorkbench((s) => s.toast_show);
   const fileRef = useRef<HTMLInputElement>(null);
+  const words = useMultiWords();
+
+  // Entry browser + on-demand corpus-engagement preview for one list.
+  const [openLang, setOpenLang] = useState<string | null>(null);
+  const [entryQ, setEntryQ] = useState("");
+  const [preview, setPreview] = useState<{
+    lang: string;
+    engaged: number;
+    total: number;
+    best: { entry: ComparisonEntry; word: string; dist: number }[];
+  } | null>(null);
+
+  const openEntries = useMemo<ComparisonEntry[] | null>(() => {
+    if (!openLang) return null;
+    return custom[openLang] ?? COMPARISON_LANGUAGES[openLang] ?? null;
+  }, [openLang, custom]);
+
+  const visibleEntries = useMemo(() => {
+    if (!openEntries) return [];
+    const u = entryQ.trim().toLowerCase();
+    if (!u) return openEntries;
+    return openEntries.filter(
+      (e) =>
+        e.w.toLowerCase().includes(u) ||
+        e.m.toLowerCase().includes(u) ||
+        e.d.toLowerCase().includes(u),
+    );
+  }, [openEntries, entryQ]);
+
+  // How much does this wordlist ENGAGE the corpus? For each entry, the
+  // closest Linear A word; an entry "engages" when something sits within
+  // the comparator's default 0.45-distance band. A list whose entries
+  // nothing ever matches is dead weight in the comparator.
+  function computePreview(lang: string, entries: ComparisonEntry[]) {
+    const corpusPhon = words.map((w) => ({
+      word: w.word,
+      ph: wordToPhonetic(w.word, hyp),
+    }));
+    let engaged = 0;
+    const best: { entry: ComparisonEntry; word: string; dist: number }[] = [];
+    for (const e of entries) {
+      const key = e.p ?? e.w.toLowerCase();
+      let bw = "";
+      let bd = Infinity;
+      for (const c of corpusPhon) {
+        const d = phoneticDistance(c.ph, key);
+        if (d < bd) {
+          bd = d;
+          bw = c.word;
+        }
+      }
+      if (bd <= 0.45) engaged++;
+      best.push({ entry: e, word: bw, dist: bd });
+    }
+    best.sort((a, b) => a.dist - b.dist);
+    setPreview({ lang, engaged, total: entries.length, best: best.slice(0, 8) });
+  }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const f = e.target.files?.[0];
@@ -148,17 +209,28 @@ export default function WordlistManager() {
                     )}
                   </td>
                   <td className="dim">{domains.join(", ")}</td>
-                  <td>
-                    {l.custom ? (
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <button
+                      className="btn btn-outline btn-sm"
+                      onClick={() => {
+                        setOpenLang(openLang === l.name ? null : l.name);
+                        setEntryQ("");
+                      }}
+                      title={`Browse the ${l.count} entries of ${l.name}`}
+                    >
+                      {openLang === l.name ? "Close" : "Browse"}
+                    </button>{" "}
+                    {l.custom && (
                       <button
                         className="btn btn-outline btn-sm"
                         style={{ color: "var(--rd)" }}
-                        onClick={() => remove(l.name)}
+                        onClick={() => {
+                          remove(l.name);
+                          if (openLang === l.name) setOpenLang(null);
+                        }}
                       >
                         Remove
                       </button>
-                    ) : (
-                      "—"
                     )}
                   </td>
                 </tr>
@@ -167,6 +239,96 @@ export default function WordlistManager() {
           </tbody>
         </table>
       </div>
+      {openLang && openEntries && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              flexWrap: "wrap",
+              marginBottom: 8,
+            }}
+          >
+            <h4 style={{ margin: 0 }}>
+              {openLang}{" "}
+              <span className="dim">({openEntries.length} entries)</span>
+            </h4>
+            <input
+              className="input"
+              placeholder="Filter entries…"
+              value={entryQ}
+              onChange={(e) => setEntryQ(e.target.value)}
+              style={{ width: 180, fontSize: 12 }}
+            />
+            <span style={{ flex: 1 }} />
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={() => computePreview(openLang, openEntries)}
+              title="For every entry, find the closest Linear A word — how much of this list the corpus can actually engage with at the comparator's default threshold"
+            >
+              Preview corpus matches
+            </button>
+          </div>
+          {preview && preview.lang === openLang && (
+            <div
+              style={{
+                padding: "8px 10px",
+                background: "var(--surface-1)",
+                border: "1px solid var(--border)",
+                borderRadius: 4,
+                marginBottom: 8,
+                fontSize: 11,
+              }}
+            >
+              <b>
+                {preview.engaged} of {preview.total}
+              </b>{" "}
+              entries have a Linear A word within the comparator's default
+              threshold (≥55% similarity). Closest pairs:{" "}
+              {preview.best.map((b, i) => (
+                <span key={i} style={{ whiteSpace: "nowrap", marginRight: 8 }}>
+                  {b.entry.w} ≈ <WordToken word={b.word} />
+                  <span className="dim" style={{ fontSize: 10 }}>
+                    {((1 - b.dist) * 100).toFixed(0)}%
+                  </span>
+                </span>
+              ))}
+            </div>
+          )}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fill, minmax(220px, 1fr))",
+              gap: "2px 12px",
+              maxHeight: 320,
+              overflowY: "auto",
+              fontSize: 11,
+            }}
+          >
+            {visibleEntries.slice(0, 400).map((e, i) => (
+              <div key={`${e.w}-${i}`} style={{ display: "flex", gap: 6 }}>
+                <b style={{ fontFamily: "var(--mono)", minWidth: 80 }}>
+                  {e.w}
+                </b>
+                <span className="dim" style={{ flex: 1 }}>
+                  {e.m}
+                </span>
+                <span className="tag tag-domain">{e.d}</span>
+              </div>
+            ))}
+            {visibleEntries.length > 400 && (
+              <span className="dim">
+                +{visibleEntries.length - 400} more — narrow the filter
+              </span>
+            )}
+            {visibleEntries.length === 0 && (
+              <span className="dim">No entries match “{entryQ}”.</span>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className="col2" style={{ marginTop: 16 }}>
         <div className="card">
           <h4>JSON format</h4>
