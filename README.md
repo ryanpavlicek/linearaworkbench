@@ -92,16 +92,19 @@ npm run dev
 Open <http://localhost:5173>.
 
 **Everything works out of the box.** The repo ships with the full corpus
-(~262 KB) plus the entire upstream auxiliary mirror (~500 MB) — commentary
-HTML, facsimile images, GORILA PDFs — all of it. Search, sign inventory,
-network graphs, hypothesis testing, the map, every facsimile button, every
-Commentary ↗ link: zero external dependencies at runtime.
+(~1.5 MB of JSON) plus the entire upstream auxiliary mirror (~500 MB) —
+commentary HTML, facsimile images, GORILA PDFs — all of it. Search, sign
+inventory, network graphs, hypothesis testing, the map, the facsimile and
+Commentary ↗ links: it all serves from the repo itself. The one external
+runtime dependency is the webfonts (including the Linear A glyph font),
+which load from Google Fonts.
 
 > ⚠️ Heads up: the repo is **~500 MB** because of the bundled auxiliary
-> mirror. The trade-off is that the GitHub Pages deployment is fully
-> self-contained — it will keep working forever, even if upstream sources
-> go offline. See [Saving repo size](#saving-repo-size-optional) if you'd
-> prefer a small repo with runtime CDN fallback instead.
+> mirror. The trade-off is that the GitHub Pages deployment carries its
+> own data — the corpus, commentary, and imagery keep working even if the
+> upstream sources go offline. See
+> [Saving repo size](#saving-repo-size-optional) if you'd prefer a small
+> repo with runtime CDN fallback instead.
 
 ## Saving repo size (optional)
 
@@ -132,8 +135,9 @@ npm run assets:fetch     # ~10–20 min, repopulates public/upstream/
 
 - **Stack**: Vite + React 18 + TypeScript + Zustand. Zero non-essential
   runtime dependencies.
-- **Code splitting**: each module ships as its own lazy chunk
-  (1–6 KB gzipped). Main shell is ~64 KB gzipped.
+- **Code splitting**: each module ships as its own lazy chunk (typically
+  1–6 KB gzipped; the Research hub is the largest at ~23 KB). Main shell
+  is ~82 KB gzipped.
 - **State**: localStorage-backed for annotations, collections, saved
   queries, saved hypotheses, pins, display preferences. Namespaced under
   `linear-a-workbench:`.
@@ -169,18 +173,21 @@ distance formula, PMI, alignment derivation) and known limitations.
 ```
 linearaworkbench/
 ├── public/
-│   ├── corpus/             # Pre-built inscription + sign JSON (~262 KB)
+│   ├── corpus/             # Pre-built inscription + sign + commentary-index JSON (~1.5 MB)
 │   └── upstream/           # Bundled commentary + images + papers (~500 MB)
 ├── scripts/
 │   ├── build-corpus.mjs    # Normalize upstream corpus → JSON
 │   ├── fetch-corpus.mjs    # Pull upstream + rebuild
+│   ├── build-commentary-index.mjs  # Full-text index over the commentary mirror
 │   └── fetch-assets.mjs    # Re-mirror upstream commentary + images + PDFs
 ├── src/
 │   ├── components/         # Shared UI (TopBar, Sidebar, DetailModal, ...)
 │   ├── data/               # Sign data, language wordlists, site coords
 │   ├── lib/                # Algorithms, helpers, types, persistence
 │   ├── modules/            # The analysis panels (lazy-loaded)
-│   └── store/              # Zustand workbench store
+│   ├── store/              # Zustand workbench store
+│   └── test/               # jsdom integration + module smoke harness
+├── e2e/                    # Playwright browser smoke tests
 ├── docs/
 │   └── METHODOLOGY.md      # Technical detail on the analytical methods
 ├── .github/

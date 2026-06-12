@@ -7,8 +7,8 @@ parts where domain expertise meets software craft.
 ## Quickstart
 
 ```bash
-git clone https://github.com/<you>/linear-a-workbench.git
-cd linear-a-workbench
+git clone https://github.com/<you>/linearaworkbench.git
+cd linearaworkbench
 npm install
 npm run dev      # http://localhost:5173
 ```
@@ -28,8 +28,9 @@ npm run assets:fetch    # ~10–20 min, ~500 MB
 - Plain CSS with design tokens defined in [`src/styles.css`](src/styles.css).
   No Tailwind, no styled-components.
 - One module per analysis panel in `src/modules/`. Lazy-loaded.
-- Keep dependencies minimal — React, Zustand, Vite are the entire runtime
-  stack and I intend to keep it that way.
+- Keep dependencies minimal — React, Zustand, and fflate (ZIP export) are
+  the entire runtime stack, with Vite for the build, and I intend to keep
+  it that way.
 
 ## Where contributions are most welcome
 
@@ -59,6 +60,8 @@ npm run assets:fetch    # ~10–20 min, ~500 MB
 ## Pull request checklist
 
 - [ ] Typecheck passes (`npm run typecheck`)
+- [ ] Tests pass (`npm test`) — CI also enforces the coverage gate on
+      `src/lib` + `src/store` (`npm run test:coverage`)
 - [ ] Production build succeeds (`npm run build`)
 - [ ] If you added data, cite the source in the same commit
 - [ ] If you changed the corpus build script, regenerate the corpus and

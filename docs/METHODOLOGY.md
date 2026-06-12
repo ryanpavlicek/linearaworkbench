@@ -443,7 +443,7 @@ repeat-sensitive and not guaranteed globally optimal beyond the pairwise case â€
 not a claim about textual descent.
 
 **Implementation**: `alignSequences` in
-[`CompareInscriptions.tsx`](../src/modules/CompareInscriptions.tsx).
+[`compareAlign.ts`](../src/lib/compareAlign.ts).
 
 ## Stem families (heuristic morphological clustering)
 
