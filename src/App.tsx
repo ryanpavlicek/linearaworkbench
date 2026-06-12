@@ -1,5 +1,6 @@
 import { Suspense, useEffect, useState } from "react";
 import { useWorkbench } from "./store/workbench";
+import { initUrlSync } from "./store/urlSync";
 import { Sidebar } from "./components/Sidebar";
 import { TopBar } from "./components/TopBar";
 import { FooterBar } from "./components/FooterBar";
@@ -10,6 +11,8 @@ import { CommandPalette } from "./components/CommandPalette";
 import { CategoryBadge } from "./components/CategoryBadge";
 import { ModuleErrorBoundary } from "./components/ModuleErrorBoundary";
 import { MODULE_COMPONENTS } from "./modules/registry";
+import { loadJson, saveJson } from "./lib/persistence";
+import { WORKBENCH_VERSION } from "./lib/citations";
 
 export function App() {
   const loaded = useWorkbench((s) => s.loaded);
@@ -45,6 +48,25 @@ export function App() {
       loadCorpus(`${base}corpus/`);
     }
   }, [loaded, loadCorpus]);
+
+  // URL ↔ store sync: module / detail / scope are shareable permalinks.
+  useEffect(() => initUrlSync(), []);
+
+  // One-shot what's-new note when the version changes underneath a
+  // returning user. A fresh install stays quiet — the Welcome modal owns
+  // that moment — so the toast only fires when a previous version was seen.
+  const toastShow = useWorkbench((s) => s.toast_show);
+  useEffect(() => {
+    if (!loaded) return;
+    const KEY = "last-seen-version";
+    const prev = loadJson<string | null>(KEY, null);
+    if (prev && prev !== WORKBENCH_VERSION) {
+      toastShow(
+        `Updated to v${WORKBENCH_VERSION} — the changelog lists what's new`,
+      );
+    }
+    if (prev !== WORKBENCH_VERSION) saveJson(KEY, WORKBENCH_VERSION);
+  }, [loaded, toastShow]);
 
   // Global keyboard shortcuts
   useEffect(() => {
@@ -110,8 +132,19 @@ export function App() {
       />
       <main className="main">
         {loadError ? (
-          <div className="loader">
+          <div className="loader" role="alert">
             <span>Corpus failed to load: {loadError}</span>
+            <span className="dim" style={{ fontSize: 12 }}>
+              Usually a network hiccup or an over-eager content blocker.
+            </span>
+            <button
+              onClick={() => {
+                const base = import.meta.env.BASE_URL || "/";
+                loadCorpus(`${base}corpus/`);
+              }}
+            >
+              Retry
+            </button>
           </div>
         ) : !loaded ? (
           <div className="loader">

@@ -17,6 +17,8 @@ import { Glyph, GlyphRun } from "./Glyph";
 import { AnnotationEditor } from "./AnnotationEditor";
 import { PinButton } from "./PinRail";
 import { CollectionPicker } from "./CollectionPicker";
+import { CopyLinkButton } from "./CopyLinkButton";
+import { CiteButton } from "./CiteButton";
 import { CommentaryPanel } from "./CommentaryPanel";
 import {
   buildInscriptionExport,
@@ -131,6 +133,7 @@ function WordDetailBody({ word }: { word: string }) {
         <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
           <PinButton kind="word" value={word} />
           <CollectionPicker kind="word" value={word} />
+          <CopyLinkButton />
           <button
             className="modal-close"
             onClick={close}
@@ -523,8 +526,10 @@ function InscriptionDetailBody({ id }: { id: string }) {
           >
             JSON ↓
           </button>
+          <CiteButton id={ins.id} site={ins.site} />
           <PinButton kind="inscription" value={ins.id} />
           <CollectionPicker kind="inscription" value={ins.id} />
+          <CopyLinkButton />
           <button
             className="modal-close"
             onClick={close}
