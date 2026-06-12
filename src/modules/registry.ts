@@ -16,6 +16,12 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "annotations notebook collections research report findings export notes",
       },
+      {
+        id: "lexicon",
+        name: "My Lexicon",
+        group: "Research",
+        keywords: "lexicon glossary meanings annotations dictionary vocabulary",
+      },
       { id: "query", name: "Query Builder", group: "Research" },
       { id: "search", name: "Corpus Search", group: "Research" },
       {
@@ -192,6 +198,7 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   export: lazy(() => import("./DataExport")),
   wlm: lazy(() => import("./WordlistManager")),
   annot: ResearchHub,
+  lexicon: lazy(() => import("./MyLexicon")),
   query: lazy(() => import("./QueryBuilder")),
   compare: lazy(() => import("./CompareInscriptions")),
   network: CooccurrenceTabs,

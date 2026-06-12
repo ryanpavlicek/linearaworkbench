@@ -199,6 +199,7 @@ export type ModuleId =
   | "export"
   | "wlm"
   | "annot"
+  | "lexicon"
   | "query"
   | "compare"
   | "network"
