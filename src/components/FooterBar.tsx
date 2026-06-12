@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useWorkbench } from "../store/workbench";
+import { GORILA_CEFAEL_URL } from "../lib/citations";
 import { AboutCorpus } from "./AboutCorpus";
 
 export function FooterBar() {
@@ -28,7 +29,17 @@ export function FooterBar() {
           >
             mwenge/lineara.xyz
           </a>{" "}
-          · GORILA (Godart & Olivier) ·{" "}
+          ·{" "}
+          <a
+            href={GORILA_CEFAEL_URL}
+            target="_blank"
+            rel="noreferrer"
+            style={{ color: "var(--text-dim)" }}
+            title="The print edition, digitized — read the five GORILA volumes at CEFAEL (École française d'Athènes)"
+          >
+            GORILA (Godart & Olivier)
+          </a>{" "}
+          ·{" "}
           <button
             onClick={() => setAboutOpen(true)}
             style={{

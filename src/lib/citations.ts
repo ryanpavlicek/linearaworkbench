@@ -54,7 +54,14 @@ function workbenchCitation(style: CitationStyle, date: string): string {
 }
 
 // GORILA — the printed edition every digital Linear A project derives from.
+// The École française d'Athènes has digitized the five volumes in its CEFAEL
+// library; this search URL lists them all for reading online.
+export const GORILA_CEFAEL_URL =
+  "https://cefael.efa.gr/result.php?serie_title_operator=con&volume_number_operator=%3D&issue_year_operator=%3D&section_title=Recueil+des+inscriptions+en+lin%C3%A9aire+A&section_title_operator=con&author_lastname_operator=con&publisher_name_operator=con&site_id=1&actionID=advanced&operator=AND";
+
 function gorilaCitation(style: CitationStyle): string {
+  // % starts a comment in BibTeX, so the percent-encoded URL needs escaping.
+  const bibtexUrl = GORILA_CEFAEL_URL.replace(/%/g, "\\%");
   switch (style) {
     case "bibtex":
       return [
@@ -66,14 +73,15 @@ function gorilaCitation(style: CitationStyle): string {
         "  series    = {{\\'E}tudes Cr{\\'e}toises 21},",
         "  volumes   = {5},",
         "  address   = {Paris},",
+        `  note      = {Digitized at CEFAEL: ${bibtexUrl}},`,
         "}",
       ].join("\n");
     case "apa":
-      return "Godart, L., & Olivier, J.-P. (1976–1985). *Recueil des inscriptions en linéaire A* (Études Crétoises 21, 5 vols.). École Française d'Athènes.";
+      return `Godart, L., & Olivier, J.-P. (1976–1985). *Recueil des inscriptions en linéaire A* (Études Crétoises 21, 5 vols.). École Française d'Athènes. Digitized at CEFAEL: ${GORILA_CEFAEL_URL}`;
     case "chicago":
-      return "Godart, Louis, and Jean-Pierre Olivier. 1976–1985. *Recueil des inscriptions en linéaire A*. Études Crétoises 21. 5 vols. Paris: École Française d'Athènes.";
+      return `Godart, Louis, and Jean-Pierre Olivier. 1976–1985. *Recueil des inscriptions en linéaire A*. Études Crétoises 21. 5 vols. Paris: École Française d'Athènes. Digitized at CEFAEL: ${GORILA_CEFAEL_URL}.`;
     case "mla":
-      return "Godart, Louis, and Jean-Pierre Olivier. *Recueil des inscriptions en linéaire A*. Études Crétoises 21, 5 vols., École Française d'Athènes, 1976–1985.";
+      return `Godart, Louis, and Jean-Pierre Olivier. *Recueil des inscriptions en linéaire A*. Études Crétoises 21, 5 vols., École Française d'Athènes, 1976–1985. CEFAEL, ${GORILA_CEFAEL_URL}.`;
   }
 }
 
@@ -163,6 +171,7 @@ export function buildInscriptionCitation(
   switch (style) {
     case "bibtex": {
       const key = ins.id.replace(/[^A-Za-z0-9]+/g, "");
+      const bibtexCefael = GORILA_CEFAEL_URL.replace(/%/g, "\\%");
       return [
         `@misc{lineara_${key},`,
         "  author       = {Godart, Louis and Olivier, Jean-Pierre},",
@@ -171,16 +180,17 @@ export function buildInscriptionCitation(
         "                  ({\\'E}tudes Cr{\\'e}toises 21). Paris: {\\'E}cole",
         "                  Fran{\\c{c}}aise d'Ath{\\`e}nes, 1976--1985},",
         `  note         = {Viewed in the Linear A Research Workbench v${v},`,
-        `                  ${link}, accessed ${date}}`,
+        `                  ${link}, accessed ${date}.`,
+        `                  Edition digitized at CEFAEL: ${bibtexCefael}}`,
         "}",
       ].join("\n");
     }
     case "apa":
-      return `Godart, L., & Olivier, J.-P. (1976–1985). Linear A inscription ${ins.id}${site}. In *Recueil des inscriptions en linéaire A* (Études Crétoises 21). École Française d'Athènes. Viewed in the Linear A Research Workbench (v${v}), ${link} (accessed ${date}).`;
+      return `Godart, L., & Olivier, J.-P. (1976–1985). Linear A inscription ${ins.id}${site}. In *Recueil des inscriptions en linéaire A* (Études Crétoises 21). École Française d'Athènes. Viewed in the Linear A Research Workbench (v${v}), ${link} (accessed ${date}). Edition digitized at CEFAEL: ${GORILA_CEFAEL_URL}`;
     case "chicago":
-      return `Godart, Louis, and Jean-Pierre Olivier. 1976–1985. Linear A inscription ${ins.id}${site}. In *Recueil des inscriptions en linéaire A*, Études Crétoises 21. Paris: École Française d'Athènes. Viewed in the Linear A Research Workbench, version ${v}, ${link}, accessed ${date}.`;
+      return `Godart, Louis, and Jean-Pierre Olivier. 1976–1985. Linear A inscription ${ins.id}${site}. In *Recueil des inscriptions en linéaire A*, Études Crétoises 21. Paris: École Française d'Athènes. Viewed in the Linear A Research Workbench, version ${v}, ${link}, accessed ${date}. Edition digitized at CEFAEL: ${GORILA_CEFAEL_URL}.`;
     case "mla":
-      return `Godart, Louis, and Jean-Pierre Olivier. "Linear A inscription ${ins.id}${site}." *Recueil des inscriptions en linéaire A*, École Française d'Athènes, 1976–1985. *Linear A Research Workbench*, version ${v}, ${link}. Accessed ${date}.`;
+      return `Godart, Louis, and Jean-Pierre Olivier. "Linear A inscription ${ins.id}${site}." *Recueil des inscriptions en linéaire A*, École Française d'Athènes, 1976–1985. *Linear A Research Workbench*, version ${v}, ${link}. Accessed ${date}. Edition digitized at CEFAEL, ${GORILA_CEFAEL_URL}.`;
   }
 }
 

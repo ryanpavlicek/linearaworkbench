@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useFocusTrap } from "../lib/useFocusTrap";
+import { GORILA_CEFAEL_URL } from "../lib/citations";
 
 // Always-accessible "About the corpus" modal — opened from the footer link.
 // Surfaces provenance, the count distinction, and the canonical citations in
@@ -107,7 +108,15 @@ export function AboutCorpus({
                 <b>Print edition</b> — Godart, L. & Olivier, J.-P.
                 (1976–1985). <i>Recueil des inscriptions en linéaire A</i>{" "}
                 (GORILA). École Française d'Athènes. The scholarly edition
-                everything else derives from.
+                everything else derives from — all five volumes are{" "}
+                <a
+                  href={GORILA_CEFAEL_URL}
+                  target="_blank"
+                  rel="noreferrer"
+                >
+                  readable online at CEFAEL
+                </a>
+                , the École's digital library.
               </li>
               <li>
                 <b>Commentary</b> — John Younger's Linear A material. The

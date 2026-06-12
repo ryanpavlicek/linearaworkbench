@@ -265,7 +265,9 @@ If you use this workbench in academic work, **primary citations should go
 to the underlying corpus sources**:
 
 - **GORILA**: Godart, L. & Olivier, J.-P. (1976–1985). *Recueil des
-  inscriptions en linéaire A*. École Française d'Athènes.
+  inscriptions en linéaire A*. École Française d'Athènes. All five
+  volumes are readable online in the École's digital library,
+  [CEFAEL](https://cefael.efa.gr/result.php?serie_title_operator=con&volume_number_operator=%3D&issue_year_operator=%3D&section_title=Recueil+des+inscriptions+en+lin%C3%A9aire+A&section_title_operator=con&author_lastname_operator=con&publisher_name_operator=con&site_id=1&actionID=advanced&operator=AND).
 - **mwenge/lineara.xyz**: the digital transcription of the corpus this
   tool builds on, at <https://github.com/mwenge/lineara.xyz>.
 - **John Younger's Linear A material** (2024): scholarly commentary
@@ -351,9 +353,11 @@ full third-party attribution list.
   signs by scribe. Use this for sign-variant analysis.
 - **[DAMOS](https://damos.hf.uio.no)** — the Mycenaean (Linear B) corpus
   at Oslo; sister-script database.
-- **GORILA** — Godart, L. & Olivier, J.-P. (1976–1985). *Recueil des
+- **[GORILA](https://cefael.efa.gr/result.php?serie_title_operator=con&volume_number_operator=%3D&issue_year_operator=%3D&section_title=Recueil+des+inscriptions+en+lin%C3%A9aire+A&section_title_operator=con&author_lastname_operator=con&publisher_name_operator=con&site_id=1&actionID=advanced&operator=AND)**
+  — Godart, L. & Olivier, J.-P. (1976–1985). *Recueil des
   inscriptions en linéaire A* (École Française d'Athènes). The printed
-  scholarly edition all digital projects derive from.
+  scholarly edition all digital projects derive from — digitized in the
+  École's CEFAEL library at the link.
 
 ## Acknowledgements
 

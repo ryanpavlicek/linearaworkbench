@@ -52,7 +52,9 @@ loads, `corpus/inscriptions.json` and `corpus/signs.json` are also served —
 but they are an internal format and may change without a version bump; the
 `api/v1/` surface is the stable one.
 
-Cite the data, not just the tool: the corpus derives from GORILA (Godart &
-Olivier 1976–1985) via [mwenge/lineara.xyz](https://github.com/mwenge/lineara.xyz);
+Cite the data, not just the tool: the corpus derives from
+[GORILA](https://cefael.efa.gr/result.php?serie_title_operator=con&volume_number_operator=%3D&issue_year_operator=%3D&section_title=Recueil+des+inscriptions+en+lin%C3%A9aire+A&section_title_operator=con&author_lastname_operator=con&publisher_name_operator=con&site_id=1&actionID=advanced&operator=AND)
+(Godart & Olivier 1976–1985, digitized at CEFAEL) via
+[mwenge/lineara.xyz](https://github.com/mwenge/lineara.xyz);
 the in-app Research Report's Citation block emits ready-made entries for
 both, and `_meta.corpusSource` repeats the provenance in every export.

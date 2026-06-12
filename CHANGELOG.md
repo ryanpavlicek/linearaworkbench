@@ -6,6 +6,10 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+- **GORILA, readable online**: the five GORILA volumes are digitized in
+  the École française d'Athènes' CEFAEL library — the footer, the About
+  panel, per-tablet citations (all four styles), and the docs now link
+  there.
 - **Python Toolkit page**: a new sidebar entry (under *Programmatic*)
   that puts pyaegean front and center — install line, copyable
   quick-start and round-trip snippets, PyPI / API-reference / Colab
