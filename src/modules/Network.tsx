@@ -20,12 +20,12 @@ interface Edge {
   joint: number;
 }
 
-// Compute PMI for all word pairs; return top-N edges.
+// Compute PMI for all word pairs; return the top-N pairs.
 function buildEdges(
   inscriptions: { words: string[] }[],
   minJoint: number,
   topN: number,
-): { edges: Omit<Edge, "a" | "b"> & { a: string; b: string }[]; pairs: { a: string; b: string; pmi: number; joint: number }[] } {
+): { pairs: { a: string; b: string; pmi: number; joint: number }[] } {
   const pairJoint = new Map<string, number>();
   const single = new Map<string, number>();
   let total = 0;
@@ -50,7 +50,7 @@ function buildEdges(
     pairs.push({ a, b, pmi, joint });
   }
   pairs.sort((x, y) => y.pmi - x.pmi);
-  return { edges: [] as any, pairs: pairs.slice(0, topN) };
+  return { pairs: pairs.slice(0, topN) };
 }
 
 const REPULSION = 1500;

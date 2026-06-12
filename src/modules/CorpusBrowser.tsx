@@ -61,6 +61,9 @@ export default function CorpusBrowser() {
         support: (i) => i.support || "",
         tokens: (i) => i.words.length,
       }),
+    // sortRows is recreated each render but varies only with `sort`, which
+    // is the dependency that matters.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [inscriptions, sort],
   );
 

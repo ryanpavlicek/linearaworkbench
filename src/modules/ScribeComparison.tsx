@@ -179,7 +179,10 @@ export default function ScribeComparison() {
 
   const usingSite = scribeB === "__site__" && !!siteBaseline;
   const comparison = b ?? (usingSite ? siteBaseline! : corpusBaseline);
-  const signature = a ? signSignature(a, comparison) : [];
+  const signature = useMemo(
+    () => (a ? signSignature(a, comparison) : []),
+    [a, comparison],
+  );
 
   // Top "distinctive" signs by absolute log-ratio (most divergent usage)
   const distinctive = useMemo(

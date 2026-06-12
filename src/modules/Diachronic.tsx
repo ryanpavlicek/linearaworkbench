@@ -92,7 +92,7 @@ export default function Diachronic() {
   // Builder. Works uniformly for broad ("MM"/"LM") and specific ("LMIB")
   // phase selections, since collection-based scoping bypasses the period
   // exact-match constraint of the scope schema.
-  function useAsScope(phase: string, label: string) {
+  function adoptPhaseAsScope(phase: string, label: string) {
     const matching = inscriptions.filter((ins) =>
       matchesPhase(ins.context, phase),
     );
@@ -408,7 +408,7 @@ export default function Diachronic() {
               <span style={{ flex: 1 }} />
               <button
                 className="btn btn-outline btn-sm"
-                onClick={() => useAsScope(phaseA, labelA)}
+                onClick={() => adoptPhaseAsScope(phaseA, labelA)}
                 title={`Use the ${a.tablets} ${phaseA} tablets as the global corpus scope — every other module will compute over just these`}
               >
                 ◇ Use {phaseA} as scope
@@ -435,7 +435,7 @@ export default function Diachronic() {
               <span style={{ flex: 1 }} />
               <button
                 className="btn btn-outline btn-sm"
-                onClick={() => useAsScope(phaseB, labelB)}
+                onClick={() => adoptPhaseAsScope(phaseB, labelB)}
                 title={`Use the ${b.tablets} ${phaseB} tablets as the global corpus scope — every other module will compute over just these`}
               >
                 ◇ Use {phaseB} as scope

@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies
@@ -27,6 +27,9 @@ jobs:
 
       - name: Type check
         run: npm run typecheck
+
+      - name: Lint (react-hooks invariants)
+        run: npm run lint
 
       - name: Test (with coverage gate)
         run: npm run test:coverage
@@ -49,7 +52,7 @@ jobs:
       - name: Setup Node
         uses: actions/setup-node@v6
         with:
-          node-version: "20"
+          node-version: "24"
           cache: "npm"
 
       - name: Install dependencies

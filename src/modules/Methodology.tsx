@@ -106,7 +106,7 @@ export default function Methodology() {
       if (tries++ < 20) setTimeout(attempt, 50);
     }
     setTimeout(attempt, 0);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   return (

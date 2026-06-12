@@ -187,7 +187,7 @@ export default function FindspotMap() {
     }
     list.sort((a, b) => b.count - a.count);
     return list;
-  }, [siteCounts]);
+  }, [siteCounts, viewW, viewH]);
 
   const inViewPoints = points.filter((p) => p.inView);
   const outOfViewPoints = points.filter((p) => !p.inView);
