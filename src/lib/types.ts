@@ -161,6 +161,11 @@ export interface Annotation {
 export interface ModuleIntent {
   tab?: string;
   focus?: string;
+  // Full saved-state restoration (findings rehydration): the payload a
+  // SaveFindingButton recorded with the finding. Modules that support it
+  // read their own fields back out in their state initializers; unknown
+  // fields are ignored, so stale payloads degrade gracefully.
+  payload?: Record<string, unknown>;
 }
 
 // Global "corpus scope": a workbench-wide filter that restricts which

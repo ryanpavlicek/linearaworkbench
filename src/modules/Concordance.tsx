@@ -41,13 +41,40 @@ export default function Concordance() {
   const words = useScopedMultiWords();
   const setActiveModule = useWorkbench((s) => s.setActiveModule);
 
+  // Findings rehydration: restore the full KWIC state from a re-opened
+  // finding's payload; a plain focus intent still pre-fills the target.
+  const rp = (useWorkbench.getState().moduleIntent?.payload ?? {}) as Partial<{
+    target: string;
+    windowSize: number;
+    sort: SortMode;
+    siteFilter: string;
+    periodFilter: string;
+  }>;
   const [target, setTarget] = useState(
-    () => useWorkbench.getState().moduleIntent?.focus ?? "",
+    () =>
+      (typeof rp.target === "string" ? rp.target : undefined) ??
+      useWorkbench.getState().moduleIntent?.focus ??
+      "",
   );
-  const [windowSize, setWindowSize] = useState(4);
-  const [sort, setSort] = useState<SortMode>("source");
-  const [siteFilter, setSiteFilter] = useState("");
-  const [periodFilter, setPeriodFilter] = useState("");
+  const [windowSize, setWindowSize] = useState(
+    typeof rp.windowSize === "number" && rp.windowSize >= 1
+      ? rp.windowSize
+      : 4,
+  );
+  const [sort, setSort] = useState<SortMode>(
+    rp.sort === "left" ||
+      rp.sort === "right" ||
+      rp.sort === "position" ||
+      rp.sort === "source"
+      ? rp.sort
+      : "source",
+  );
+  const [siteFilter, setSiteFilter] = useState(
+    typeof rp.siteFilter === "string" ? rp.siteFilter : "",
+  );
+  const [periodFilter, setPeriodFilter] = useState(
+    typeof rp.periodFilter === "string" ? rp.periodFilter : "",
+  );
 
   const sites = useMemo(
     () =>

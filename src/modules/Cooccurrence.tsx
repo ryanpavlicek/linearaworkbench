@@ -96,11 +96,37 @@ export default function Cooccurrence() {
         : initialIntent?.tab === "chi2"
           ? "chi2"
           : "pmi";
-  const [q, setQ] = useState(initialIntent?.focus ?? "");
-  const [metric, setMetric] = useState<Metric>(initialMetric);
-  const [minJoint, setMinJoint] = useState(3);
-  const [bonferroni, setBonferroni] = useState(true);
-  const [sigOnly, setSigOnly] = useState(false);
+  // Findings rehydration: a re-opened co-occurrence finding restores its
+  // metric, thresholds, and filter from the saved payload.
+  const rp = (initialIntent?.payload ?? {}) as Partial<{
+    q: string;
+    metric: Metric;
+    minJoint: number;
+    bonferroni: boolean;
+    sigOnly: boolean;
+  }>;
+  const [q, setQ] = useState(
+    (typeof rp.q === "string" ? rp.q : undefined) ??
+      initialIntent?.focus ??
+      "",
+  );
+  const [metric, setMetric] = useState<Metric>(
+    rp.metric === "pmi" ||
+      rp.metric === "loglik" ||
+      rp.metric === "chi2" ||
+      rp.metric === "count"
+      ? rp.metric
+      : initialMetric,
+  );
+  const [minJoint, setMinJoint] = useState(
+    typeof rp.minJoint === "number" && rp.minJoint >= 1 ? rp.minJoint : 3,
+  );
+  const [bonferroni, setBonferroni] = useState(
+    typeof rp.bonferroni === "boolean" ? rp.bonferroni : true,
+  );
+  const [sigOnly, setSigOnly] = useState(
+    typeof rp.sigOnly === "boolean" ? rp.sigOnly : false,
+  );
   const [fisherFor, setFisherFor] = useState<string | null>(null);
   const [showCI, setShowCI] = useState(false);
   // A "collocates" pivot (e.g. KWIC's "Collocates →") lands in exact

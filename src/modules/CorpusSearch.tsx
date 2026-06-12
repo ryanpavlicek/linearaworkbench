@@ -21,12 +21,31 @@ export default function CorpusSearch() {
   );
   const toast = useWorkbench((s) => s.toast_show);
 
-  const [q, setQ] = useState("");
-  const [mode, setMode] = useState<MatchMode>("contains");
-  const [site, setSite] = useState("");
-  const [type, setType] = useState("");
-  const [scribe, setScribe] = useState("");
-  const [period, setPeriod] = useState("");
+  // Findings rehydration: a re-opened search finding restores its full
+  // query state from the saved payload. Unknown/missing fields fall back
+  // to the defaults.
+  const rp = (useWorkbench.getState().moduleIntent?.payload ?? {}) as Partial<{
+    q: string;
+    mode: MatchMode;
+    site: string;
+    type: string;
+    scribe: string;
+    period: string;
+  }>;
+  const [q, setQ] = useState(typeof rp.q === "string" ? rp.q : "");
+  const [mode, setMode] = useState<MatchMode>(
+    rp.mode === "exact" || rp.mode === "starts" || rp.mode === "ends"
+      ? rp.mode
+      : "contains",
+  );
+  const [site, setSite] = useState(typeof rp.site === "string" ? rp.site : "");
+  const [type, setType] = useState(typeof rp.type === "string" ? rp.type : "");
+  const [scribe, setScribe] = useState(
+    typeof rp.scribe === "string" ? rp.scribe : "",
+  );
+  const [period, setPeriod] = useState(
+    typeof rp.period === "string" ? rp.period : "",
+  );
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [collPromptOpen, setCollPromptOpen] = useState(false);
   const [collName, setCollName] = useState("");

@@ -90,10 +90,32 @@ export function FindingsPanel({
             {!onLoad && (
               <button
                 className="btn btn-outline btn-sm"
-                onClick={() => setActiveModule(f.module)}
-                title={`Open ${f.moduleLabel}`}
+                onClick={() => {
+                  // Rehydration: hand the saved payload back to the module
+                  // (modules that support it restore their full state), and
+                  // map the common payload shapes to a focus for the ones
+                  // that only honor a focused item.
+                  const p = (f.payload ?? {}) as Record<string, unknown>;
+                  const focus =
+                    typeof p.word === "string" && p.word
+                      ? p.word
+                      : typeof p.target === "string" && p.target
+                        ? p.target
+                        : typeof p.sign === "string" && p.sign
+                          ? p.sign
+                          : typeof p.q === "string" && p.q
+                            ? p.q
+                            : undefined;
+                  setActiveModule(f.module, {
+                    focus,
+                    payload: f.payload as
+                      | Record<string, unknown>
+                      | undefined,
+                  });
+                }}
+                title={`Re-open ${f.moduleLabel} with this finding's parameters restored (where the module supports it)`}
               >
-                Open {f.moduleLabel} →
+                Re-open {f.moduleLabel} →
               </button>
             )}
             <button
