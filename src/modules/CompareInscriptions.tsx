@@ -11,6 +11,7 @@ import {
   normalizeSignLabel,
 } from "../lib/helpers";
 import type { Finding } from "../lib/types";
+import { sequenceDistance } from "../lib/algorithms";
 import {
   alignSequences,
   buildCompareReport,
@@ -197,6 +198,39 @@ export default function CompareInscriptions() {
       rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
     );
     toast("Comparison exported (CSV)");
+  }
+
+  // The interlinear alignment itself, one row per aligned position — the
+  // matrix view as data, with a flag column for shared / near-match rows.
+  function exportAlignmentCsv() {
+    const rows: (string | number)[][] = [
+      ["position", ...selected.map((i) => i.id), "flag"],
+    ];
+    for (let ri = 0; ri < alignment.length; ri++) {
+      const pos = alignment[ri];
+      const present = pos.filter((w): w is string => Boolean(w));
+      const isMatch = present.length >= 2 && new Set(present).size === 1;
+      let flag = isMatch ? "shared" : "";
+      if (!isMatch && present.length >= 2) {
+        const multi = [...new Set(present)].filter((w) => w.includes("-"));
+        outer: for (let x = 0; x < multi.length; x++) {
+          for (let y = x + 1; y < multi.length; y++) {
+            if (
+              sequenceDistance(multi[x].split("-"), multi[y].split("-")) === 1
+            ) {
+              flag = "near-match";
+              break outer;
+            }
+          }
+        }
+      }
+      rows.push([ri + 1, ...pos.map((w) => w ?? ""), flag]);
+    }
+    downloadFile(
+      "linear_a_alignment.csv",
+      rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+    );
+    toast("Alignment exported (CSV)");
   }
 
   // Render the sign glyphs of a word, tinting signs shared across the
@@ -495,6 +529,14 @@ export default function CompareInscriptions() {
           <button className="btn btn-outline btn-sm" onClick={exportCsv}>
             Export CSV
           </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={exportAlignmentCsv}
+            disabled={alignment.length === 0}
+            title="The interlinear alignment as data: one row per aligned position, one column per inscription, with shared / near-match flags"
+          >
+            Export alignment CSV
+          </button>
           <SaveFindingButton
             module="compare"
             moduleLabel="Compare Inscriptions"
@@ -612,6 +654,28 @@ export default function CompareInscriptions() {
                     const present = pos.filter((w): w is string => Boolean(w));
                     const isMatch =
                       present.length >= 2 && new Set(present).size === 1;
+                    // Near matches within the row: distinct multi-sign words
+                    // one sign-edit apart — candidate variants or copy slips
+                    // sitting in the same aligned slot.
+                    const near = new Set<string>();
+                    if (!isMatch && present.length >= 2) {
+                      const multi = [...new Set(present)].filter((w) =>
+                        w.includes("-"),
+                      );
+                      for (let x = 0; x < multi.length; x++) {
+                        for (let y = x + 1; y < multi.length; y++) {
+                          if (
+                            sequenceDistance(
+                              multi[x].split("-"),
+                              multi[y].split("-"),
+                            ) === 1
+                          ) {
+                            near.add(multi[x]);
+                            near.add(multi[y]);
+                          }
+                        }
+                      }
+                    }
                     return (
                       <tr
                         key={ri}
@@ -634,7 +698,19 @@ export default function CompareInscriptions() {
                               padding: "2px 8px",
                               verticalAlign: "top",
                               borderLeft: "1px solid var(--border)",
+                              ...(w && near.has(w)
+                                ? {
+                                    background: "#f0b14b14",
+                                    outline: "1px dashed #f0b14b66",
+                                    outlineOffset: -1,
+                                  }
+                                : {}),
                             }}
+                            title={
+                              w && near.has(w)
+                                ? "Near match: one sign apart from the word aligned beside it — a candidate variant spelling or copy slip"
+                                : undefined
+                            }
                           >
                             <AlnCell word={w} />
                           </td>
@@ -646,8 +722,19 @@ export default function CompareInscriptions() {
               </table>
               <div className="dim" style={{ fontSize: 10, marginTop: 6 }}>
                 Rows are aligned positions; a shaded row is where the same word
-                lines up across columns. <b>·</b> marks a gap (no word in that
-                column at that position).
+                lines up across columns; a{" "}
+                <span
+                  style={{
+                    background: "#f0b14b14",
+                    outline: "1px dashed #f0b14b66",
+                    padding: "0 3px",
+                  }}
+                >
+                  dashed amber
+                </span>{" "}
+                cell is one sign apart from its row-mate — a candidate variant
+                or copy slip. <b>·</b> marks a gap (no word in that column at
+                that position).
               </div>
             </div>
           )}

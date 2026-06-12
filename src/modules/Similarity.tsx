@@ -23,6 +23,7 @@ interface SimResult {
   scribe: string;
   score: number;
   shared: number;
+  weighted: number; // rarity-weighted overlap (IDF share of the pivot)
   wordCount: number;
 }
 
@@ -67,12 +68,30 @@ export default function Similarity() {
 
   const pivotIns = pivot ? inscriptions.find((i) => i.id === pivot) : null;
 
+  // Document frequency of each (transformed) word type across the eligible
+  // pool — the basis for rarity weighting. Sharing a near-hapax is far
+  // more diagnostic of a real connection than sharing KU-RO.
+  const idf = useMemo(() => {
+    const df = new Map<string, number>();
+    for (const ins of eligible) {
+      const types = new Set(
+        ins.words.filter((w) => w.includes("-")).map(transform),
+      );
+      for (const t of types) df.set(t, (df.get(t) ?? 0) + 1);
+    }
+    const N = Math.max(1, eligible.length);
+    return (t: string) => Math.log(N / (df.get(t) ?? 1));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eligible, mode, hypothesis]);
+
   const results = useMemo<SimResult[]>(() => {
     if (!pivotIns) return [];
     const pivotRaw = pivotIns.words.filter((w) => w.includes("-"));
     if (pivotRaw.length === 0) return [];
     const pivotWords = pivotRaw.map(transform);
     const pivotSet = new Set(pivotWords);
+    let pivotIdf = 0;
+    for (const t of pivotSet) pivotIdf += idf(t);
     const out: SimResult[] = [];
     for (const ins of eligible) {
       if (ins.id === pivotIns.id) continue;
@@ -83,6 +102,10 @@ export default function Similarity() {
       const score = sequenceSimilarity(pivotWords, ws);
       let shared = 0;
       for (const w of ws) if (pivotSet.has(w)) shared++;
+      // Rarity-weighted overlap: the IDF mass of the pivot's vocabulary
+      // that this inscription also carries (distinct types).
+      let sharedIdf = 0;
+      for (const t of new Set(ws)) if (pivotSet.has(t)) sharedIdf += idf(t);
       out.push({
         id: ins.id,
         site: ins.site,
@@ -90,13 +113,14 @@ export default function Similarity() {
         scribe: ins.scribe,
         score,
         shared,
+        weighted: pivotIdf > 0 ? sharedIdf / pivotIdf : 0,
         wordCount: wsRaw.length,
       });
     }
     out.sort((a, b) => b.score - a.score);
     return out.slice(0, 50);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pivotIns, eligible, sameSite, samePeriod, mode, hypothesis]);
+  }, [pivotIns, eligible, sameSite, samePeriod, mode, hypothesis, idf]);
 
   // Re-sortable view over the top-50 (selection stays by score; the table
   // then sorts by whatever column the researcher clicks).
@@ -107,6 +131,7 @@ export default function Similarity() {
     period: (r) => r.period,
     score: (r) => r.score,
     shared: (r) => r.shared,
+    weighted: (r) => r.weighted,
     tokens: (r) => r.wordCount,
   });
 
@@ -508,6 +533,13 @@ export default function Similarity() {
                   <SortHeader label="Period" sortKey="period" sort={sort} onToggle={toggle} />
                   <SortHeader label="Similarity" sortKey="score" sort={sort} onToggle={toggle} />
                   <SortHeader label="Shared words" sortKey="shared" sort={sort} onToggle={toggle} />
+                  <SortHeader
+                    label="Rarity overlap"
+                    sortKey="weighted"
+                    sort={sort}
+                    onToggle={toggle}
+                    title="The share of the pivot's vocabulary IDF mass this inscription also carries — sharing a near-hapax counts far more than sharing KU-RO. High rarity overlap with modest raw similarity often means a genuine connection through distinctive vocabulary."
+                  />
                   <SortHeader label="Tokens" sortKey="tokens" sort={sort} onToggle={toggle} />
                   <th style={{ width: 1 }}>Open in</th>
                 </tr>
@@ -534,6 +566,17 @@ export default function Similarity() {
                         </span>
                       </td>
                       <td className="numeral">{r.shared}</td>
+                      <td
+                        className="numeral"
+                        style={{
+                          color:
+                            r.weighted >= 0.5
+                              ? "var(--gn)"
+                              : "var(--text-muted)",
+                        }}
+                      >
+                        {(r.weighted * 100).toFixed(0)}%
+                      </td>
                       <td className="dim">{r.wordCount}</td>
                       <td style={{ whiteSpace: "nowrap" }}>
                         <button
