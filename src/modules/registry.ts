@@ -176,6 +176,18 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
     ],
   },
   {
+    group: "Learn",
+    items: [
+      {
+        id: "reader",
+        name: "Guided Reader",
+        group: "Learn",
+        keywords:
+          "guided reader learn tutorial walkthrough beginner read tablet step by step teach",
+      },
+    ],
+  },
+  {
     group: "Programmatic",
     items: [
       {
@@ -276,5 +288,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   dossiers: lazy(() => import("./AccountDossiers")),
   metrology: lazy(() => import("./MetrologyLab")),
   timeline: lazy(() => import("./Timeline")),
+  reader: lazy(() => import("./GuidedReader")),
   help: lazy(() => import("./Help")),
 };

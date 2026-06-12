@@ -1606,6 +1606,32 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-reader",
+    group: "Interpretation modules",
+    title: "Guided Reader",
+    keywords:
+      "guided reader learn tutorial beginner walkthrough read tablet step teach",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="reader">Guided Reader</ModuleLink> walks you
+          through a real document one token at a time — words with their
+          phonetic readings, commodity logograms with their glosses,
+          numerals and fractions, the word-divider dot, and the KU-RO
+          total with the running sum shown so you can check the scribe's
+          arithmetic yourself. Steps are generated from the tablet's own
+          parsed data, so the walkthrough can't drift from the corpus.
+        </P>
+        <P>
+          Start with HT13: a wine ledger whose entries sum half a unit
+          over the scribe's own total — a famous little crux, and a
+          perfect first lesson in what "reading" an undeciphered script
+          actually means. Use <Kbd>←</Kbd>/<Kbd>→</Kbd> to step.
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-timeline",
     group: "Interpretation modules",
     title: "Timeline",
