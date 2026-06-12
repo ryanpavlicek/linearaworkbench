@@ -10,17 +10,25 @@ import {
   snippetWrap,
   type SnippetColumn,
 } from "../lib/reportSnippet";
+import { commodityHead, isUndecipheredLogogram } from "../data/commodities";
+import {
+  DEFICIT_MARKERS,
+  GRAND_TOTAL_MARKERS,
+  isValueToken,
+  TOTAL_MARKERS,
+} from "../lib/numerals";
 
-const IDEOS = new Set(["OLE", "GRA", "VIN", "FIC", "AES", "AUR", "ARG"]);
-const NUM_RE = /^[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟₁₂₃₄₅₆₇₈₉₀≈]+$/;
-
+// Token classes share the app's real parsers: the full ligature-aware
+// commodity catalog for ideograms (not a hand-picked subset), the numeral
+// parser for quantities and fractions, and all three total/deficit markers.
 function tokenize(words: string[]): string {
   return words
     .map((w) => {
-      if (w === "KU-RO") return "T";
-      if (NUM_RE.test(w)) return "N";
+      if (TOTAL_MARKERS.has(w) || GRAND_TOTAL_MARKERS.has(w)) return "T";
+      if (DEFICIT_MARKERS.has(w)) return "D";
+      if (isValueToken(w)) return "N";
       if (w === "𐄁") return "S";
-      if (IDEOS.has(w)) return "I";
+      if (commodityHead(w) || isUndecipheredLogogram(w)) return "I";
       return "W";
     })
     .join("");
@@ -30,12 +38,13 @@ const TOK_LABELS: Record<string, string> = {
   W: "WORD",
   N: "NUM",
   T: "TOTAL",
+  D: "DEFICIT",
   I: "IDEO",
   S: "SEP",
 };
 
 type SortKey = "count" | "length" | "pattern";
-type Contains = "any" | "N" | "T" | "I" | "S";
+type Contains = "any" | "N" | "T" | "D" | "I" | "S";
 type LenFilter = "any" | "2" | "3" | "4" | "5" | "6";
 
 const DISPLAY_CAP = 150;
@@ -62,7 +71,10 @@ export default function SequencePatterns() {
             map.set(sub, p);
           }
           p.count++;
-          if (p.examples.length < 3) p.examples.push(ins.id);
+          // Three DISTINCT example tablets — a pattern can occur several
+          // times within one inscription.
+          if (p.examples.length < 3 && !p.examples.includes(ins.id))
+            p.examples.push(ins.id);
         }
       }
     }
@@ -133,7 +145,9 @@ export default function SequencePatterns() {
           Tokenizes each inscription into structural types:{" "}
           <span className="pat-tok pt-W">W</span> word{" "}
           <span className="pat-tok pt-N">N</span> number{" "}
-          <span className="pat-tok pt-T">T</span> total (KU-RO){" "}
+          <span className="pat-tok pt-T">T</span> total (KU-RO /
+          PO-TO-KU-RO){" "}
+          <span className="pat-tok pt-D">D</span> deficit (KI-RO){" "}
           <span className="pat-tok pt-I">I</span> ideogram{" "}
           <span className="pat-tok pt-S">S</span> separator. Filter by frequency,
           length, or a required token type.
@@ -190,6 +204,7 @@ export default function SequencePatterns() {
             <option value="any">any</option>
             <option value="N">NUM</option>
             <option value="T">TOTAL</option>
+            <option value="D">DEFICIT</option>
             <option value="I">IDEO</option>
             <option value="S">SEP</option>
           </select>

@@ -1112,6 +1112,10 @@ tbody tr:last-child td {
   background: #3ddc9122;
   color: var(--gn);
 }
+.pt-D {
+  background: #ff6b6b22;
+  color: var(--rd);
+}
 .pt-I {
   background: #9b7cf022;
   color: var(--pu);

@@ -3,20 +3,23 @@ import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { WordToken } from "../components/WordToken";
 import { WordTools } from "../components/WordTools";
+import {
+  COMMODITIES,
+  commodityHead,
+  isUndecipheredLogogram,
+} from "../data/commodities";
 
-const IDEOGRAMS: Record<string, string> = {
-  OLE: "Oil / liquid",
-  GRA: "Grain / cereal",
-  VIN: "Wine / vine",
-  FIC: "Figs",
-  "*301": "Offering?",
-  "*302": "Unknown commodity",
-  "*303": "Unknown commodity",
-  KU: "Bronze?",
-  AES: "Bronze",
-  AUR: "Gold",
-  ARG: "Silver",
-};
+// Resolve a token to the ideogram group it evidences: a curated-catalog
+// commodity head (ligatures and sex markers fold into their head) or an
+// undeciphered *NNN logogram. Shares the catalog with the Commodity
+// Catalog module so the two never disagree.
+function ideogramOf(token: string): { key: string; label: string } | null {
+  const head = commodityHead(token);
+  if (head) return { key: head, label: COMMODITIES[head].gloss };
+  if (isUndecipheredLogogram(token))
+    return { key: token, label: "undeciphered commodity" };
+  return null;
+}
 
 const PREVIEW = 20;
 
@@ -34,20 +37,26 @@ export default function SemanticClassifier() {
   const [newName, setNewName] = useState("");
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
+  // Co-occurrence is counted per physical LINE, not per inscription — on an
+  // accounting tablet the words on an ideogram's own line are its entry;
+  // words elsewhere on the tablet belong to other entries.
   const groups = useMemo(() => {
     const map = new Map<string, { label: string; words: Map<string, number> }>();
     for (const ins of inscriptions) {
-      const ws = ins.words.filter((w) => w.includes("-"));
-      for (const w of ins.words) {
-        if (!IDEOGRAMS[w]) continue;
-        let g = map.get(w);
-        if (!g) {
-          g = { label: IDEOGRAMS[w], words: new Map() };
-          map.set(w, g);
-        }
-        for (const ww of ws) {
-          if (ww === w) continue;
-          g.words.set(ww, (g.words.get(ww) ?? 0) + 1);
+      for (const line of ins.lines) {
+        const lineWords = line.filter((w) => w.includes("-"));
+        for (const token of line) {
+          const ideo = ideogramOf(token);
+          if (!ideo) continue;
+          let g = map.get(ideo.key);
+          if (!g) {
+            g = { label: ideo.label, words: new Map() };
+            map.set(ideo.key, g);
+          }
+          for (const ww of lineWords) {
+            if (ww === token) continue;
+            g.words.set(ww, (g.words.get(ww) ?? 0) + 1);
+          }
         }
       }
     }

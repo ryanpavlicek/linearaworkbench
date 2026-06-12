@@ -112,8 +112,25 @@ export default function Cooccurrence() {
   // Bonferroni-corrected p uses N tests = number of pairs being tested.
   const correctionN = bonferroni ? pairs.length : null;
 
-  const sorted = useMemo(() => {
+  // The word filter applies BEFORE the display cap — otherwise "collocates
+  // of" a mid-frequency word would silently miss every pair outside the
+  // global top-250 by the chosen metric.
+  const visible = useMemo(() => {
+    const u = q.toUpperCase().trim();
     let filtered = pairs.filter((p) => p.joint >= minJoint);
+    if (u) {
+      filtered = collocatesOnly
+        ? // "Collocates of X" — treat the filter as an exact word and keep
+          // only pairs where it is one of the two members (its partners are
+          // its collocates).
+          filtered.filter(
+            (p) => p.a.toUpperCase() === u || p.b.toUpperCase() === u,
+          )
+        : filtered.filter(
+            (p) =>
+              p.a.toUpperCase().includes(u) || p.b.toUpperCase().includes(u),
+          );
+    }
     if (sigOnly) {
       filtered = filtered.filter((p) => {
         const adj = correctionN
@@ -132,23 +149,7 @@ export default function Cooccurrence() {
             : "loglik";
     filtered.sort((x, y) => y[key] - x[key]);
     return filtered.slice(0, 250);
-  }, [pairs, metric, minJoint, sigOnly, correctionN]);
-
-  const visible = useMemo(() => {
-    const u = q.toUpperCase().trim();
-    if (collocatesOnly) {
-      // "Collocates of X" — treat the filter as an exact word and keep only
-      // pairs where it is one of the two members (its partners are its
-      // collocates).
-      if (!u) return sorted;
-      return sorted.filter(
-        (p) => p.a.toUpperCase() === u || p.b.toUpperCase() === u,
-      );
-    }
-    return sorted.filter(
-      (p) => p.a.toUpperCase().includes(u) || p.b.toUpperCase().includes(u),
-    );
-  }, [sorted, q, collocatesOnly]);
+  }, [pairs, metric, minJoint, sigOnly, correctionN, q, collocatesOnly]);
 
   // Fisher's exact is expensive; only compute on demand for one pair.
   const fisherValue = useMemo(() => {

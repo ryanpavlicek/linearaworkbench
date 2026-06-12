@@ -13,13 +13,17 @@ function parseWordlistFile(file: File): Promise<ComparisonEntry[]> {
         if (file.name.endsWith(".json")) {
           entries = JSON.parse(text);
         } else {
-          entries = text
-            .split("\n")
-            .filter((l) => l.trim())
-            .map((l) => {
-              const [w, m, d] = l.split(",").map((s) => s.trim());
-              return { w, m: m || "?", d: d || "?" };
-            });
+          const lines = text.split("\n").filter((l) => l.trim());
+          // The documented format includes a header row — drop it instead
+          // of importing {w:"word", m:"meaning", d:"domain"} as an entry.
+          if (lines.length > 0) {
+            const first = lines[0].split(",").map((s) => s.trim().toLowerCase());
+            if (first[0] === "word") lines.shift();
+          }
+          entries = lines.map((l) => {
+            const [w, m, d] = l.split(",").map((s) => s.trim());
+            return { w, m: m || "?", d: d || "?" };
+          });
         }
         entries.forEach(
           (e) => (e.p = e.w.replace(/[*₁₂₃ʰʷ]/g, "").toLowerCase()),
