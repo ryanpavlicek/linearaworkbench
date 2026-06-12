@@ -99,6 +99,14 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
       { id: "arith", name: "Accounting & Metrology", group: "Accounts & content", category: "descriptive" },
       { id: "commodities", name: "Commodity Catalog", group: "Accounts & content", category: "descriptive" },
       { id: "struct", name: "Tablet Structure", group: "Accounts & content", category: "descriptive" },
+      {
+        id: "doctypes",
+        name: "Document Types",
+        group: "Accounts & content",
+        category: "descriptive",
+        keywords:
+          "document types support tablet roundel nodule sealing vessel libation bar physical object typology function",
+      },
       { id: "lib", name: "Libation Formulas", group: "Accounts & content", category: "descriptive" },
       { id: "sem", name: "Semantic Classifier", group: "Accounts & content", category: "exploratory" },
     ],
@@ -240,5 +248,6 @@ export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   commentary: lazy(() => import("./CommentaryBrowser")),
   pyaegean: lazy(() => import("./PythonToolkit")),
   health: lazy(() => import("./CorpusHealth")),
+  doctypes: lazy(() => import("./DocumentTypes")),
   help: lazy(() => import("./Help")),
 };

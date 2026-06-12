@@ -1606,6 +1606,34 @@ export const SECTIONS: Section[] = [
     ),
   },
   {
+    id: "mod-doctypes",
+    group: "Interpretation modules",
+    title: "Document Types",
+    keywords:
+      "document types support tablet roundel nodule sealing stone vessel bar physical typology function",
+    body: (
+      <>
+        <P>
+          <ModuleLink to="doctypes">Document Types</ModuleLink> organizes
+          the corpus by the physical object that carries the writing:
+          tablets, sealed nodules, roundels, libation vessels, bars,
+          inked inscriptions, and the rest — each with a short note on
+          what that kind of object did in the administration, its writing
+          profile (words per document, numeral share), top vocabulary, and
+          examples.
+        </P>
+        <P>
+          The headline surprise for newcomers: half the corpus by count is
+          nodules that carry almost no text, while tablets — under a
+          quarter of the objects — carry most of the writing. Click a type
+          and <Btn>◇ Use as Scope</Btn> to point every other module at
+          just those documents (e.g. analyze the religious corpus by
+          scoping to stone vessels).
+        </P>
+      </>
+    ),
+  },
+  {
     id: "mod-lib",
     group: "Interpretation modules",
     title: "Libation Formulas",
