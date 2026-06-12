@@ -8,6 +8,7 @@ import { PinRail } from "./components/PinRail";
 import { Welcome } from "./components/Welcome";
 import { CommandPalette } from "./components/CommandPalette";
 import { CategoryBadge } from "./components/CategoryBadge";
+import { ModuleErrorBoundary } from "./components/ModuleErrorBoundary";
 import { MODULE_COMPONENTS } from "./modules/registry";
 
 export function App() {
@@ -120,15 +121,17 @@ export function App() {
         ) : (
           <>
             <CategoryBadge />
-            <Suspense
-              fallback={
-                <div className="loader">
-                  <div className="loader-spinner" />
-                </div>
-              }
-            >
-              <ActiveModule />
-            </Suspense>
+            <ModuleErrorBoundary resetKey={activeModule}>
+              <Suspense
+                fallback={
+                  <div className="loader">
+                    <div className="loader-spinner" />
+                  </div>
+                }
+              >
+                <ActiveModule />
+              </Suspense>
+            </ModuleErrorBoundary>
           </>
         )}
       </main>
