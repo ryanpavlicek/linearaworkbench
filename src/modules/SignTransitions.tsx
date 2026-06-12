@@ -92,6 +92,8 @@ function buildTransitions(
   };
 }
 
+type HeatMode = "count" | "prob" | "pmi";
+
 export default function SignTransitions() {
   const words = useScopedMultiWords();
   // Pivots from other modules (e.g. a Sign Inventory row) open straight to
@@ -101,7 +103,8 @@ export default function SignTransitions() {
     initialIntent?.focus ? normalizeSignLabel(initialIntent.focus) : null,
   );
   const [hoverCell, setHoverCell] = useState<string | null>(null);
-  const [probMode, setProbMode] = useState(false);
+  const [heatMode, setHeatMode] = useState<HeatMode>("count");
+  const probMode = heatMode === "prob";
 
   const data = useMemo(() => buildTransitions(words), [words]);
   const signCount = data.signTotal.size;
@@ -143,6 +146,47 @@ export default function SignTransitions() {
     return m;
   }, [data]);
 
+  // Column totals (incoming weight) + grand total — the marginals for the
+  // PMI heat mode and the expected counts behind the gaps list.
+  const { colTotals, grandTotal } = useMemo(() => {
+    const m = new Map<string, number>();
+    let g = 0;
+    for (const [, inner] of data.outgoing) {
+      for (const [b, c] of inner) {
+        m.set(b, (m.get(b) ?? 0) + c);
+        g += c;
+      }
+    }
+    return { colTotals: m, grandTotal: g };
+  }, [data]);
+
+  const cellPmi = (v: number, rowTotal: number, colTotal: number) =>
+    v > 0 && rowTotal > 0 && colTotal > 0 && grandTotal > 0
+      ? Math.log2((v * grandTotal) / (rowTotal * colTotal))
+      : null;
+
+  // Never-attested transitions among the frequent signs, ranked by how
+  // often they SHOULD occur under independence — the strongest candidate
+  // graphotactic constraints. A gap between two rare signs is expected;
+  // a gap with expected count 6 is structure.
+  const strongestGaps = useMemo(() => {
+    if (grandTotal === 0) return [];
+    const out: { a: string; b: string; expected: number }[] = [];
+    for (const a of data.topSigns) {
+      const inner = data.outgoing.get(a);
+      const ra = rowTotals.get(a) ?? 0;
+      if (ra === 0) continue;
+      for (const b of data.topSigns) {
+        if ((inner?.get(b) ?? 0) > 0) continue;
+        const cb = colTotals.get(b) ?? 0;
+        if (cb === 0) continue;
+        out.push({ a, b, expected: (ra * cb) / grandTotal });
+      }
+    }
+    out.sort((x, y) => y.expected - x.expected);
+    return out.slice(0, 18);
+  }, [data, rowTotals, colTotals, grandTotal]);
+
   const sel = selected;
   const outList = sel
     ? [...(data.outgoing.get(sel)?.entries() ?? [])].sort((a, b) => b[1] - a[1])
@@ -151,8 +195,17 @@ export default function SignTransitions() {
     ? [...(data.incoming.get(sel)?.entries() ?? [])].sort((a, b) => b[1] - a[1])
     : [];
 
-  function cellColor(v: number, rowTotal: number): string {
+  function cellColor(v: number, rowTotal: number, colTotal: number): string {
     if (v === 0) return "transparent";
+    if (heatMode === "pmi") {
+      // Diverging: blue = attracted (occurs more than the marginals
+      // predict), red = repelled (less). Magnitude saturates at |PMI| 3.
+      const pmi = cellPmi(v, rowTotal, colTotal) ?? 0;
+      const t = Math.min(1, Math.abs(pmi) / 3);
+      return pmi >= 0
+        ? `rgba(91, 158, 255, ${0.12 + t * 0.78})`
+        : `rgba(255, 107, 107, ${0.12 + t * 0.78})`;
+    }
     // In probability mode, color by the row-normalized conditional
     // probability P(next | row sign); otherwise by log-scaled raw count.
     const t = probMode
@@ -224,14 +277,19 @@ export default function SignTransitions() {
         <label
           className="dim"
           style={{ display: "flex", alignItems: "center", gap: 4 }}
-          title="Show conditional probabilities P(next | current) instead of raw transition counts"
+          title="What the heatmap colors encode: raw counts (log-scaled), the row-normalized conditional probability P(next | current), or PMI — whether the pair occurs more (blue) or less (red) than the two signs' overall frequencies predict"
         >
-          <input
-            type="checkbox"
-            checked={probMode}
-            onChange={(e) => setProbMode(e.target.checked)}
-          />
-          conditional probability
+          heat
+          <select
+            className="select"
+            value={heatMode}
+            onChange={(e) => setHeatMode(e.target.value as HeatMode)}
+            style={{ fontSize: 11, padding: "3px 6px" }}
+          >
+            <option value="count">raw count</option>
+            <option value="prob">P(next | current)</option>
+            <option value="pmi">PMI vs independence</option>
+          </select>
         </label>
         <span style={{ flex: 1 }} />
         <button className="btn btn-outline btn-sm" onClick={exportCsv}>
@@ -358,15 +416,19 @@ export default function SignTransitions() {
                       {data.topSigns.map((b) => {
                         const v = inner?.get(b) ?? 0;
                         const key = `${a}→${b}`;
+                        const colTotal = colTotals.get(b) ?? 0;
+                        const pmi = cellPmi(v, rowTotal, colTotal);
                         return (
                           <td
                             key={b}
                             title={
                               v > 0
-                                ? probMode
-                                  ? `${a} → ${b}: ${pct(v, rowTotal)} (${v})`
-                                  : `${a} → ${b}: ${v}`
-                                : `${a} → ${b}: never`
+                                ? heatMode === "pmi"
+                                  ? `${a} → ${b}: PMI ${pmi!.toFixed(2)} (${v}×, expected ${((rowTotal * colTotal) / Math.max(1, grandTotal)).toFixed(1)})`
+                                  : probMode
+                                    ? `${a} → ${b}: ${pct(v, rowTotal)} (${v})`
+                                    : `${a} → ${b}: ${v}`
+                                : `${a} → ${b}: never (expected ${((rowTotal * colTotal) / Math.max(1, grandTotal)).toFixed(1)} under independence)`
                             }
                             onMouseEnter={() => setHoverCell(key)}
                             onMouseLeave={() => setHoverCell(null)}
@@ -374,7 +436,7 @@ export default function SignTransitions() {
                             style={{
                               width: 16,
                               height: 16,
-                              background: cellColor(v, rowTotal),
+                              background: cellColor(v, rowTotal, colTotal),
                               border:
                                 hoverCell === key
                                   ? "1px solid var(--ac)"
@@ -391,12 +453,61 @@ export default function SignTransitions() {
             </table>
           </div>
           <div className="dim" style={{ fontSize: 10, marginTop: 6 }}>
-            {probMode
-              ? "Darker = higher P(column | row) — each row is normalized to its own outgoing total."
-              : "Darker = more frequent transition (log-scaled)."}{" "}
+            {heatMode === "pmi"
+              ? "Blue = the pair occurs more often than the two signs' frequencies predict; red = less. Saturation caps at |PMI| 3."
+              : probMode
+                ? "Darker = higher P(column | row) — each row is normalized to its own outgoing total."
+                : "Darker = more frequent transition (log-scaled)."}{" "}
             Blank = the pair never occurs adjacently. Click a row label or cell
             to inspect a sign.
           </div>
+
+          {strongestGaps.length > 0 && (
+            <div style={{ marginTop: 12 }}>
+              <div
+                style={{
+                  font: "600 10px var(--sans)",
+                  color: "var(--text-muted)",
+                  textTransform: "uppercase",
+                  letterSpacing: 0.6,
+                  marginBottom: 6,
+                }}
+              >
+                Strongest gaps — never-attested pairs of frequent signs
+              </div>
+              <div className="sub" style={{ marginBottom: 6 }}>
+                Ranked by how often the pair <em>should</em> occur if the two
+                signs combined freely. A gap between rare signs means
+                nothing; a gap with a high expected count is a candidate
+                graphotactic constraint.
+              </div>
+              <div style={{ display: "flex", flexWrap: "wrap", gap: 4 }}>
+                {strongestGaps.map((g) => (
+                  <button
+                    key={`${g.a}→${g.b}`}
+                    onClick={() => setSelected(g.a)}
+                    title={`${g.a} → ${g.b} never occurs adjacently; expected ${g.expected.toFixed(1)}× under independence. Click to inspect ${g.a}.`}
+                    style={{
+                      padding: "2px 8px",
+                      background: "var(--surface-1)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 4,
+                      fontFamily: "var(--mono)",
+                      fontSize: 11,
+                      cursor: "pointer",
+                    }}
+                  >
+                    {g.a}
+                    <span className="dim">→</span>
+                    {g.b}{" "}
+                    <span className="dim" style={{ fontSize: 9 }}>
+                      exp {g.expected.toFixed(1)}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Sign inspector */}

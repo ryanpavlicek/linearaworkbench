@@ -3,6 +3,8 @@ import { useScopedCorpus } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
 import { csvEscape, downloadFile, siglaSignListUrl } from "../lib/helpers";
 import { PHONETIC_MAP } from "../data/phoneticMap";
+import { Glyph } from "../components/Glyph";
+import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { useSort, SortHeader } from "../components/sort";
 import {
@@ -18,7 +20,22 @@ interface SignStat {
   initial: number;
   medial: number;
   final: number;
-  words: Set<string>;
+  words: Map<string, number>; // word → attestation count
+}
+
+// Shannon entropy (bits) of the sign's initial/medial/final distribution.
+// 0 = the sign only ever sits in one slot (strongly constrained); the
+// 3-outcome maximum is log₂3 ≈ 1.585 (position tells you nothing).
+function positionEntropy(d: SignStat): number {
+  const t = d.initial + d.medial + d.final;
+  if (t === 0) return 0;
+  let h = 0;
+  for (const n of [d.initial, d.medial, d.final]) {
+    if (n === 0) continue;
+    const p = n / t;
+    h -= p * Math.log2(p);
+  }
+  return h;
 }
 
 export default function SignConcordance() {
@@ -43,12 +60,12 @@ export default function SignConcordance() {
             initial: 0,
             medial: 0,
             final: 0,
-            words: new Set(),
+            words: new Map(),
           };
           map.set(s, stat);
         }
         stat.count += e.count;
-        stat.words.add(w);
+        stat.words.set(w, e.count);
         if (parts.length === 1) {
           stat.initial += e.count;
           stat.final += e.count;
@@ -77,6 +94,7 @@ export default function SignConcordance() {
     initial: ([, d]) => d.initial,
     medial: ([, d]) => d.medial,
     final: ([, d]) => d.final,
+    entropy: ([, d]) => positionEntropy(d),
   });
 
   const high = signs.filter(([, d]) => d.count >= 10).length;
@@ -94,7 +112,17 @@ export default function SignConcordance() {
 
   function exportCsv() {
     const rows: (string | number)[][] = [
-      ["sign", "phonetic", "total", "distinct_words", "initial", "medial", "final"],
+      [
+        "sign",
+        "phonetic",
+        "total",
+        "distinct_words",
+        "initial",
+        "medial",
+        "final",
+        "position_entropy_bits",
+        "top_words",
+      ],
     ];
     for (const [s, d] of signs) {
       rows.push([
@@ -105,6 +133,12 @@ export default function SignConcordance() {
         d.initial,
         d.medial,
         d.final,
+        positionEntropy(d).toFixed(3),
+        [...d.words.entries()]
+          .sort((a, b) => b[1] - a[1])
+          .slice(0, 5)
+          .map(([w]) => w)
+          .join(" "),
       ]);
     }
     downloadFile(
@@ -215,7 +249,15 @@ export default function SignConcordance() {
               <SortHeader label="Initial" sortKey="initial" sort={sort} onToggle={toggle} />
               <SortHeader label="Medial" sortKey="medial" sort={sort} onToggle={toggle} />
               <SortHeader label="Final" sortKey="final" sort={sort} onToggle={toggle} />
+              <SortHeader
+                label="H(pos)"
+                sortKey="entropy"
+                sort={sort}
+                onToggle={toggle}
+                title="Shannon entropy of the initial/medial/final distribution, in bits. 0 = the sign only ever takes one position (strongly constrained — highlighted when well-attested); log₂3 ≈ 1.585 = position carries no information."
+              />
               <th>Position</th>
+              <th>Top words</th>
               <th style={{ width: 1 }}>Paleography</th>
             </tr>
           </thead>
@@ -226,10 +268,15 @@ export default function SignConcordance() {
               const pm = t ? (d.medial / t) * 100 : 0;
               const pf = t ? (d.final / t) * 100 : 0;
               const phon = PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")];
+              const h = positionEntropy(d);
+              const top = [...d.words.entries()]
+                .sort((a, b) => b[1] - a[1])
+                .slice(0, 3);
               return (
                 <tr key={s}>
-                  <td>
-                    <b style={{ color: "var(--ac)" }}>{s}</b>
+                  <td style={{ whiteSpace: "nowrap" }}>
+                    <Glyph sign={s} size={18} />
+                    <b style={{ color: "var(--ac)", marginLeft: 6 }}>{s}</b>
                   </td>
                   <td className="dim">{phon || "?"}</td>
                   <td className="numeral">{d.count}</td>
@@ -237,12 +284,39 @@ export default function SignConcordance() {
                   <td className="dim">{d.initial}</td>
                   <td className="dim">{d.medial}</td>
                   <td className="dim">{d.final}</td>
+                  <td
+                    className="numeral"
+                    style={{
+                      color:
+                        h < 0.5 && d.count >= 10
+                          ? "var(--am)"
+                          : "var(--text-muted)",
+                    }}
+                    title={`Position entropy ${h.toFixed(3)} bits of max ${Math.log2(3).toFixed(3)}${h < 0.5 && d.count >= 10 ? " — strongly position-constrained" : ""}`}
+                  >
+                    {h.toFixed(2)}
+                  </td>
                   <td>
                     <div className="pos-bar" style={{ width: 80 }}>
                       <div className="pos-first" style={{ width: `${pi}%` }} />
                       <div className="pos-mid" style={{ width: `${pm}%` }} />
                       <div className="pos-last" style={{ width: `${pf}%` }} />
                     </div>
+                  </td>
+                  <td style={{ fontSize: 11, whiteSpace: "nowrap" }}>
+                    {top.map(([w, c]) => (
+                      <span key={w} style={{ marginRight: 4 }}>
+                        <WordToken word={w} />
+                        <span className="dim" style={{ fontSize: 10 }}>
+                          ×{c}
+                        </span>
+                      </span>
+                    ))}
+                    {d.words.size > 3 && (
+                      <span className="dim" style={{ fontSize: 10 }}>
+                        +{d.words.size - 3}
+                      </span>
+                    )}
                   </td>
                   <td>
                     <a

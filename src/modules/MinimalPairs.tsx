@@ -1,6 +1,7 @@
 import { Fragment, useMemo, useState } from "react";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
+import { PHONETIC_MAP } from "../data/phoneticMap";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { useSort, SortHeader } from "../components/sort";
@@ -14,6 +15,45 @@ import {
 
 type PositionFilter = "any" | "initial" | "medial" | "final";
 type LenFilter = "any" | "2" | "3" | "4" | "5plus";
+type PhonoType = "vowel" | "consonant" | "both" | "opaque";
+
+const PHONO_LABEL: Record<PhonoType, string> = {
+  vowel: "V-alternation",
+  consonant: "C-alternation",
+  both: "CV-alternation",
+  opaque: "no AB values",
+};
+
+// Decompose a Linear B phonetic value into (consonant onset, vowel
+// nucleus). "ku" → ["k","u"], "a" → ["","a"], "kwa"/"dwe" keep their
+// complex onsets. Returns null for signs without a usable value.
+function cvOf(sign: string): [string, string] | null {
+  const p = PHONETIC_MAP[sign.replace(/[₂₃₄*]/g, "")];
+  if (!p) return null;
+  const m = /^([^aeiou]*)([aeiou]+)$/.exec(p.toLowerCase());
+  return m ? [m[1], m[2]] : null;
+}
+
+// What changes phonologically between the two alternating signs — under
+// the conventional Linear B values, clearly labeled as such. A pair that
+// alternates the VOWEL while keeping the consonant (KU-RO ~ KU-RE: -ro/-re)
+// is the classic inflection signature; consonant alternations point at
+// phonological variation or sign-confusion instead.
+function phonoTypeOf(signX: string, signY: string): {
+  type: PhonoType;
+  detail: string;
+} {
+  const a = cvOf(signX);
+  const b = cvOf(signY);
+  if (!a || !b) return { type: "opaque", detail: "" };
+  const [ca, va] = a;
+  const [cb, vb] = b;
+  if (ca === cb && va !== vb)
+    return { type: "vowel", detail: `${ca || "∅"}—: ${va}~${vb}` };
+  if (va === vb && ca !== cb)
+    return { type: "consonant", detail: `—${va}: ${ca || "∅"}~${cb || "∅"}` };
+  return { type: "both", detail: `${ca || "∅"}${va}~${cb || "∅"}${vb}` };
+}
 
 interface PairInstance {
   wordA: string;
@@ -105,7 +145,14 @@ export default function MinimalPairs() {
   const [lenFilter, setLenFilter] = useState<LenFilter>("any");
   const [minPairs, setMinPairs] = useState(1);
   const [q, setQ] = useState("");
+  const [typeFilter, setTypeFilter] = useState<"any" | PhonoType>("any");
   const [expanded, setExpanded] = useState<string | null>(null);
+  const [baseline, setBaseline] = useState<{
+    mean: number;
+    min: number;
+    max: number;
+    reps: number;
+  } | null>(null);
   const { sort, toggle, sortRows } = useSort("pairs", "desc");
 
   // Restrict the words considered to a chosen length (minimal pairs are always
@@ -129,9 +176,83 @@ export default function MinimalPairs() {
       if (posFilter !== "any" && !alt.roles.has(posFilter)) return false;
       if (alt.pairs.length < minPairs) return false;
       if (u && !alt.signX.includes(u) && !alt.signY.includes(u)) return false;
+      if (
+        typeFilter !== "any" &&
+        phonoTypeOf(alt.signX, alt.signY).type !== typeFilter
+      )
+        return false;
       return true;
     });
-  }, [alternations, posFilter, minPairs, q]);
+  }, [alternations, posFilter, minPairs, q, typeFilter]);
+
+  // Vowel-alternation grid: among same-consonant pairs, which vowel
+  // substitutions recur (weighted by word-pair count)? The a~e / a~u cells
+  // lighting up in final position is the classic paradigm signature.
+  const vowelGrid = useMemo(() => {
+    const V = ["a", "e", "i", "o", "u"];
+    const grid = new Map<string, number>();
+    let max = 0;
+    for (const alt of filtered) {
+      const t = phonoTypeOf(alt.signX, alt.signY);
+      if (t.type !== "vowel") continue;
+      const va = cvOf(alt.signX)![1];
+      const vb = cvOf(alt.signY)![1];
+      if (va.length !== 1 || vb.length !== 1) continue;
+      const [x, y] = [va, vb].sort();
+      const k = `${x}~${y}`;
+      const v = (grid.get(k) ?? 0) + alt.pairs.length;
+      grid.set(k, v);
+      if (v > max) max = v;
+    }
+    return { V, grid, max };
+  }, [filtered]);
+
+  // Chance baseline (on demand): rebuild the vocabulary K times with the
+  // same word-length distribution and the same position-specific sign
+  // frequencies, count minimal pairs each time. If the real corpus has far
+  // more pairs than the randomized ones, the alternations are structure,
+  // not an artifact of a small sign inventory.
+  function computeBaseline() {
+    const real = lenWords.map((w) => w.word.split("-"));
+    // Position-specific sign pools (index capped at 7 so long words share
+    // a tail pool rather than each position being nearly unique).
+    const pools = new Map<number, string[]>();
+    for (const signs of real) {
+      signs.forEach((s, i) => {
+        const k = Math.min(i, 7);
+        let arr = pools.get(k);
+        if (!arr) {
+          arr = [];
+          pools.set(k, arr);
+        }
+        arr.push(s);
+      });
+    }
+    const reps = 20;
+    const counts: number[] = [];
+    for (let r = 0; r < reps; r++) {
+      const fake = new Set<string>();
+      for (const signs of real) {
+        const w = signs
+          .map((_, i) => {
+            const pool = pools.get(Math.min(i, 7))!;
+            return pool[Math.floor(Math.random() * pool.length)];
+          })
+          .join("-");
+        fake.add(w);
+      }
+      counts.push(
+        findMinimalPairs([...fake].map((word) => ({ word }))).pairs.length,
+      );
+    }
+    counts.sort((a, b) => a - b);
+    setBaseline({
+      mean: counts.reduce((s, c) => s + c, 0) / reps,
+      min: counts[0],
+      max: counts[counts.length - 1],
+      reps,
+    });
+  }
 
   const sorted = sortRows(filtered, {
     alt: (a) => a.key,
@@ -165,9 +286,20 @@ export default function MinimalPairs() {
 
   function exportCsv() {
     const rows: (string | number)[][] = [
-      ["sign_a", "sign_b", "word_a", "word_b", "position", "length", "role"],
+      [
+        "sign_a",
+        "sign_b",
+        "word_a",
+        "word_b",
+        "position",
+        "length",
+        "role",
+        "phono_type",
+        "phono_detail",
+      ],
     ];
     for (const alt of sorted) {
+      const t = phonoTypeOf(alt.signX, alt.signY);
       for (const p of alt.pairs) {
         rows.push([
           p.signA,
@@ -177,6 +309,8 @@ export default function MinimalPairs() {
           p.position + 1,
           p.length,
           p.role,
+          PHONO_LABEL[t.type],
+          t.detail,
         ]);
       }
     }
@@ -217,6 +351,43 @@ export default function MinimalPairs() {
             {alternations.filter((a) => a.roles.has("final")).length}
           </span>
           <span className="lbl">Final-position alternations</span>
+        </div>
+        <div
+          className="stat-box"
+          title={
+            baseline
+              ? `${baseline.reps} randomized vocabularies with the same word lengths and position-specific sign frequencies yield ${baseline.min}–${baseline.max} minimal pairs (mean ${baseline.mean.toFixed(0)}). The real corpus has ${pairs.length}.`
+              : "How many minimal pairs would a random vocabulary produce? Click to find out — rebuilds the vocabulary 20× with the same word lengths and position-specific sign frequencies."
+          }
+        >
+          {baseline ? (
+            <>
+              <span
+                className="val"
+                style={{
+                  color:
+                    pairs.length > baseline.max
+                      ? "var(--gn)"
+                      : pairs.length < baseline.min
+                        ? "var(--am)"
+                        : undefined,
+                }}
+              >
+                {baseline.mean.toFixed(0)}
+              </span>
+              <span className="lbl">
+                Chance baseline ({baseline.min}–{baseline.max})
+              </span>
+            </>
+          ) : (
+            <button
+              className="btn btn-outline btn-sm"
+              onClick={computeBaseline}
+              style={{ margin: "auto" }}
+            >
+              Chance baseline?
+            </button>
+          )}
         </div>
       </div>
 
@@ -268,6 +439,27 @@ export default function MinimalPairs() {
         <label
           className="dim"
           style={{ display: "flex", alignItems: "center", gap: 4 }}
+          title="What changes phonologically between the two signs, under the conventional Linear B values: the vowel (the classic inflection signature), the consonant, both, or unknowable (no AB value)"
+        >
+          type
+          <select
+            className="select"
+            value={typeFilter}
+            onChange={(e) =>
+              setTypeFilter(e.target.value as "any" | PhonoType)
+            }
+            style={{ fontSize: 11, padding: "3px 6px" }}
+          >
+            <option value="any">any</option>
+            <option value="vowel">V-alternation</option>
+            <option value="consonant">C-alternation</option>
+            <option value="both">CV-alternation</option>
+            <option value="opaque">no AB values</option>
+          </select>
+        </label>
+        <label
+          className="dim"
+          style={{ display: "flex", alignItems: "center", gap: 4 }}
           title="Minimum number of word pairs for the alternation"
         >
           ≥ pairs
@@ -307,6 +499,17 @@ export default function MinimalPairs() {
                 align: "right",
               },
               {
+                label: "Type",
+                render: (a) => {
+                  const t = phonoTypeOf(a.signX, a.signY);
+                  return `${esc(PHONO_LABEL[t.type])}${t.detail ? ` <span style="color:#6b7280;">${esc(t.detail)}</span>` : ""}`;
+                },
+                md: (a) => {
+                  const t = phonoTypeOf(a.signX, a.signY);
+                  return `${PHONO_LABEL[t.type]}${t.detail ? ` (${t.detail})` : ""}`;
+                },
+              },
+              {
                 label: "Positions",
                 render: (a) => esc([...a.roles].sort().join(", ")),
               },
@@ -344,6 +547,9 @@ export default function MinimalPairs() {
             <tr>
               <SortHeader label="Alternation" sortKey="alt" sort={sort} onToggle={toggle} />
               <SortHeader label="Word pairs" sortKey="pairs" sort={sort} onToggle={toggle} />
+              <th title="What changes under the conventional Linear B values">
+                Type
+              </th>
               <SortHeader label="Positions" sortKey="positions" sort={sort} onToggle={toggle} />
               <th>Examples</th>
             </tr>
@@ -371,6 +577,24 @@ export default function MinimalPairs() {
                     </td>
                     <td className="numeral">{alt.pairs.length}</td>
                     <td style={{ fontSize: 11 }}>
+                      {(() => {
+                        const t = phonoTypeOf(alt.signX, alt.signY);
+                        return (
+                          <span
+                            className={`tag ${t.type === "vowel" ? "tag-success" : t.type === "opaque" ? "" : "tag-domain"}`}
+                            title={
+                              t.type === "opaque"
+                                ? "One or both signs lack a Linear B value — the phonological relationship is unknowable"
+                                : `Under the conventional AB values: ${t.detail}${t.type === "vowel" ? " — same consonant, different vowel: the classic inflection signature" : ""}`
+                            }
+                          >
+                            {PHONO_LABEL[t.type]}
+                            {t.detail ? ` ${t.detail}` : ""}
+                          </span>
+                        );
+                      })()}
+                    </td>
+                    <td style={{ fontSize: 11 }}>
                       {[...alt.roles].map((r) => (
                         <span key={r} className="tag tag-domain">
                           {r}
@@ -388,7 +612,7 @@ export default function MinimalPairs() {
                   </tr>
                   {isOpen && (
                     <tr>
-                      <td colSpan={4} style={{ background: "var(--surface-0)" }}>
+                      <td colSpan={5} style={{ background: "var(--surface-0)" }}>
                         <div
                           style={{
                             padding: "8px 16px",
@@ -426,6 +650,81 @@ export default function MinimalPairs() {
           </tbody>
         </table>
       </div>
+
+      {vowelGrid.max > 0 && (
+        <div className="card" style={{ marginTop: 12, maxWidth: 480 }}>
+          <h4>Vowel-alternation grid</h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Among same-consonant alternations (under the conventional AB
+            values), which vowel substitutions recur — weighted by word-pair
+            count, honoring the filters above. Recurring substitutions
+            concentrated in final position are paradigm candidates.
+          </div>
+          <table
+            style={{
+              borderCollapse: "collapse",
+              fontFamily: "var(--mono)",
+              fontSize: 11,
+            }}
+          >
+            <thead>
+              <tr>
+                <th></th>
+                {vowelGrid.V.map((v) => (
+                  <th
+                    key={v}
+                    style={{ padding: "2px 6px", color: "var(--text-muted)" }}
+                  >
+                    {v}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {vowelGrid.V.map((a, i) => (
+                <tr key={a}>
+                  <th
+                    style={{
+                      padding: "2px 6px",
+                      color: "var(--text-muted)",
+                      textAlign: "right",
+                    }}
+                  >
+                    {a}
+                  </th>
+                  {vowelGrid.V.map((b, j) => {
+                    if (j <= i)
+                      return (
+                        <td key={b} style={{ width: 38, height: 28 }} />
+                      );
+                    const n = vowelGrid.grid.get(`${a}~${b}`) ?? 0;
+                    const t = vowelGrid.max > 0 ? n / vowelGrid.max : 0;
+                    return (
+                      <td
+                        key={b}
+                        title={`${a} ~ ${b}: ${n} word pair${n === 1 ? "" : "s"}`}
+                        style={{
+                          width: 38,
+                          height: 28,
+                          textAlign: "center",
+                          background:
+                            n > 0
+                              ? `rgba(91, 158, 255, ${0.12 + t * 0.7})`
+                              : "transparent",
+                          border: "1px solid var(--border)",
+                          color: n > 0 ? "var(--text)" : "var(--text-muted)",
+                        }}
+                      >
+                        {n || ""}
+                      </td>
+                    );
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </div>
   );
 }
