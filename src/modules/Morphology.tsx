@@ -15,7 +15,7 @@ import { useWorkbench } from "../store/workbench";
 import { keynessG2 } from "../lib/algorithms";
 
 type Mode = "suf" | "pre";
-type Affix = [string, { count: number; words: string[] }];
+type Affix = [string, { count: number; words: string[]; hapax: number }];
 
 const DISPLAY_CAP = 200;
 
@@ -49,13 +49,15 @@ export default function Morphology() {
       if (parts.length <= afxLen) continue;
       const suf = parts.slice(parts.length - afxLen).join("-");
       const pre = parts.slice(0, afxLen).join("-");
-      const s = sm.get(suf) ?? { count: 0, words: [] };
+      const s = sm.get(suf) ?? { count: 0, words: [], hapax: 0 };
       s.count += entry.count;
       s.words.push(word);
+      if (entry.count === 1) s.hapax++;
       sm.set(suf, s);
-      const p = pm.get(pre) ?? { count: 0, words: [] };
+      const p = pm.get(pre) ?? { count: 0, words: [], hapax: 0 };
       p.count += entry.count;
       p.words.push(word);
+      if (entry.count === 1) p.hapax++;
       pm.set(pre, p);
       edgeTotal += entry.count;
       for (let i = 0; i + afxLen <= parts.length; i++) {
@@ -92,6 +94,67 @@ export default function Morphology() {
     return m;
   }, [all, windowStats]);
 
+  // Harris successor variety, over word types: after which sign sequences
+  // does the vocabulary branch unusually widely? A prefix whose number of
+  // distinct continuations is high for its depth — especially when it
+  // RISES above its parent's variety — is a candidate morpheme boundary
+  // (the stem ends, the inflection space opens). Depth-relative scoring,
+  // because early positions always branch widely and variety decays with
+  // depth; the raw rise test alone would discard nearly every real stem.
+  const boundaries = useMemo(() => {
+    const succ = new Map<string, Set<string>>();
+    for (const { word } of words) {
+      const parts = word.split("-");
+      if (parts.length < 2) continue;
+      for (let i = 1; i < parts.length; i++) {
+        const pre = parts.slice(0, i).join("-");
+        let set = succ.get(pre);
+        if (!set) {
+          set = new Set();
+          succ.set(pre, set);
+        }
+        set.add(parts[i]);
+      }
+    }
+    // Mean branching per depth (in signs), for the depth-relative score.
+    const depthSum = new Map<number, number>();
+    const depthN = new Map<number, number>();
+    for (const [pre, set] of succ) {
+      const d = pre.split("-").length;
+      depthSum.set(d, (depthSum.get(d) ?? 0) + set.size);
+      depthN.set(d, (depthN.get(d) ?? 0) + 1);
+    }
+    const rows: {
+      stem: string;
+      variety: number;
+      parentVariety: number;
+      ratio: number;
+    }[] = [];
+    for (const [pre, set] of succ) {
+      const parts = pre.split("-");
+      if (parts.length < 2 || set.size < 3) continue;
+      const mean =
+        (depthSum.get(parts.length) ?? 0) / (depthN.get(parts.length) || 1);
+      const parentVariety =
+        succ.get(parts.slice(0, -1).join("-"))?.size ?? 0;
+      rows.push({
+        stem: pre,
+        variety: set.size,
+        parentVariety,
+        ratio: mean > 0 ? set.size / mean : 0,
+      });
+    }
+    rows.sort((a, b) => b.ratio - a.ratio || a.stem.localeCompare(b.stem));
+    const top = rows.slice(0, 16).map((r) => {
+      const prefix = r.stem + "-";
+      const exts = words
+        .filter((w) => w.word.startsWith(prefix))
+        .map((w) => w.word);
+      return { ...r, exts: exts.slice(0, 6), extCount: exts.length };
+    });
+    return { rows: top, total: rows.length };
+  }, [words]);
+
   const filtered = useMemo(() => {
     const u = q.toUpperCase();
     return all.filter(
@@ -107,6 +170,7 @@ export default function Morphology() {
     distinct: ([, d]) => d.words.length,
     affix: ([s]) => s,
     bias: ([s]) => edgeBias.get(s)?.signed ?? 0,
+    prod: ([, d]) => (d.count > 0 ? d.hapax / d.count : 0),
   });
   const display = sorted.slice(0, DISPLAY_CAP);
 
@@ -129,6 +193,8 @@ export default function Morphology() {
         mode === "suf" ? "suffix" : "prefix",
         "total_count",
         "distinct_words",
+        "hapax_types",
+        "productivity_p",
         "interior_count",
         "edge_bias_g2",
         "example_words",
@@ -140,6 +206,8 @@ export default function Morphology() {
         fmt(s),
         d.count,
         d.words.length,
+        d.hapax,
+        d.count > 0 ? (d.hapax / d.count).toFixed(4) : "",
         b?.interior ?? 0,
         (b?.signed ?? 0).toFixed(3),
         d.words.slice(0, 20).join(" "),
@@ -161,8 +229,10 @@ export default function Morphology() {
         affix length, set a minimum distinct-word count, and sort or expand any
         row to see its full word family. The <b>Edge G²</b> column tests
         whether a sequence is genuinely edge-leaning (over-represented at the
-        word edge versus interior positions) — a stronger affix signal than
-        raw frequency.
+        word edge versus interior positions); <b>P</b> is Baayen's
+        hapax-based productivity index. Below the table, an independent
+        check: Harris successor variety, which finds candidate morpheme
+        boundaries from branching structure alone.
       </p>
 
       <div className="tab-row">
@@ -195,6 +265,7 @@ export default function Morphology() {
               affix: s,
               count: d.count,
               distinct: d.words.length,
+              prod: d.count > 0 ? d.hapax / d.count : 0,
               bias: edgeBias.get(s)?.signed ?? 0,
               words: d.words,
             }));
@@ -219,6 +290,11 @@ export default function Morphology() {
               {
                 label: "Distinct words",
                 render: (a) => esc(a.distinct),
+                align: "right",
+              },
+              {
+                label: "P",
+                render: (a) => esc(a.prod.toFixed(2)),
                 align: "right",
               },
               {
@@ -335,6 +411,13 @@ export default function Morphology() {
                 onToggle={toggle}
               />
               <SortHeader
+                label="P"
+                sortKey="prod"
+                sort={sort}
+                onToggle={toggle}
+                title="Baayen's productivity index: hapax types carrying the affix / affix tokens. High P = the affix actively forms new (once-attested) words; near 0 = a closed, established set. In a corpus that is mostly hapax every P runs high — compare affixes against each other, not against an absolute scale."
+              />
+              <SortHeader
                 label="Edge G²"
                 sortKey="bias"
                 sort={sort}
@@ -387,6 +470,12 @@ export default function Morphology() {
                     <td className="dim">{d.words.length}</td>
                     <td
                       className="numeral"
+                      title={`${d.hapax} of this affix's ${d.words.length} words are corpus hapaxes; P = ${d.hapax}/${d.count} tokens`}
+                    >
+                      {d.count > 0 ? (d.hapax / d.count).toFixed(2) : "—"}
+                    </td>
+                    <td
+                      className="numeral"
                       style={{
                         color:
                           (edgeBias.get(s)?.signed ?? 0) >= 3.84
@@ -414,7 +503,7 @@ export default function Morphology() {
             })}
             {display.length === 0 && (
               <tr>
-                <td colSpan={5} className="dim" style={{ padding: 12 }}>
+                <td colSpan={6} className="dim" style={{ padding: 12 }}>
                   No {unit} match these filters.
                 </td>
               </tr>
@@ -422,6 +511,68 @@ export default function Morphology() {
           </tbody>
         </table>
       </div>
+
+      {boundaries.rows.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h4>
+            Boundary signals — Harris successor variety{" "}
+            <span className="dim">
+              ({boundaries.total} branching stems, top{" "}
+              {boundaries.rows.length})
+            </span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Harris's segmentation heuristic, over word types: walk each word
+            sign by sign and count how many <em>distinct</em> signs the
+            vocabulary continues with. Branching decays with depth — so
+            these are the stems whose continuation count is largest{" "}
+            <em>relative to their depth's average</em>. After these
+            sequences the vocabulary fans out: candidate morpheme
+            boundaries, found with no assumptions about what an affix looks
+            like. Cross-check against the affix table above — agreement
+            from two independent methods is the real signal.
+          </div>
+          <div style={{ display: "grid", gap: 4 }}>
+            {boundaries.rows.map((r) => (
+              <div
+                key={r.stem}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  fontSize: 11,
+                  flexWrap: "wrap",
+                }}
+              >
+                <b
+                  style={{
+                    fontFamily: "var(--mono)",
+                    color: "var(--gn)",
+                    whiteSpace: "nowrap",
+                  }}
+                >
+                  {r.stem}-
+                </b>
+                <span
+                  className="numeral"
+                  title={`${r.variety} distinct signs follow ${r.stem}- across the vocabulary — ×${r.ratio.toFixed(1)} the average branching at this depth. Its parent prefix branches into ${r.parentVariety}.`}
+                  style={{ whiteSpace: "nowrap" }}
+                >
+                  {r.variety} continuations · ×{r.ratio.toFixed(1)} depth avg
+                </span>
+                <span>
+                  {r.exts.map((w) => (
+                    <WordToken key={w} word={w} />
+                  ))}
+                  {r.extCount > r.exts.length && (
+                    <span className="dim"> +{r.extCount - r.exts.length}</span>
+                  )}
+                </span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -15,6 +15,7 @@ analysis the tool produces.
 - [Scribal Network](#scribal-network)
 - [Inscription similarity](#inscription-similarity)
 - [Interlinear alignment (Compare Inscriptions)](#interlinear-alignment-compare-inscriptions)
+- [Affix candidates (Morphology)](#affix-candidates-morphology)
 - [Stem families (heuristic morphological clustering)](#stem-families-heuristic-morphological-clustering)
 - [Consonant-skeleton roots](#consonant-skeleton-roots)
 - [Sign pattern matching (wildcards)](#sign-pattern-matching-wildcards)
@@ -457,6 +458,40 @@ not a claim about textual descent.
 
 **Implementation**: `alignSequences` in
 [`compareAlign.ts`](../src/lib/compareAlign.ts).
+
+## Affix candidates (Morphology)
+
+The Morphology module tallies recurring word edges (suffixes/prefixes of
+1–3 signs, token-weighted) and scores each candidate three independent
+ways:
+
+- **Edge G²** — Dunning's log-likelihood comparing the sequence's rate in
+  the edge slot against its rate across all other window positions of the
+  same length. A real affix is over-represented at the edge; a sequence
+  that merely contains common signs is not. Signed: positive =
+  edge-leaning. See the co-occurrence section for the G² formula and the
+  thresholds caveat.
+- **P, Baayen's productivity index** (Baayen 1992) = hapax types carrying
+  the affix / total affix tokens. The logic: an affix still actively
+  forming words keeps producing new (once-attested) formations, so its
+  hapax share is high; a closed set of fossilized forms scores near zero.
+  Caveat: in a corpus where most word types are hapaxes, *every* P runs
+  high — the index is meaningful for ranking affixes against each other,
+  not against published values from large corpora.
+- **Harris successor variety** (Harris 1955), in the "Boundary signals"
+  card — the segmentation classic, run over word types. Walking a word
+  sign by sign, count how many distinct signs the vocabulary continues
+  with after each prefix. Branching is widest at depth 1 and decays, so
+  raw variety can't be compared across depths; the card ranks stems by
+  variety **relative to the mean branching at their depth**. A stem whose
+  continuation count is several times its depth average is a candidate
+  morpheme boundary, derived purely from distributional structure — no
+  assumptions about affix length or shape. Where successor variety and
+  the affix table agree (e.g. a stem branching into exactly the
+  high-edge-G² suffixes), two independent methods corroborate one
+  segmentation; that agreement, not either number alone, is the finding.
+
+**Implementation**: [`Morphology.tsx`](../src/modules/Morphology.tsx).
 
 ## Stem families (heuristic morphological clustering)
 
