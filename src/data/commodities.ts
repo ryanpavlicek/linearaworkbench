@@ -59,3 +59,27 @@ export function commodityHead(token: string): string | null {
 
 export const isUndecipheredLogogram = (token: string): boolean =>
   /^\*\d/.test(token);
+
+// Is a hyphenated token a candidate LEXICAL word (a syllabic sign
+// sequence), as opposed to a chain of logograms that merely tokenized
+// with hyphens? Word-level analyses (graphotactic surprisal, anomaly
+// lists) want real words: ligatures (+), bracketed damage, commodity
+// heads, and the GORILA *400+ series (vessels, fractions, compound
+// logograms — never word-internal syllabograms; the undeciphered
+// syllabary candidates like *301/*306 sit below 400) all disqualify.
+// A token whose every part is a *NNN logogram is a logogram chain too.
+export function isLexicalWord(word: string): boolean {
+  if (!word.includes("-")) return false;
+  if (/[+[\]?]/.test(word)) return false;
+  const parts = word.split("-");
+  let starred = 0;
+  for (const p of parts) {
+    if (commodityHead(p)) return false;
+    const m = /^\*(\d+)/.exec(p);
+    if (m) {
+      if (+m[1] >= 400) return false;
+      starred++;
+    }
+  }
+  return starred < parts.length;
+}

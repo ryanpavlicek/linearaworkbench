@@ -8,6 +8,8 @@ import {
 import { useScopedMultiWords } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
 import { bootstrapCountsCI, millerMadowEntropy } from "../lib/lexstats";
+import { trainSignBigramModel, wordSurprisal } from "../lib/surprisal";
+import { isLexicalWord } from "../data/commodities";
 import { Glyph } from "../components/Glyph";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -250,6 +252,30 @@ export default function SignTransitions() {
     out.sort((x, y) => y.expected - x.expected);
     return out.slice(0, 18);
   }, [data, rowTotals, colTotals, grandTotal]);
+
+  // Leave-one-out surprisal of every lexical word under a smoothed bigram
+  // model of the current view — the anomaly list at the bottom. Trained
+  // and scored on lexical words only: hyphen-joined logogram chains
+  // (*405-VS-*906, ligature compounds) are trivially "improbable" and
+  // would bury the interesting candidates.
+  const surprisal = useMemo(() => {
+    const lexical = words.filter((w) => isLexicalWord(w.word));
+    const model = trainSignBigramModel(
+      lexical.map((w) => ({ word: w.word, count: w.entry.count })),
+    );
+    const scored = lexical.map(({ word, entry }) => {
+      const r = wordSurprisal(model, word, entry.count);
+      let worst = r.steps[0];
+      for (const s of r.steps) if (s.bits > worst.bits) worst = s;
+      return { word, count: entry.count, mean: r.mean, worst };
+    });
+    scored.sort((a, b) => b.mean - a.mean);
+    const means = scored.map((s) => s.mean).sort((a, b) => a - b);
+    return {
+      top: scored.slice(0, 14),
+      median: means.length ? means[Math.floor(means.length / 2)] : 0,
+    };
+  }, [words]);
 
   const sel = selected;
   const outList = sel
@@ -857,6 +883,63 @@ export default function SignTransitions() {
           )}
         </div>
       </div>
+
+      {surprisal.top.length > 0 && (
+        <div className="card" style={{ marginTop: 12 }}>
+          <h4>
+            Improbable words — graphotactic surprisal{" "}
+            <span className="dim">
+              (corpus median {surprisal.median.toFixed(1)} bits/transition)
+            </span>
+          </h4>
+          <div className="sub" style={{ marginBottom: 8 }}>
+            Each word scored by a smoothed sign-bigram model of the whole
+            view, <em>leave-one-out</em> — a word gets no credit for
+            transitions only it attests. High bits per transition = a sign
+            sequence the rest of the corpus doesn't write: candidate
+            loanwords, foreign names, scribal errors, or damaged readings.
+            Sequence-level only; it knows nothing of sound values. The
+            flagged step is the single most improbable transition (^ and $
+            are word edges).
+          </div>
+          <div style={{ display: "grid", gap: 4 }}>
+            {surprisal.top.map((r) => (
+              <div
+                key={r.word}
+                style={{
+                  display: "flex",
+                  alignItems: "baseline",
+                  gap: 8,
+                  fontSize: 11,
+                  flexWrap: "wrap",
+                }}
+              >
+                <WordToken word={r.word} />
+                <span
+                  className="numeral"
+                  style={{ color: "var(--am)", whiteSpace: "nowrap" }}
+                  title={`Mean surprisal ${r.mean.toFixed(2)} bits per transition (corpus median ${surprisal.median.toFixed(2)}), leave-one-out over ${r.count} token${r.count === 1 ? "" : "s"}`}
+                >
+                  {r.mean.toFixed(1)} bits/step
+                </span>
+                <span
+                  className="dim"
+                  style={{ fontFamily: "var(--mono)", fontSize: 10 }}
+                  title="The word's single most improbable transition"
+                >
+                  worst {r.worst.from}→{r.worst.to} ({r.worst.bits.toFixed(1)}
+                  )
+                </span>
+                {r.count > 1 && (
+                  <span className="dim" style={{ fontSize: 10 }}>
+                    ×{r.count}
+                  </span>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

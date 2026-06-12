@@ -1,7 +1,9 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useFocusTrap } from "../lib/useFocusTrap";
 import { wordToPhonetic, extractRoot } from "../lib/algorithms";
+import { trainSignBigramModel, wordSurprisal } from "../lib/surprisal";
+import { isLexicalWord } from "../data/commodities";
 import {
   describeInscription,
   downloadFile,
@@ -85,6 +87,33 @@ function WordDetailBody({ word }: { word: string }) {
   const close = useWorkbench((s) => s.closeDetail);
   const setActiveModule = useWorkbench((s) => s.setActiveModule);
 
+  // Graphotactic surprisal of this word against the whole corpus —
+  // leave-one-out, percentile-ranked among multi-sign words. Cheap enough
+  // to compute per open (the model is ~2,700 transitions), memoized so
+  // unrelated store updates don't redo it. Before the early return: hooks
+  // must run unconditionally.
+  const surprisalInfo = useMemo(() => {
+    if (!isLexicalWord(word)) return null;
+    const list: { word: string; count: number }[] = [];
+    for (const [w, e] of wordIndex)
+      if (isLexicalWord(w)) list.push({ word: w, count: e.count });
+    if (list.length < 20) return null;
+    const model = trainSignBigramModel(list);
+    const mine = wordSurprisal(model, word, wordIndex.get(word)?.count ?? 0);
+    let moreSurprising = 0;
+    for (const item of list) {
+      if (wordSurprisal(model, item.word, item.count).mean > mine.mean)
+        moreSurprising++;
+    }
+    return {
+      mean: mine.mean,
+      topPct: Math.min(
+        100,
+        Math.ceil((100 * (moreSurprising + 1)) / list.length),
+      ),
+    };
+  }, [wordIndex, word]);
+
   if (!entry) return null;
 
   const phonetic = wordToPhonetic(word, hypothesis);
@@ -124,7 +153,28 @@ function WordDetailBody({ word }: { word: string }) {
           <h3>{word}</h3>
           <div className="meta">
             phonetic <b style={{ color: "var(--text)" }}>/{phonetic}/</b> · count{" "}
-            <b style={{ color: "var(--text)" }}>{entry.count}</b> · sites{" "}
+            <b style={{ color: "var(--text)" }}>{entry.count}</b>
+            {surprisalInfo && (
+              <>
+                {" "}
+                · graphotactics{" "}
+                <b
+                  style={{
+                    color:
+                      surprisalInfo.topPct <= 10
+                        ? "var(--am)"
+                        : "var(--text)",
+                  }}
+                  title={`Mean leave-one-out surprisal under a corpus-wide sign-bigram model: ${surprisalInfo.mean.toFixed(2)} bits per transition — more improbable than all but ${surprisalInfo.topPct}% of multi-sign words. A high value means the sign sequence is unlike what the rest of the corpus writes (loanword? name? damaged reading?). Sequence-level only — no claim about sound or meaning.`}
+                >
+                  {surprisalInfo.mean.toFixed(1)} bits/step
+                  {surprisalInfo.topPct <= 10
+                    ? ` (top ${surprisalInfo.topPct}% unusual)`
+                    : ""}
+                </b>
+              </>
+            )}{" "}
+            · sites{" "}
             {[...entry.sites].map((s) => (
               <span className="tag tag-site" key={s}>
                 {s}

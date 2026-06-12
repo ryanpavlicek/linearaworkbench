@@ -802,6 +802,42 @@ than as absolute constants of "the Minoan language".
 **Implementation**: [`SignTransitions.tsx`](../src/modules/SignTransitions.tsx),
 [`lexstats.ts`](../src/lib/lexstats.ts) (entropy estimators, unit-tested).
 
+### Graphotactic surprisal
+
+The "Improbable words" list (and the *graphotactics* badge in the word
+detail) scores every multi-sign word under a first-order sign-bigram
+model with word-boundary markers (`^ → p₁ → … → pₙ → $`), token-weighted
+and **Witten–Bell smoothed** (the interpolation weight for the backoff
+distribution is the number of distinct continuations a context has — no
+tuned hyperparameter). A word's score is its mean −log₂ probability per
+transition, in bits.
+
+Scoring is **leave-one-out**: a word's own token count is subtracted from
+every count (including the continuation-type tally when it was a
+transition's sole carrier) before its probability is computed. Without
+this, a hapax built from one-off transitions validates itself and scores
+as ordinary; with it, the word is scored against what the *rest* of the
+corpus writes — which is the question being asked.
+
+The model trains and scores **lexical words only**: hyphen-joined
+logogram chains, ligature compounds (`+`), bracketed damage, commodity
+heads, and the GORILA *400+ vessel/fraction series are filtered out
+(`isLexicalWord`), because such tokens are trivially "improbable" and
+would bury the linguistically interesting candidates.
+
+Reading the list honestly: high surprisal flags a sign *sequence* the
+corpus doesn't otherwise produce. That is consistent with a loanword or
+foreign name, but equally with a scribal error, a damaged or uncertain
+reading inherited from the source transcription, or simply a rare but
+native combination — the model cannot tell these apart, and it knows
+nothing of phonetic values or meaning. Treat it as a reading list, not a
+classifier.
+
+**Implementation**: [`surprisal.ts`](../src/lib/surprisal.ts)
+(unit-tested), surfaced in
+[`SignTransitions.tsx`](../src/modules/SignTransitions.tsx) and the word
+detail modal.
+
 ## Scribe sign-frequency comparison
 
 The Scribe Comparison view (the **Scribes › Comparison** tab) profiles each
