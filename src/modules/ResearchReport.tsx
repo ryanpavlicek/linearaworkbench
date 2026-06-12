@@ -45,7 +45,15 @@ const SECTION_LABEL: Record<Section, string> = {
 type ImageShow = "facsimile" | "photo" | "both";
 
 type ReportBlock =
-  | { kind: "section"; bid: string; section: Section; enabled: boolean }
+  | {
+      kind: "section";
+      bid: string;
+      section: Section;
+      enabled: boolean;
+      // Per-item curation: ids (annotation/finding/collection ids,
+      // hypothesis names, tablet ids) excluded from this section's render.
+      excluded?: string[];
+    }
   | { kind: "text"; bid: string; heading: string; body: string }
   | {
       kind: "image";
@@ -76,6 +84,55 @@ interface ReportConfig {
   blocks: ReportBlock[];
   // Which plate(s) of each collection inscription to embed. Default facsimile.
   collectionImageMode?: CollImgMode;
+}
+
+// Apply a section block's per-item exclusions to the report data. Sections
+// read whichever list they render from; everything else passes through.
+function curatedData(
+  d: ReportData,
+  b: Extract<ReportBlock, { kind: "section" }>,
+): ReportData {
+  if (!b.excluded || b.excluded.length === 0) return d;
+  const ex = new Set(b.excluded);
+  return {
+    ...d,
+    annotations: d.annotations.filter((a) => !ex.has(a.id)),
+    findings: d.findings.filter((f) => !ex.has(f.id)),
+    collections: d.collections.filter((c) => !ex.has(c.id)),
+    hypotheses: d.hypotheses.filter((h) => !ex.has(h.name)),
+    tabletCategories: Object.fromEntries(
+      Object.entries(d.tabletCategories).filter(([id]) => !ex.has(id)),
+    ),
+  };
+}
+
+// The curatable items of a section, with display labels — what the
+// per-item checklist renders.
+function sectionItems(
+  section: Section,
+  d: ReportData,
+): { id: string; label: string }[] {
+  switch (section) {
+    case "annotations":
+      return d.annotations.map((a) => ({
+        id: a.id,
+        label: `${a.target.value}${a.proposedMeaning ? ` — ${a.proposedMeaning}` : ""}`,
+      }));
+    case "hypotheses":
+      return d.hypotheses.map((h) => ({ id: h.name, label: h.name }));
+    case "collections":
+      return d.collections.map((c) => ({
+        id: c.id,
+        label: `${c.name} (${c.items.length})`,
+      }));
+    case "findings":
+      return d.findings.map((f) => ({ id: f.id, label: f.title }));
+    case "reclassified":
+      return Object.entries(d.tabletCategories).map(([id, cat]) => ({
+        id,
+        label: `${id} → ${cat}`,
+      }));
+  }
 }
 
 function defaultBlocks(): ReportBlock[] {
@@ -291,7 +348,7 @@ function buildMarkdown(d: ReportData, cfg: ReportConfig): string {
   let any = false;
   for (const b of cfg.blocks) {
     if (b.kind === "section" && b.enabled) {
-      const s = sectionMarkdown(b.section, d);
+      const s = sectionMarkdown(b.section, curatedData(d, b));
       if (s.length) {
         any = true;
         lines.push(...s);
@@ -537,7 +594,7 @@ function buildHtmlReport(
 
   for (const b of cfg.blocks) {
     if (b.kind === "section" && b.enabled) {
-      const s = sectionHtml(b.section, d, insImages);
+      const s = sectionHtml(b.section, curatedData(d, b), insImages);
       if (s) parts.push(`<section>${s}</section>`);
     } else if (b.kind === "text") {
       const body = b.body
@@ -937,6 +994,9 @@ export default function ResearchReport() {
 
   const markdown = useMemo(() => buildMarkdown(data, cfg), [data, cfg]);
 
+  // Which section block's per-item curation checklist is open.
+  const [curating, setCurating] = useState<string | null>(null);
+
   // ── block ops ──────────────────────────────────────────────────────────
   const setBlocks = (fn: (b: ReportBlock[]) => ReportBlock[]) =>
     setCfg((c) => ({ ...c, blocks: fn(c.blocks) }));
@@ -1201,30 +1261,100 @@ export default function ResearchReport() {
             </div>
 
             {b.kind === "section" && (
-              <label
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flex: 1,
-                  cursor: "pointer",
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={b.enabled}
-                  onChange={(e) =>
-                    update(b.bid, { enabled: e.target.checked })
-                  }
-                />
-                <span style={{ flex: 1 }}>
-                  <b>{SECTION_LABEL[b.section]}</b>{" "}
-                  <span className="dim" style={{ fontSize: 11 }}>
-                    · auto · {counts[b.section]} item
-                    {counts[b.section] === 1 ? "" : "s"}
+              <div style={{ flex: 1 }}>
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={b.enabled}
+                    onChange={(e) =>
+                      update(b.bid, { enabled: e.target.checked })
+                    }
+                  />
+                  <span style={{ flex: 1 }}>
+                    <b>{SECTION_LABEL[b.section]}</b>{" "}
+                    <span className="dim" style={{ fontSize: 11 }}>
+                      · auto · {counts[b.section]} item
+                      {counts[b.section] === 1 ? "" : "s"}
+                      {b.excluded && b.excluded.length > 0
+                        ? ` (${b.excluded.length} excluded)`
+                        : ""}
+                    </span>
                   </span>
-                </span>
-              </label>
+                  {counts[b.section] > 0 && (
+                    <button
+                      className="btn btn-outline btn-sm"
+                      style={{ padding: "0 8px", fontSize: 10, minWidth: 0 }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setCurating(curating === b.bid ? null : b.bid);
+                      }}
+                      title="Choose which individual items this section includes"
+                    >
+                      {curating === b.bid ? "Done" : "Curate…"}
+                    </button>
+                  )}
+                </label>
+                {curating === b.bid && (
+                  <div
+                    style={{
+                      marginTop: 6,
+                      padding: "6px 8px",
+                      background: "var(--surface-0)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 4,
+                      maxHeight: 220,
+                      overflowY: "auto",
+                      display: "grid",
+                      gap: 2,
+                    }}
+                  >
+                    {sectionItems(b.section, data).map((item) => {
+                      const excluded = (b.excluded ?? []).includes(item.id);
+                      return (
+                        <label
+                          key={item.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "baseline",
+                            gap: 6,
+                            fontSize: 11,
+                            cursor: "pointer",
+                          }}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={!excluded}
+                            onChange={(e) => {
+                              const next = new Set(b.excluded ?? []);
+                              if (e.target.checked) next.delete(item.id);
+                              else next.add(item.id);
+                              update(b.bid, { excluded: [...next] });
+                            }}
+                          />
+                          <span
+                            style={{
+                              flex: 1,
+                              textDecoration: excluded
+                                ? "line-through"
+                                : undefined,
+                              opacity: excluded ? 0.5 : 1,
+                            }}
+                          >
+                            {item.label}
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             )}
 
             {b.kind === "text" && (
