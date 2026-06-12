@@ -4,7 +4,7 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
-## Unreleased
+## 1.3.0 — 2026-06-12
 
 - **Bring your own corpus**: `?corpus=<url>` (or *Data Export → Load
   corpus from file*) runs every module against an inscription set you
@@ -37,6 +37,13 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   [docs/FEATURES.md](docs/FEATURES.md); two new step-by-step recipes in
   Help (building a case for a word's meaning; testing whether a tablet
   is a copy).
+- Commentary Browser search hits are now highlighted inside the rendered
+  doc, not just counted in the results list.
+- The Co-occurrence table and the Network graph now share one
+  pair-counting implementation, so the two views can never disagree on a
+  PMI value.
+- SVG charts (the Zipf curve, both network graphs, the map and its
+  minimap) carry descriptive labels for screen readers.
 
 ## 1.2.0 — 2026-06-12
 

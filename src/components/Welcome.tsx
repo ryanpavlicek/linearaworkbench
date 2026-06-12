@@ -122,7 +122,7 @@ export function Welcome() {
             style={{ marginBottom: 12 }}
           >
             <FeatureCard
-              title="37 analysis modules"
+              title="38 analysis modules"
               text="Frequency, morphology, co-occurrence (table + network graph), sign concordance, wildcard sign-pattern search, sequence patterns, geography, scribal analysis, full-text Younger commentary browse, and more — grouped in the left sidebar, related views tabbed together. A Methodology page under Help explains the math behind every analysis."
             />
             <FeatureCard

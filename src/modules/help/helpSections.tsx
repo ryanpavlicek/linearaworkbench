@@ -2641,6 +2641,33 @@ export const SECTIONS: Section[] = [
       </>
     ),
   },
+  {
+    id: "mod-lexicon",
+    group: "Research modules",
+    title: "My Lexicon",
+    keywords: "lexicon glossary meanings annotations dictionary vocabulary",
+    body: (
+      <>
+        <P>
+          Every annotation you make — via the quiet ✎ control next to any
+          word, or from a word/tablet detail view — lands here as a row in
+          one working glossary: the proposed meaning, your confidence,
+          evidence links, and notes, joined live with how widely the form is
+          attested in the corpus (count and site spread). Filter by text,
+          kind, or minimum confidence; sort by any column; export CSV or
+          save the table to{" "}
+          <ModuleLink to="annot" intent={{ tab: "findings" }}>findings</ModuleLink>{" "}
+          for the report.
+        </P>
+        <P>
+          The point is leverage: you annotate one word at a time, and the
+          lexicon assembles the dictionary-in-progress for free. It's also
+          the quickest audit of your own evidence — a "high confidence"
+          entry with one attestation and no evidence links stands out.
+        </P>
+      </>
+    ),
+  },
 
   // ─────────────────────────── WORKFLOWS ──────────────────────────────
   {
