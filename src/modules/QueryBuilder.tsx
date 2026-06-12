@@ -5,6 +5,8 @@ import { WordToken } from "../components/WordToken";
 import { WordAutocomplete } from "../components/WordAutocomplete";
 import { Glyph } from "../components/Glyph";
 import { SaveFindingButton } from "../components/SaveFindingButton";
+import { useSort, SortHeader } from "../components/sort";
+import { csvEscape, downloadFile } from "../lib/helpers";
 import { KEYS, loadJson, saveJson } from "../lib/persistence";
 import { querySnippet } from "../lib/pyaegean";
 import type { Inscription, ModuleId } from "../lib/types";
@@ -190,6 +192,63 @@ export default function QueryBuilder() {
       : results.words;
   const activeCount =
     output === "inscriptions" ? activeInscriptions.length : activeWords.length;
+
+  // Sortable result tables — separate sort state per output shape.
+  const {
+    sort: insSort,
+    toggle: insToggle,
+    sortRows: insSortRows,
+  } = useSort("id", "asc");
+  const {
+    sort: wordSort,
+    toggle: wordToggle,
+    sortRows: wordSortRows,
+  } = useSort("count", "desc");
+  const sortedInscriptions = insSortRows(activeInscriptions, {
+    id: (i) => i.id,
+    site: (i) => i.site || "",
+    period: (i) => i.context || "",
+    scribe: (i) => i.scribe || "",
+    words: (i) => i.words.filter((w) => w.includes("-")).length,
+  });
+  const sortedWords = wordSortRows(activeWords, {
+    word: ([w]) => w,
+    count: ([, c]) => c,
+    total: ([w]) => wordIndex.get(w)?.count ?? 0,
+  });
+
+  function exportCsv() {
+    if (output === "inscriptions") {
+      const rows: (string | number)[][] = [
+        ["inscription", "site", "period", "scribe", "words", "text"],
+      ];
+      for (const i of sortedInscriptions) {
+        rows.push([
+          i.id,
+          i.site,
+          i.context,
+          i.scribe,
+          i.words.filter((w) => w.includes("-")).length,
+          i.words.join(" "),
+        ]);
+      }
+      downloadFile(
+        "linear_a_query_inscriptions.csv",
+        rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+      );
+    } else {
+      const rows: (string | number)[][] = [
+        ["word", "count_in_matches", "total_attestations"],
+      ];
+      for (const [w, c] of sortedWords) {
+        rows.push([w, c, wordIndex.get(w)?.count ?? 0]);
+      }
+      downloadFile(
+        "linear_a_query_words.csv",
+        rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+      );
+    }
+  }
 
   function addFilter() {
     setFilters((f) => [
@@ -766,6 +825,14 @@ export default function QueryBuilder() {
         <span style={{ flex: 1 }} />
         <button
           className="btn btn-outline btn-sm"
+          onClick={exportCsv}
+          disabled={activeCount === 0}
+          title="Download the full result set (current sort order) as CSV"
+        >
+          Export CSV
+        </button>
+        <button
+          className="btn btn-outline btn-sm"
           onClick={useAsScope}
           disabled={output !== "inscriptions" || activeCount === 0}
           title="Use this result set as the global corpus scope — every other module will compute over just these inscriptions"
@@ -888,17 +955,17 @@ export default function QueryBuilder() {
           <table>
             <thead>
               <tr>
-                <th>ID</th>
-                <th>Site</th>
-                <th>Period</th>
-                <th>Scribe</th>
-                <th>Words</th>
+                <SortHeader label="ID" sortKey="id" sort={insSort} onToggle={insToggle} />
+                <SortHeader label="Site" sortKey="site" sort={insSort} onToggle={insToggle} />
+                <SortHeader label="Period" sortKey="period" sort={insSort} onToggle={insToggle} />
+                <SortHeader label="Scribe" sortKey="scribe" sort={insSort} onToggle={insToggle} />
+                <SortHeader label="Words" sortKey="words" sort={insSort} onToggle={insToggle} />
                 <th>Glyphs</th>
                 <th style={{ width: 1 }}>Open in…</th>
               </tr>
             </thead>
             <tbody>
-              {activeInscriptions.slice(0, 200).map((ins) => (
+              {sortedInscriptions.slice(0, 200).map((ins) => (
                 <tr key={ins.id}>
                   <td>
                     <InscriptionLink id={ins.id} />
@@ -952,14 +1019,24 @@ export default function QueryBuilder() {
               <tr>
                 <th>#</th>
                 <th>Glyph</th>
-                <th>Word</th>
-                <th>Count in matching inscriptions</th>
-                <th>Total attestations</th>
+                <SortHeader label="Word" sortKey="word" sort={wordSort} onToggle={wordToggle} />
+                <SortHeader
+                  label="Count in matching inscriptions"
+                  sortKey="count"
+                  sort={wordSort}
+                  onToggle={wordToggle}
+                />
+                <SortHeader
+                  label="Total attestations"
+                  sortKey="total"
+                  sort={wordSort}
+                  onToggle={wordToggle}
+                />
                 <th style={{ width: 1 }}>Open in…</th>
               </tr>
             </thead>
             <tbody>
-              {activeWords.slice(0, 200).map(([w, c], i) => (
+              {sortedWords.slice(0, 200).map(([w, c], i) => (
                 <tr key={w}>
                   <td className="dim">{i + 1}</td>
                   <td>

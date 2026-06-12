@@ -2,9 +2,17 @@ import { useMemo, useState } from "react";
 import { PHONETIC_MAP } from "../data/phoneticMap";
 import { languageLabel } from "../data/languages";
 import { useWorkbench, getAllLanguages } from "../store/workbench";
-import { useMultiWords } from "../lib/helpers";
+import { useMultiWords, csvEscape, downloadFile } from "../lib/helpers";
 import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
 import { WordToken } from "../components/WordToken";
+import { SaveFindingButton } from "../components/SaveFindingButton";
+import {
+  esc,
+  snippetTable,
+  snippetTableMd,
+  snippetWrap,
+  type SnippetColumn,
+} from "../lib/reportSnippet";
 
 export default function SoundShift() {
   const hyp = useWorkbench((s) => s.hypothesis);
@@ -142,6 +150,101 @@ export default function SoundShift() {
         >
           Save snapshot
         </button>
+        <button
+          className="btn btn-outline btn-sm"
+          disabled={deltaRows.length === 0}
+          onClick={() => {
+            const rows: (string | number)[][] = [
+              [
+                "word",
+                "standard_phonetic",
+                "modified_phonetic",
+                "standard_score",
+                "modified_score",
+                "delta",
+                "best_match",
+                "best_match_language",
+                "best_match_meaning",
+              ],
+            ];
+            for (const r of deltaRows) {
+              rows.push([
+                r.word,
+                r.std,
+                r.mod,
+                r.sStd.toFixed(3),
+                r.sMod.toFixed(3),
+                r.delta.toFixed(3),
+                r.bestMod?.word ?? "",
+                r.bestMod ? languageLabel(r.bestMod.lang) : "",
+                r.bestMod?.meaning ?? "",
+              ]);
+            }
+            downloadFile(
+              "linear_a_sound_shift_evaluation.csv",
+              rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+            );
+          }}
+          title="Download the evaluation table (standard vs modified reading, match scores, best matches) as CSV"
+        >
+          Export CSV
+        </button>
+        <SaveFindingButton
+          module="hyp"
+          moduleLabel="Sound Shift"
+          defaultTitle={
+            modified > 0
+              ? `Sound shift: ${modifiedSigns.slice(0, 4).join(", ")}${modifiedSigns.length > 4 ? "…" : ""}`
+              : "Sound shift (baseline)"
+          }
+          summary={
+            (modified > 0
+              ? `Overrides: ${modifiedSigns.map((s) => `${s}→${hyp[s]}`).join(", ")}.`
+              : "No sign overrides (baseline readings).") +
+            (agg
+              ? `\nAvg match score ${agg.avgStd.toFixed(3)} → ${agg.avgMod.toFixed(3)} (net ${agg.net >= 0 ? "+" : ""}${agg.net.toFixed(3)}); ${agg.improved} improved / ${agg.worsened} worsened / ${agg.same} unchanged of ${deltaRows.length} evaluated words.`
+              : "")
+          }
+          payload={{ overrides: hyp }}
+          reportFn={() => {
+            const slice = deltaRows.slice(0, 50);
+            type R = (typeof slice)[number];
+            const cols: SnippetColumn<R>[] = [
+              { label: "Word", render: (r) => `<code>${esc(r.word)}</code>` },
+              { label: "Standard", render: (r) => esc(`/${r.std}/`) },
+              { label: "Modified", render: (r) => esc(`/${r.mod}/`) },
+              {
+                label: "Best match (modified)",
+                render: (r) =>
+                  r.bestMod
+                    ? `${esc(r.bestMod.word)} <span style="color:#6b7280;">(${esc(languageLabel(r.bestMod.lang))} — ${esc(r.bestMod.meaning)})</span>`
+                    : "—",
+                md: (r) =>
+                  r.bestMod
+                    ? `${r.bestMod.word} (${languageLabel(r.bestMod.lang)} — ${r.bestMod.meaning})`
+                    : "—",
+              },
+              {
+                label: "Δ score",
+                render: (r) =>
+                  `<span style="color:${r.delta > 0 ? "#16a34a" : r.delta < 0 ? "#b45309" : "#6b7280"};">${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(3)}</span>`,
+                md: (r) => `${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(3)}`,
+                align: "right",
+              },
+            ];
+            const meta =
+              (modified > 0
+                ? `Overrides ${modifiedSigns.map((s) => `${s}→${hyp[s]}`).join(", ")}. `
+                : "Baseline readings. ") +
+              (agg
+                ? `Avg match ${agg.avgStd.toFixed(3)} → ${agg.avgMod.toFixed(3)} over ${deltaRows.length} words containing the modified sign(s).`
+                : "");
+            return {
+              html: snippetWrap(meta, snippetTable(slice, cols)),
+              markdown: `_${meta}_\n\n` + snippetTableMd(slice, cols),
+            };
+          }}
+        />
       </div>
 
       {saved.length > 0 && (

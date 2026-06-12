@@ -11,6 +11,14 @@ import {
 } from "../lib/commentary";
 import { upstreamAsset } from "../lib/helpers";
 import { highlightHtml } from "../lib/highlight";
+import { SaveFindingButton } from "../components/SaveFindingButton";
+import {
+  esc,
+  snippetTable,
+  snippetTableMd,
+  snippetWrap,
+  type SnippetColumn,
+} from "../lib/reportSnippet";
 import type { Inscription, WordEntry } from "../lib/types";
 
 // 4-state imagery toggle for the right pane. Off is the default — keeps the
@@ -314,10 +322,60 @@ export default function CommentaryBrowser() {
             </span>
           )}
         </div>
-        <div className="dim" style={{ fontSize: 11 }}>
-          {query
-            ? `${totalMatched.toLocaleString()} doc${totalMatched === 1 ? "" : "s"} match "${query.trim()}"${siteFilter ? ` in ${siteFilter}` : ""}`
-            : `Showing ${totalShown.toLocaleString()} doc${totalShown === 1 ? "" : "s"}${siteFilter ? ` from ${siteFilter}` : ""}`}
+        <div
+          className="dim"
+          style={{
+            fontSize: 11,
+            display: "flex",
+            alignItems: "center",
+            gap: 8,
+          }}
+        >
+          <span>
+            {query
+              ? `${totalMatched.toLocaleString()} doc${totalMatched === 1 ? "" : "s"} match "${query.trim()}"${siteFilter ? ` in ${siteFilter}` : ""}`
+              : `Showing ${totalShown.toLocaleString()} doc${totalShown === 1 ? "" : "s"}${siteFilter ? ` from ${siteFilter}` : ""}`}
+          </span>
+          {query.trim() && totalMatched > 0 && (
+            <SaveFindingButton
+              module="commentary"
+              moduleLabel="Commentary Browser"
+              defaultTitle={`Commentary search: ${query.trim()}`}
+              summary={
+                `"${query.trim()}" matches ${totalMatched} commentary doc${totalMatched === 1 ? "" : "s"}${siteFilter ? ` at ${siteFilter}` : ""}.\nTop: ` +
+                (groupedHits
+                  .flatMap((g) => g.docs)
+                  .slice(0, 10)
+                  .map((h) => `${h.doc.id} (${h.hits}×)`)
+                  .join(", ") || "none") +
+                "."
+              }
+              payload={{ query: query.trim(), siteFilter }}
+              reportFn={() => {
+                const slice = groupedHits
+                  .flatMap((g) => g.docs)
+                  .slice(0, 60);
+                type R = (typeof slice)[number];
+                const cols: SnippetColumn<R>[] = [
+                  {
+                    label: "Document",
+                    render: (h) => `<code>${esc(h.doc.id)}</code>`,
+                  },
+                  { label: "Site", render: (h) => esc(h.doc.site) },
+                  {
+                    label: "Hits",
+                    render: (h) => esc(h.hits),
+                    align: "right",
+                  },
+                ];
+                const meta = `Younger's commentary: "${query.trim()}" matches ${totalMatched} docs${siteFilter ? ` at ${siteFilter}` : ""}, ranked by hit count. ${slice.length < totalMatched ? `Showing the first ${slice.length}.` : ""}`;
+                return {
+                  html: snippetWrap(meta, snippetTable(slice, cols)),
+                  markdown: `_${meta}_\n\n` + snippetTableMd(slice, cols),
+                };
+              }}
+            />
+          )}
         </div>
       </div>
 

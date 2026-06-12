@@ -1,9 +1,17 @@
 import { useMemo, useState } from "react";
 import { useWorkbench, getAllLanguages } from "../store/workbench";
-import { useMultiWords } from "../lib/helpers";
+import { useMultiWords, csvEscape, downloadFile } from "../lib/helpers";
 import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
 import { PHONETIC_MAP } from "../data/phoneticMap";
 import { WordToken } from "../components/WordToken";
+import { SaveFindingButton } from "../components/SaveFindingButton";
+import {
+  esc,
+  snippetTable,
+  snippetTableMd,
+  snippetWrap,
+  type SnippetColumn,
+} from "../lib/reportSnippet";
 
 export default function HypothesisWorkspace() {
   const hyp = useWorkbench((s) => s.hypothesis);
@@ -355,14 +363,95 @@ export default function HypothesisWorkspace() {
             <>
               <div
                 style={{
-                  font: "600 10px var(--sans)",
-                  color: "var(--text-muted)",
-                  textTransform: "uppercase",
-                  letterSpacing: 0.6,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 8,
                   margin: "10px 0 6px",
                 }}
               >
-                Sign differences ({diffData.signDiffs.length})
+                <span
+                  style={{
+                    font: "600 10px var(--sans)",
+                    color: "var(--text-muted)",
+                    textTransform: "uppercase",
+                    letterSpacing: 0.6,
+                  }}
+                >
+                  Sign differences ({diffData.signDiffs.length})
+                </span>
+                <span style={{ flex: 1 }} />
+                <button
+                  className="btn btn-outline btn-sm"
+                  onClick={() => {
+                    const rows: (string | number)[][] = [
+                      ["kind", "item", diffData.A.name, diffData.B.name, "delta"],
+                    ];
+                    for (const d of diffData.signDiffs)
+                      rows.push(["sign", d.sign, d.a, d.b, ""]);
+                    for (const w of diffData.wordDiffs)
+                      rows.push([
+                        "word",
+                        w.word,
+                        `${w.pa} (${w.sa.toFixed(3)})`,
+                        `${w.pb} (${w.sb.toFixed(3)})`,
+                        w.delta.toFixed(3),
+                      ]);
+                    downloadFile(
+                      `linear_a_hypothesis_diff_${diffData.A.name.replace(/\W+/g, "_")}_vs_${diffData.B.name.replace(/\W+/g, "_")}.csv`,
+                      rows.map((r) => r.map(csvEscape).join(",")).join("\n"),
+                    );
+                  }}
+                  title="Download the sign differences and per-word match deltas as CSV"
+                >
+                  Export CSV
+                </button>
+                <SaveFindingButton
+                  module="hypws"
+                  moduleLabel="Hypothesis Workspace"
+                  defaultTitle={`${diffData.A.name} vs ${diffData.B.name}`}
+                  summary={
+                    `Snapshots ${diffData.A.name} vs ${diffData.B.name}: ${diffData.signDiffs.length} sign value(s) differ` +
+                    (diffData.signDiffs.length > 0
+                      ? ` (${diffData.signDiffs
+                          .slice(0, 6)
+                          .map((d) => `${d.sign}: ${d.a}→${d.b}`)
+                          .join(", ")}${diffData.signDiffs.length > 6 ? ", …" : ""})`
+                      : "") +
+                    `.\nAvg best-match score ${(diffData.avgA * 100).toFixed(0)}% → ${(diffData.avgB * 100).toFixed(0)}% over ${diffData.wordDiffs.length} affected words.`
+                  }
+                  payload={{ a: diffData.A.name, b: diffData.B.name }}
+                  reportFn={() => {
+                    const slice = diffData.wordDiffs;
+                    type R = (typeof slice)[number];
+                    const cols: SnippetColumn<R>[] = [
+                      {
+                        label: "Word",
+                        render: (r) => `<code>${esc(r.word)}</code>`,
+                      },
+                      {
+                        label: diffData.A.name,
+                        render: (r) => esc(`/${r.pa}/ (${r.sa.toFixed(2)})`),
+                      },
+                      {
+                        label: diffData.B.name,
+                        render: (r) => esc(`/${r.pb}/ (${r.sb.toFixed(2)})`),
+                      },
+                      {
+                        label: "Δ",
+                        render: (r) =>
+                          `<span style="color:${r.delta > 0 ? "#16a34a" : r.delta < 0 ? "#b45309" : "#6b7280"};">${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(3)}</span>`,
+                        md: (r) =>
+                          `${r.delta >= 0 ? "+" : ""}${r.delta.toFixed(3)}`,
+                        align: "right",
+                      },
+                    ];
+                    const meta = `${diffData.A.name} vs ${diffData.B.name}: ${diffData.signDiffs.length} differing sign(s) — ${diffData.signDiffs.map((d) => `${d.sign} ${d.a}→${d.b}`).join(", ") || "none"}. Avg best-match ${(diffData.avgA * 100).toFixed(0)}% → ${(diffData.avgB * 100).toFixed(0)}%.`;
+                    return {
+                      html: snippetWrap(meta, snippetTable(slice, cols)),
+                      markdown: `_${meta}_\n\n` + snippetTableMd(slice, cols),
+                    };
+                  }}
+                />
               </div>
               {diffData.signDiffs.length === 0 ? (
                 <div className="dim" style={{ fontSize: 12 }}>

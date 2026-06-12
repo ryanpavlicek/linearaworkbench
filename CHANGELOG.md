@@ -6,6 +6,47 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 
 ## Unreleased
 
+Statistical rigor, on by choice:
+
+- A shared **Dunning's G²** keyness test (in
+  [METHODOLOGY](docs/METHODOLOGY.md) terms: the log-likelihood ratio on a
+  2×2 table) now backs a "rank by significance" option in **Diachronic**
+  and **Scribes** — a 2-vs-0 fluke stops outranking a 30-vs-4 pattern;
+  the raw log-ratio ranking stays the default.
+- **Morphology** gains an *Edge G²* column: is a sequence genuinely
+  over-represented at the word edge versus interior positions? A stronger
+  affix signal than raw frequency, sortable, in the CSV.
+- **Positional Grammar** gains a *Bias G²* column that tests each word's
+  dominant position against the corpus-wide slot baseline — "mostly
+  medial" because medial slots are common scores near zero.
+- **N-grams** bigrams carry PMI and G² (a frequent pair of two frequent
+  words is not evidence of association).
+- The **Commodity Catalog**'s co-occurring terms can rank by PMI instead
+  of raw count (KU-RO appears with everything; PMI surfaces what is
+  *specifically* associated), and the **Semantic Classifier** can rank
+  each ideogram group by exclusivity — the share of a word's ideogram
+  co-occurrences that belong to that group.
+
+Modules now hand off to each other:
+
+- Every analysis surface that names a sign, word, or site can jump to
+  the right tool already focused: Sign Inventory rows → Sign
+  Transitions / Sign Concordance; Corpus Browser's glyph detail → the
+  same (plus a complete CSV and a prev/next lightbox); KWIC →
+  Co-occurrence in collocates-of mode; Co-occurrence table rows ↔ the
+  Network graph (per-row "Graph", node search, "In table →" back);
+  Morphology affixes → Stem Families; Name Candidates → Cross-Linguistic;
+  Positional Grammar rows → KWIC.
+- The **Commodity Catalog** detail lists the tablets, can adopt them as
+  the global scope, and opens the Geography map with that commodity's
+  overlay preset; a focused map site can become the scope in one click;
+  the Site Distribution Jaccard table expands any pair to list the
+  actual shared words.
+- Saved findings and CSV export reach the remaining analysis surfaces:
+  Sound Shift's evaluation table, Hypothesis Workspace diffs, Commentary
+  Browser searches, the Network graph's edge list, and the Query
+  Builder's result tables (now sortable, too).
+
 Correctness fixes from a module-by-module review:
 
 - **Accounting**: a PO-TO-KU-RO grand total is now checked against the

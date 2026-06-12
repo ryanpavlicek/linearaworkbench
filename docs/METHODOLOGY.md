@@ -266,6 +266,17 @@ corpus; unlike the single-cell shortcut sometimes used, this full four-cell
 form is asymptotically χ²-distributed with 1 degree of freedom. Standard in
 corpus linguistics for keyword and collocation extraction.
 
+The same statistic, applied to a frequency-vs-frequency 2×2 table
+(item count and remainder in corpus A vs corpus B), backs the **keyness
+rankings** elsewhere in the workbench: Diachronic's and Scribes' "rank by
+significance" options, Morphology's edge bias (edge slot vs interior
+windows), Positional Grammar's position bias (a word's dominant slot vs
+the corpus-wide slot baseline), and the N-grams bigram G² column. In all
+of these the χ² reference thresholds (3.84 ≈ p<.05, 6.63 ≈ p<.01,
+10.83 ≈ p<.001) are shown as guidance, not as formal hypothesis tests —
+with hundreds of items per view, treat them as a ranking aid and apply
+your own multiple-comparison caution.
+
 ### Raw count
 
 `f(a, b)`. Useful as a sanity check but biased toward pairs involving
