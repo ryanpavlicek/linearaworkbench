@@ -7,6 +7,8 @@ import { GlyphPalette } from "../components/GlyphPalette";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { csvEscape, downloadFile, MAX_ROWS } from "../lib/helpers";
 
+type MatchMode = "contains" | "exact" | "starts" | "ends";
+
 export default function CorpusSearch() {
   // Scope-aware, like Corpus Browser — the two corpus surfaces must agree.
   const inscriptions = useScopedCorpus().inscriptions;
@@ -14,13 +16,20 @@ export default function CorpusSearch() {
     (s) => s.corpus.inscriptions.length,
   );
   const scope = useWorkbench((s) => s.scope);
+  const createCollectionWithItems = useWorkbench(
+    (s) => s.createCollectionWithItems,
+  );
+  const toast = useWorkbench((s) => s.toast_show);
 
   const [q, setQ] = useState("");
+  const [mode, setMode] = useState<MatchMode>("contains");
   const [site, setSite] = useState("");
   const [type, setType] = useState("");
   const [scribe, setScribe] = useState("");
   const [period, setPeriod] = useState("");
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [collPromptOpen, setCollPromptOpen] = useState(false);
+  const [collName, setCollName] = useState("");
 
   const sites = useMemo(
     () =>
@@ -45,20 +54,35 @@ export default function CorpusSearch() {
 
   const results = useMemo(() => {
     const upper = q.toUpperCase().trim();
+    // Word matching honors the mode; inscription IDs only hit in the
+    // default contains mode (an "exact word" search shouldn't surface
+    // tablets whose ID happens to contain the letters).
+    const wordHit = (w: string) => {
+      const wu = w.toUpperCase();
+      switch (mode) {
+        case "exact":
+          return wu === upper;
+        case "starts":
+          return wu.startsWith(upper);
+        case "ends":
+          return wu.endsWith(upper);
+        default:
+          return wu.includes(upper);
+      }
+    };
     return inscriptions.filter((ins) => {
-      if (
-        upper &&
-        !ins.id.toUpperCase().includes(upper) &&
-        !ins.words.some((w) => w.toUpperCase().includes(upper))
-      )
-        return false;
+      if (upper) {
+        const idHit =
+          mode === "contains" && ins.id.toUpperCase().includes(upper);
+        if (!idHit && !ins.words.some(wordHit)) return false;
+      }
       if (site && ins.site !== site) return false;
       if (type && ins.support !== type) return false;
       if (scribe && ins.scribe !== scribe) return false;
       if (period && ins.context !== period) return false;
       return true;
     });
-  }, [inscriptions, q, site, type, scribe, period]);
+  }, [inscriptions, q, mode, site, type, scribe, period]);
 
   const filterDesc = [
     site && `site ${site}`,
@@ -139,6 +163,17 @@ export default function CorpusSearch() {
         </button>
         <select
           className="select"
+          value={mode}
+          onChange={(e) => setMode(e.target.value as MatchMode)}
+          title="How the query matches words: anywhere in the word, the exact word, or its start/end. IDs only match in 'contains' mode."
+        >
+          <option value="contains">contains</option>
+          <option value="exact">exact word</option>
+          <option value="starts">starts with</option>
+          <option value="ends">ends with</option>
+        </select>
+        <select
+          className="select"
           value={site}
           onChange={(e) => setSite(e.target.value)}
         >
@@ -182,6 +217,14 @@ export default function CorpusSearch() {
         <span className="dim">{results.length} results</span>
         <button
           className="btn btn-outline btn-sm"
+          onClick={() => setCollPromptOpen((o) => !o)}
+          disabled={results.length === 0 || !hasQuery}
+          title="Save the result set as a named collection — usable as a scope, in exports, and in the research report"
+        >
+          + Collection
+        </button>
+        <button
+          className="btn btn-outline btn-sm"
           onClick={exportCsv}
           disabled={results.length === 0}
         >
@@ -192,10 +235,82 @@ export default function CorpusSearch() {
           moduleLabel="Corpus Search"
           defaultTitle={findingTitle}
           summary={findingSummary}
-          payload={{ q, site, type, scribe, period }}
+          payload={{ q, mode, site, type, scribe, period }}
           disabled={!hasQuery}
         />
       </div>
+
+      {collPromptOpen && (
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            alignItems: "center",
+            margin: "0 0 8px",
+            padding: "6px 8px",
+            background: "var(--surface-1)",
+            border: "1px solid var(--border)",
+            borderRadius: 4,
+          }}
+        >
+          <span className="dim" style={{ fontSize: 11 }}>
+            Collection name:
+          </span>
+          <input
+            className="input"
+            autoFocus
+            value={collName}
+            onChange={(e) => setCollName(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setCollPromptOpen(false);
+                setCollName("");
+              }
+              if (e.key === "Enter" && collName.trim()) {
+                createCollectionWithItems(
+                  collName.trim(),
+                  results.map((i) => ({
+                    kind: "inscription" as const,
+                    value: i.id,
+                  })),
+                );
+                toast(`Saved "${collName.trim()}" (${results.length} tablets)`);
+                setCollName("");
+                setCollPromptOpen(false);
+              }
+            }}
+            placeholder={`e.g. "${q ? `${q} tablets` : "Search results"}"`}
+            style={{ flex: 1, fontSize: 12 }}
+          />
+          <button
+            className="btn btn-sm"
+            disabled={!collName.trim()}
+            onClick={() => {
+              createCollectionWithItems(
+                collName.trim(),
+                results.map((i) => ({
+                  kind: "inscription" as const,
+                  value: i.id,
+                })),
+              );
+              toast(`Saved "${collName.trim()}" (${results.length} tablets)`);
+              setCollName("");
+              setCollPromptOpen(false);
+            }}
+          >
+            Save ({results.length})
+          </button>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={() => {
+              setCollPromptOpen(false);
+              setCollName("");
+            }}
+          >
+            Cancel
+          </button>
+        </div>
+      )}
 
       <GlyphPalette
         open={paletteOpen}
