@@ -59,6 +59,15 @@ export function SortHeader({
   return (
     <th
       onClick={() => onToggle(sortKey)}
+      onKeyDown={(e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          onToggle(sortKey);
+        }
+      }}
+      tabIndex={0}
+      role="columnheader"
+      aria-sort={active ? (sort.dir === "asc" ? "ascending" : "descending") : "none"}
       title={title ?? `Sort by ${label}`}
       style={{
         cursor: "pointer",
