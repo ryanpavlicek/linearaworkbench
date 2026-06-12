@@ -11,6 +11,40 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   the social-preview metadata all point there. Old github.io links
   redirect.
 
+New quantitative techniques, each with its caveats in
+[METHODOLOGY](docs/METHODOLOGY.md):
+
+- **Richness and diversity**: Lexical Statistics adds Chao1 (presented
+  as the lower bound it is, with a 95% interval), MATTR, a permutation
+  envelope and Heaps' fit on the vocabulary growth curve, and upgrades
+  the Zipf–Mandelbrot fit to maximum likelihood with a KS statistic.
+- **Entropy of the sign system** (Sign Transitions): H(sign) with a
+  bootstrap interval, H(next|prev), adjacent-sign mutual information,
+  and redundancy — Miller–Madow corrected, with the conditional shipped
+  as a labeled floor rather than a confidently-wrong interval (60% of
+  attested sign pairs occur once).
+- **Morphology**: Baayen's hapax-based productivity index P per affix,
+  and a Harris successor-variety "Boundary signals" card — candidate
+  morpheme boundaries from branching structure alone, an independent
+  check on the affix table.
+- **Graphotactic surprisal** (Sign Transitions + the word detail): every
+  lexical word scored leave-one-out under a Witten–Bell-smoothed sign
+  bigram model; an "improbable words" reading list and a per-word badge
+  ("top 1% unusual") — candidate loans, names, errors, or damage, with
+  the honest note that the model can't tell those apart.
+- **Linear A vs Linear B sign frequencies** (Sign Inventory): how
+  differently the two scripts use the shared signary, per 1,000 sign
+  tokens with a Spearman summary (ρ ≈ 0.15 — strikingly unalike). The
+  Linear B side loads on demand from the DAMOS-derived dataset
+  (CC BY-NC-SA — never bundled); the value-assignment circularity is
+  documented, not hidden.
+- **Multivariate exploration**: a correspondence-analysis biplot of the
+  site/hand/period × commodity table (axis inertia in the title);
+  vocabulary-profile dendrograms for sites and scribal hands with
+  bootstrap support at every junction (low-support merges render
+  dimmed); and label-propagation communities coloring the co-occurrence
+  network.
+
 Deeper analysis in the existing modules:
 
 - **Word Frequency** learns dispersion (Gries' DP across find-sites),
