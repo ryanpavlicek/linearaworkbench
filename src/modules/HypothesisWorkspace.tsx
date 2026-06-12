@@ -22,10 +22,11 @@ export default function HypothesisWorkspace() {
   const [aIdx, setAIdx] = useState(0);
   const [bIdx, setBIdx] = useState(1);
 
-  const top10 = useMemo(() => words.slice(0, 10), [words]);
-
-  // Pairwise diff of two saved snapshots: which sign values differ, and how the
-  // top words' best cross-linguistic match score changes from A to B.
+  // Pairwise diff of two saved snapshots: which sign values differ, and how
+  // the affected words' best cross-linguistic match score changes from A to
+  // B. The evaluation set is the words that CONTAIN a differing sign (the
+  // global top-10 would show all-zero deltas for rare-sign hypotheses);
+  // when the snapshots differ in no signs the top-10 stands in.
   const diffData = useMemo(() => {
     if (saved.length < 2) return null;
     const A = saved[Math.min(aIdx, saved.length - 1)];
@@ -44,6 +45,20 @@ export default function HypothesisWorkspace() {
     }
     signDiffs.sort((x, y) => x.sign.localeCompare(y.sign));
 
+    const touched = new Set(
+      signDiffs.map((d) => d.sign.replace(/[₂₃₄*]/g, "")),
+    );
+    const evalWords =
+      touched.size > 0
+        ? words
+            .filter(({ word }) =>
+              word
+                .split("-")
+                .some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
+            )
+            .slice(0, 25)
+        : words.slice(0, 10);
+
     const bestScore = (ph: string) => {
       let best = Infinity;
       for (const entries of Object.values(allLangs))
@@ -53,7 +68,7 @@ export default function HypothesisWorkspace() {
         }
       return best === Infinity ? 0 : 1 - best;
     };
-    const wordDiffs = top10.map(({ word }) => {
+    const wordDiffs = evalWords.map(({ word }) => {
       const pa = wordToPhonetic(word, A.overrides);
       const pb = wordToPhonetic(word, B.overrides);
       const sa = bestScore(pa);
@@ -70,7 +85,22 @@ export default function HypothesisWorkspace() {
       avgA: avg(wordDiffs.map((w) => w.sa)),
       avgB: avg(wordDiffs.map((w) => w.sb)),
     };
-  }, [saved, aIdx, bIdx, allLangs, top10]);
+  }, [saved, aIdx, bIdx, allLangs, words]);
+
+  // "Compare all" evaluates over words containing any sign that any saved
+  // snapshot overrides — the words the hypotheses actually disagree about.
+  const compareWords = useMemo(() => {
+    const touched = new Set<string>();
+    for (const h of saved)
+      for (const s of Object.keys(h.overrides))
+        touched.add(s.replace(/[₂₃₄*]/g, ""));
+    if (touched.size === 0) return words.slice(0, 10);
+    return words
+      .filter(({ word }) =>
+        word.split("-").some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
+      )
+      .slice(0, 25);
+  }, [saved, words]);
 
   return (
     <div className="panel">
@@ -231,7 +261,7 @@ export default function HypothesisWorkspace() {
                 </tr>
               </thead>
               <tbody>
-                {top10.map(({ word }) => (
+                {compareWords.map(({ word }) => (
                   <tr key={word}>
                     <td>
                       <WordToken word={word} />

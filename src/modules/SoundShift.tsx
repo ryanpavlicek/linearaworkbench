@@ -31,9 +31,25 @@ export default function SoundShift() {
   }
 
   const signs = useMemo(() => Object.keys(PHONETIC_MAP).sort(), []);
-  const top = useMemo(() => words.slice(0, 20), [words]);
   const modified = Object.keys(hyp).length;
   const modifiedSigns = Object.keys(hyp);
+
+  // Evaluation set: with no overrides, the corpus's top words (a preview of
+  // what editing will affect). With overrides, the words that actually
+  // CONTAIN a modified sign — evaluating a rare-sign hypothesis against the
+  // global top-20 would show all-zero deltas and look broken. Sign lookup
+  // strips ₂₃₄* exactly the way wordToPhonetic does.
+  const top = useMemo(() => {
+    if (modifiedSigns.length === 0) return words.slice(0, 20);
+    const touched = new Set(
+      modifiedSigns.map((s) => s.replace(/[₂₃₄*]/g, "")),
+    );
+    return words
+      .filter(({ word }) =>
+        word.split("-").some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
+      )
+      .slice(0, 50);
+  }, [words, modifiedSigns]);
 
   // Match-delta: for each top word, the closest reference-language match under
   // the *standard* reading vs the *modified* reading, and the change in score.
@@ -317,8 +333,15 @@ export default function SoundShift() {
           )}
           <div className="dim" style={{ fontSize: 11, marginBottom: 6 }}>
             Best cross-linguistic match per word under the standard vs modified
-            reading (top {top.length} words). Δ &gt; 0 means your change moves
-            the word closer to a known-language word.
+            reading —{" "}
+            {modified > 0
+              ? `the ${top.length} most frequent words containing a modified sign`
+              : `the top ${top.length} corpus words`}
+            . Δ &gt; 0 means your change moves the word closer to a
+            known-language word.
+            {modified > 0 && top.length === 0 && (
+              <b> No corpus word contains the modified sign(s).</b>
+            )}
           </div>
           <div className="table-wrap">
             <table>
