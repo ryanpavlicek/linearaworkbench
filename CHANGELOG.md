@@ -4,7 +4,7 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
-## Unreleased
+## 1.5.0 — 2026-06-14
 
 - **A domain of its own**: the workbench now lives at
   <https://linearaworkbench.xyz> — citations, the data API, embeds, and
