@@ -2,7 +2,9 @@ import { lazy, type ComponentType } from "react";
 import type { ModuleDef, ModuleId } from "../lib/types";
 
 // Sidebar groups, ordered by workflow with the researcher's own workspace
-// first. Within each group, modules are ordered by likely frequency of use.
+// first. The Research group keeps a curated order (workspace → corpus entry
+// points → data utilities); every other group lists its modules
+// alphabetically by name.
 export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
   {
     group: "Start",
@@ -18,6 +20,8 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
   },
   {
     group: "Research",
+    // Curated order (the researcher's own workspace first, then the corpus
+    // entry points, then the data utilities) — not alphabetical, by request.
     items: [
       // My Research merges the annotation notebook, collections, the findings
       // tracker, and the research report into one hub (tabs).
@@ -35,13 +39,6 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords: "lexicon glossary meanings annotations dictionary vocabulary",
       },
       { id: "query", name: "Query Builder", group: "Research" },
-      { id: "search", name: "Corpus Search", group: "Research" },
-      {
-        id: "browse",
-        name: "Corpus Browser",
-        group: "Research",
-        keywords: "browse tablets paginate walk by glyph sign index imagery",
-      },
       {
         id: "commentary",
         name: "Commentary Browser",
@@ -50,13 +47,11 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
           "commentary younger ku scholarly browse read inscription notes academia full-text search reference",
       },
       {
-        id: "export",
-        name: "Data Export",
+        id: "browse",
+        name: "Corpus Browser",
         group: "Research",
-        keywords:
-          "export csv json data backup restore wipe reset cache lost recover transfer",
+        keywords: "browse tablets paginate walk by glyph sign index imagery",
       },
-      { id: "wlm", name: "Wordlist Manager", group: "Research" },
       {
         id: "health",
         name: "Corpus Health",
@@ -64,6 +59,7 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "health dashboard coverage completeness damage uncertain metadata quality missing scribe period image translation",
       },
+      { id: "search", name: "Corpus Search", group: "Research" },
       {
         id: "plates",
         name: "Plate Workbench",
@@ -71,13 +67,19 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "plates facsimile images photographs gorila side by side compare drawing autopsy viewer",
       },
+      { id: "wlm", name: "Wordlist Manager", group: "Research" },
+      {
+        id: "export",
+        name: "Data Export",
+        group: "Research",
+        keywords:
+          "export csv json data backup restore wipe reset cache lost recover transfer",
+      },
     ],
   },
   {
     group: "Vocabulary",
     items: [
-      { id: "freq", name: "Word Frequency", group: "Vocabulary", category: "descriptive" },
-      { id: "kwic", name: "Concordance (KWIC)", group: "Vocabulary", category: "descriptive" },
       {
         id: "cooc",
         name: "Co-occurrence",
@@ -85,20 +87,24 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords: "network graph collocation pmi force-directed collocates",
         category: "descriptive",
       },
-      { id: "ngram", name: "N-grams", group: "Vocabulary", category: "descriptive" },
-      { id: "morph", name: "Morphology", group: "Vocabulary", category: "exploratory" },
-      { id: "stems", name: "Stem Families", group: "Vocabulary", category: "exploratory" },
-      { id: "minpairs", name: "Minimal Pairs", group: "Vocabulary", category: "descriptive" },
-      { id: "roots", name: "Root Cognates", group: "Vocabulary", category: "exploratory" },
+      { id: "kwic", name: "Concordance (KWIC)", group: "Vocabulary", category: "descriptive" },
       { id: "lexstats", name: "Lexical Statistics", group: "Vocabulary", category: "descriptive" },
+      { id: "minpairs", name: "Minimal Pairs", group: "Vocabulary", category: "descriptive" },
+      { id: "morph", name: "Morphology", group: "Vocabulary", category: "exploratory" },
+      { id: "ngram", name: "N-grams", group: "Vocabulary", category: "descriptive" },
+      { id: "roots", name: "Root Cognates", group: "Vocabulary", category: "exploratory" },
+      { id: "stems", name: "Stem Families", group: "Vocabulary", category: "exploratory" },
+      { id: "freq", name: "Word Frequency", group: "Vocabulary", category: "descriptive" },
     ],
   },
   {
     group: "Signs & structure",
     items: [
-      { id: "signref", name: "Sign Inventory", group: "Signs & structure", category: "descriptive" },
+      { id: "compare", name: "Compare Inscriptions", group: "Signs & structure", category: "descriptive" },
+      { id: "pos", name: "Positional Grammar", group: "Signs & structure", category: "descriptive" },
+      { id: "seqpat", name: "Sequence Patterns", group: "Signs & structure", category: "descriptive" },
       { id: "signs", name: "Sign Concordance", group: "Signs & structure", category: "descriptive" },
-      { id: "signtrans", name: "Sign Transitions", group: "Signs & structure", category: "descriptive" },
+      { id: "signref", name: "Sign Inventory", group: "Signs & structure", category: "descriptive" },
       {
         id: "signpat",
         name: "Sign Patterns",
@@ -106,16 +112,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         category: "descriptive",
         keywords: "sign pattern wildcard glob graphotactic search prefix suffix middle",
       },
-      { id: "pos", name: "Positional Grammar", group: "Signs & structure", category: "descriptive" },
-      { id: "seqpat", name: "Sequence Patterns", group: "Signs & structure", category: "descriptive" },
-      { id: "compare", name: "Compare Inscriptions", group: "Signs & structure", category: "descriptive" },
+      { id: "signtrans", name: "Sign Transitions", group: "Signs & structure", category: "descriptive" },
       { id: "similarity", name: "Similarity", group: "Signs & structure", category: "descriptive" },
     ],
   },
   {
     group: "Accounts & content",
     items: [
-      { id: "arith", name: "Accounting & Metrology", group: "Accounts & content", category: "descriptive" },
       {
         id: "dossiers",
         name: "Account Dossiers",
@@ -124,16 +127,8 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords:
           "dossier account holder name entries quantities commodities ledger follow person prosopography",
       },
-      {
-        id: "metrology",
-        name: "Metrology Lab",
-        group: "Accounts & content",
-        category: "descriptive",
-        keywords:
-          "metrology fractions klasmatogram numerals units measures denominators quantities counted measured",
-      },
+      { id: "arith", name: "Accounting & Metrology", group: "Accounts & content", category: "descriptive" },
       { id: "commodities", name: "Commodity Catalog", group: "Accounts & content", category: "descriptive" },
-      { id: "struct", name: "Tablet Structure", group: "Accounts & content", category: "descriptive" },
       {
         id: "doctypes",
         name: "Document Types",
@@ -143,13 +138,23 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
           "document types support tablet roundel nodule sealing vessel libation bar physical object typology function",
       },
       { id: "lib", name: "Libation Formulas", group: "Accounts & content", category: "descriptive" },
+      {
+        id: "metrology",
+        name: "Metrology Lab",
+        group: "Accounts & content",
+        category: "descriptive",
+        keywords:
+          "metrology fractions klasmatogram numerals units measures denominators quantities counted measured",
+      },
       { id: "sem", name: "Semantic Classifier", group: "Accounts & content", category: "exploratory" },
+      { id: "struct", name: "Tablet Structure", group: "Accounts & content", category: "descriptive" },
     ],
   },
   {
     group: "Hypothesis testing",
     items: [
       { id: "comp", name: "Cross-Linguistic", group: "Hypothesis testing", category: "exploratory" },
+      { id: "onomastics", name: "Name Candidates", group: "Hypothesis testing", category: "exploratory" },
       // Sound Shift now folds the live editor + the saved-hypothesis workspace
       // into one tabbed module; `hypws` is kept routable via the alias map so
       // deep-links / Help references still land on the Workspace tab.
@@ -161,12 +166,20 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
           "phonetic override hypothesis workspace saved snapshot diff sound shift",
         category: "exploratory",
       },
-      { id: "onomastics", name: "Name Candidates", group: "Hypothesis testing", category: "exploratory" },
     ],
   },
   {
     group: "Distribution",
     items: [
+      {
+        id: "constellation",
+        name: "Constellation",
+        group: "Distribution",
+        category: "exploratory",
+        keywords:
+          "constellation map embedding correspondence analysis all tablets scatter overview starfield",
+      },
+      { id: "diachronic", name: "Diachronic (MM/LM)", group: "Distribution", category: "descriptive" },
       // Geography merges the findspot map + site-distribution stats (tabs).
       {
         id: "map",
@@ -183,7 +196,6 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords: "scribe comparison scribal network hand site baseline",
         category: "descriptive",
       },
-      { id: "diachronic", name: "Diachronic (MM/LM)", group: "Distribution", category: "descriptive" },
       {
         id: "timeline",
         name: "Timeline",
@@ -191,14 +203,6 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         category: "descriptive",
         keywords:
           "timeline chronology periods MM LM protopalatial neopalatial dates ceramic phases history",
-      },
-      {
-        id: "constellation",
-        name: "Constellation",
-        group: "Distribution",
-        category: "exploratory",
-        keywords:
-          "constellation map embedding correspondence analysis all tablets scatter overview starfield",
       },
     ],
   },
@@ -220,18 +224,18 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
           "scribe school practice exercise balance kuro total compute numerals fractions compose ledger sandbox game quiz",
       },
       {
-        id: "write",
-        name: "Write in Linear A",
-        group: "Learn",
-        keywords:
-          "write your name linear a glyphs syllables transliterate convert render fun",
-      },
-      {
         id: "trainer",
         name: "Sign Trainer",
         group: "Learn",
         keywords:
           "sign trainer flashcards leitner memorize learn signs values practice spaced repetition",
+      },
+      {
+        id: "write",
+        name: "Write in Linear A",
+        group: "Learn",
+        keywords:
+          "write your name linear a glyphs syllables transliterate convert render fun",
       },
     ],
   },
