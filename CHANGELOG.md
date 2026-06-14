@@ -15,6 +15,10 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   sidebar group) with the intro, feature cards, try-one-now buttons,
   and the corpus credit. Fresh visits land there; returning users keep
   whatever module they were in.
+- **Offline & self-hosting note**: a short pointer on the Home page and in
+  Help → Reference letting people know the workbench is open source — run
+  it offline, host your own copy, or fork it from the GitHub repo (setup
+  in the README).
 - **Chart legibility pass** from a visual review: the Commodity
   Catalog's correspondence-analysis biplot no longer renders empty in
   the scribal-hands mode (a zero-margin column made the analysis

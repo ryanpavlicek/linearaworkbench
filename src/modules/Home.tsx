@@ -1,4 +1,5 @@
 import { useWorkbench } from "../store/workbench";
+import { TOOL_REPO } from "../lib/corpusExport";
 
 // The landing page — what the first-run popup used to say, as a place you
 // can come back to. Fresh installs open here; returning users keep
@@ -124,6 +125,19 @@ export default function Home() {
         >
           Open How to Use →
         </button>
+      </div>
+
+      <div
+        className="card"
+        style={{ marginBottom: 14, fontSize: 12, color: "var(--text-dim)" }}
+      >
+        <b style={{ color: "var(--text)" }}>Offline &amp; self-hosting:</b>{" "}
+        Want to run the workbench offline, host your own copy, or fork it? It's
+        open source —{" "}
+        <a href={TOOL_REPO} target="_blank" rel="noreferrer">
+          github.com/ryanpavlicek/linearaworkbench
+        </a>
+        , with setup instructions in the README.
       </div>
 
       <div

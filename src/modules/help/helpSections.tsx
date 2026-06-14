@@ -13,6 +13,7 @@ import {
   type Section,
 } from "./helpPrimitives";
 import { GORILA_CEFAEL_URL } from "../../lib/citations";
+import { TOOL_REPO } from "../../lib/corpusExport";
 
 export const SECTIONS: Section[] = [
   // ─────────────────────────── ORIENTATION ─────────────────────────────
@@ -3262,6 +3263,27 @@ export const SECTIONS: Section[] = [
           Cross-Linguistic module's "Read this before trusting a match"
           callout deep-links straight to the Cross-linguistic distance
           section).
+        </P>
+      </>
+    ),
+  },
+  {
+    id: "offline",
+    group: "Reference",
+    title: "Offline & self-hosting",
+    keywords:
+      "offline self-host self hosting github fork clone run local download source repository readme install own copy host",
+    body: (
+      <>
+        <P>
+          The whole workbench is open source. If you want to run it without an
+          internet connection, host your own copy, or fork the project, the
+          full source is on GitHub:{" "}
+          <a href={TOOL_REPO} target="_blank" rel="noreferrer">
+            github.com/ryanpavlicek/linearaworkbench
+          </a>
+          . Setup and self-hosting instructions are in the repository's{" "}
+          <b>README</b>.
         </P>
       </>
     ),
