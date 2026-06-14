@@ -17,15 +17,26 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   whatever module they were in.
 - **Chart legibility pass** from a visual review: the Commodity
   Catalog's correspondence-analysis biplot no longer renders empty in
-  the scribal-hands and periods modes (a zero-margin column made the
-  analysis degenerate; columns are now pruned against the selected
-  rows), labels are collision-laid-out with only the heaviest
+  the scribal-hands mode (a zero-margin column made the analysis
+  degenerate; columns are now pruned against the selected rows) and the
+  periods mode now states plainly that there isn't enough data rather
+  than showing a misleading near-empty plot — the commodity record is
+  ~96% LM IB, so no correspondence analysis of ceramic phases is
+  possible. Labels are collision-laid-out with only the heaviest
   commodities labeled, and axes scale to the bulk of the points with
   outliers pinned at the edge; the Timeline's overlapping bands became
   one swimlane per phase on a shared date axis (the phases genuinely
   nest — MM III contains IIIA/IIIB); and the Constellation gained
   zoom, pan, per-site legend toggles, and small deterministic rings
   that spread identical-vocabulary documents apart.
+- **Commodity Catalog no longer hangs**: the biplot's label de-overlap
+  pass could loop forever on the real corpus — `y + 13` rounds, in
+  floating point, to a value a hair under 13 away from `y`, so a label
+  kept re-colliding with the point it had just dodged and the whole
+  page froze on a spinner. The vertical-overlap gap is now strictly
+  smaller than the nudge step, which guarantees each nudge clears the
+  point it dodged. (This same hang was what intermittently wedged the
+  jsdom test worker; the full suite runs clean now.)
 
 Eleven new modules — the workbench now has **50**:
 

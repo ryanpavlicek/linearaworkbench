@@ -778,6 +778,7 @@ function CommodityCA({
     // names overlapping.
     const estW = (label: string) => label.length * 6.5;
     const placed: { x: number; y: number; w: number }[] = [];
+    const STEP = 13;
     const layout = (label: string, x: number, y: number) => {
       const w = estW(label);
       let yy = y;
@@ -785,8 +786,17 @@ function CommodityCA({
       while (moved) {
         moved = false;
         for (const p of placed) {
-          if (Math.abs(p.x - x) < (p.w + w) / 2 + 4 && Math.abs(p.y - yy) < 13) {
-            yy = p.y + 13;
+          // Vertical-overlap gap is strictly smaller than the nudge step:
+          // `p.y + STEP` rounds, in floating point, to a value that can sit a
+          // hair UNDER STEP away from p.y, so a gap of exactly STEP would let
+          // the same label re-collide with the point it just dodged forever.
+          // A slightly smaller gap guarantees every nudge clears that point,
+          // so yy advances monotonically and the pass terminates.
+          if (
+            Math.abs(p.x - x) < (p.w + w) / 2 + 4 &&
+            Math.abs(p.y - yy) < STEP - 0.5
+          ) {
+            yy = p.y + STEP;
             moved = true;
           }
         }

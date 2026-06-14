@@ -26,16 +26,23 @@ function caCard(container: HTMLElement): HTMLElement {
   return h4.closest(".card") as HTMLElement;
 }
 
-describe("Commodity Catalog — correspondence analysis (all row modes render)", () => {
-  // One mount, switch the select in place: rendering the full catalog three
-  // times is needlessly heavy. The regression guarded here is that the
-  // scribal-hands and periods modes used to show "Not enough data" instead
-  // of a plot (a zero-margin column made the analysis degenerate).
-  it("draws a non-empty biplot in every row mode", () => {
+describe("Commodity Catalog — correspondence analysis", () => {
+  // One mount, switch the select in place: rendering the full catalog twice
+  // is needlessly heavy. Two regressions are guarded here:
+  //   1. The scribal-hands mode used to render EMPTY (a zero-margin column
+  //      made the analysis degenerate); it must now draw a real biplot.
+  //   2. The label de-overlap pass infinite-looped on the real corpus —
+  //      `p.y + 13` rounds, in floating point, to a value a hair under 13
+  //      away, so a label re-collided with itself forever (the whole render
+  //      hung). If that ever regresses this test never returns; it passing
+  //      at all is the guard.
+  it("draws a non-empty biplot for the well-populated dimensions", () => {
     const { container } = render(<Commodities />);
     const card = caCard(container);
     const select = card.querySelector("select") as HTMLSelectElement;
-    for (const mode of ["site", "scribe", "period"] as const) {
+    // Sites (26) and scribal hands (50) both have ≥3 rows clearing the token
+    // floor, so each yields a real plot.
+    for (const mode of ["site", "scribe"] as const) {
       fireEvent.change(select, { target: { value: mode } });
       expect(
         card.textContent,
@@ -51,6 +58,20 @@ describe("Commodity Catalog — correspondence analysis (all row modes render)",
       // The heaviest rows always draw a text label.
       expect(svg!.querySelectorAll("text").length).toBeGreaterThan(2);
     }
+  });
+
+  it("honestly reports insufficient data for the period dimension", () => {
+    // The commodity record is overwhelmingly LM IB (≈96% of commodity
+    // tokens); no other ceramic phase clears the floor, so fewer than the
+    // three rows a correspondence analysis needs ever qualify. The honest
+    // empty state — not a biplot fabricated from a single populated row — is
+    // the correct output, and must stay that way.
+    const { container } = render(<Commodities />);
+    const card = caCard(container);
+    const select = card.querySelector("select") as HTMLSelectElement;
+    fireEvent.change(select, { target: { value: "period" } });
+    expect(card.textContent).toMatch(/not enough data/i);
+    expect(card.querySelector("svg")).toBeNull();
   });
 });
 
