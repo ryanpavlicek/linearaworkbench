@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { correspondenceAnalysis } from "../lib/multivariate";
@@ -26,6 +26,15 @@ export default function Constellation() {
   const scoped = useScopedCorpus();
   const showInscription = useWorkbench((s) => s.showInscription);
   const [hover, setHover] = useState<string | null>(null);
+  // Sites toggled off via the legend; hidden stars dim instead of
+  // vanishing so the sky keeps its shape.
+  const [hiddenSites, setHiddenSites] = useState<Set<string>>(new Set());
+  // Zoom/pan: a view rectangle in plot coordinates, driven by wheel and
+  // drag. Double-click resets.
+  const [view, setView] = useState({ cx: 0.5, cy: 0.5, scale: 1 });
+  const dragRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(
+    null,
+  );
 
   const data = useMemo(() => {
     // Inscription rows with ≥3 word tokens; columns = top vocabulary.
@@ -96,13 +105,41 @@ export default function Constellation() {
     const W = 880;
     const H = 560;
     const PAD = 24;
-    return {
-      W,
-      H,
-      sx: (x: number) => W / 2 + (x / maxAbs) * (W / 2 - PAD),
-      sy: (y: number) => H / 2 - (y / maxAbs) * (H / 2 - PAD),
-    };
+    const sx = (x: number) => W / 2 + (x / maxAbs) * (W / 2 - PAD);
+    const sy = (y: number) => H / 2 - (y / maxAbs) * (H / 2 - PAD);
+    // Spread exactly-coincident documents (identical vocabulary profiles
+    // — duplicate formulas land on the same CA point) in a small
+    // deterministic ring so each star stays hoverable.
+    const groups = new Map<string, number[]>();
+    data.points.forEach((p, i) => {
+      const key = `${sx(p.x).toFixed(0)}|${sy(p.y).toFixed(0)}`;
+      const g = groups.get(key);
+      if (g) g.push(i);
+      else groups.set(key, [i]);
+    });
+    const px = data.points.map((p) => sx(p.x));
+    const py = data.points.map((p) => sy(p.y));
+    for (const g of groups.values()) {
+      if (g.length < 2) continue;
+      g.forEach((idx, k) => {
+        const angle = (2 * Math.PI * k) / g.length;
+        const r = 7 + 3 * Math.floor(k / 8);
+        px[idx] += Math.cos(angle) * r;
+        py[idx] += Math.sin(angle) * r;
+      });
+    }
+    return { W, H, px, py };
   }, [data.points]);
+
+  // viewBox derived from the zoom/pan state.
+  const viewBox = useMemo(() => {
+    if (!plot) return "0 0 1 1";
+    const w = plot.W / view.scale;
+    const h = plot.H / view.scale;
+    const x = view.cx * plot.W - w / 2;
+    const y = view.cy * plot.H - h / 2;
+    return `${x} ${y} ${w} ${h}`;
+  }, [plot, view]);
 
   const colorOf = (site: string) => {
     const i = data.sites.indexOf(site);
@@ -120,8 +157,11 @@ export default function Constellation() {
           attested 4+ times): documents drift toward the words they use,
           so neighborhoods are shared vocabulary — the libation formula
           texts cluster away from the ledgers, and site idioms form their
-          own asterisms. Hover to identify a star; click to open the
-          tablet. The axes carry{" "}
+          own asterisms. Scroll to zoom, drag to pan, click a legend chip
+          to dim a site, hover to identify a star, click to open the
+          tablet; documents with identical vocabulary (repeated formulas)
+          are spread in small rings so each stays reachable. The axes
+          carry{" "}
           {((data.inertia[0] + data.inertia[1]) * 100).toFixed(0)}% of the
           table's structure; documents under 3 word tokens (
           {data.excluded.toLocaleString()}, mostly nodules and roundels)
@@ -145,7 +185,29 @@ export default function Constellation() {
             }}
           >
             {data.sites.slice(0, 8).map((s) => (
-              <span key={s} style={{ display: "flex", alignItems: "center", gap: 4 }}>
+              <button
+                key={s}
+                onClick={() =>
+                  setHiddenSites((cur) => {
+                    const next = new Set(cur);
+                    if (next.has(s)) next.delete(s);
+                    else next.add(s);
+                    return next;
+                  })
+                }
+                title={`Click to ${hiddenSites.has(s) ? "show" : "dim"} ${s}`}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 4,
+                  background: "none",
+                  border: "none",
+                  padding: 0,
+                  cursor: "pointer",
+                  font: "inherit",
+                  opacity: hiddenSites.has(s) ? 0.35 : 1,
+                }}
+              >
                 <span
                   style={{
                     width: 8,
@@ -155,53 +217,117 @@ export default function Constellation() {
                     display: "inline-block",
                   }}
                 />
-                <span className="dim">{s}</span>
-              </span>
+                <span
+                  className="dim"
+                  style={{
+                    textDecoration: hiddenSites.has(s)
+                      ? "line-through"
+                      : "none",
+                  }}
+                >
+                  {s}
+                </span>
+              </button>
             ))}
             {data.sites.length > 8 && (
               <span className="dim">+{data.sites.length - 8} more sites in gray</span>
             )}
+            <span style={{ flex: 1 }} />
+            <span className="dim">
+              scroll to zoom · drag to pan · double-click to reset
+            </span>
+            {view.scale !== 1 && (
+              <button
+                className="btn btn-outline btn-sm"
+                style={{ fontSize: 10, padding: "1px 6px" }}
+                onClick={() => setView({ cx: 0.5, cy: 0.5, scale: 1 })}
+              >
+                Reset view ({view.scale.toFixed(1)}×)
+              </button>
+            )}
           </div>
           <svg
-            viewBox={`0 0 ${plot.W} ${plot.H}`}
+            viewBox={viewBox}
             style={{
               width: "100%",
               height: "auto",
               background: "var(--surface-1)",
               borderRadius: 8,
               border: "1px solid var(--border)",
+              cursor: dragRef.current ? "grabbing" : "grab",
+              touchAction: "none",
             }}
             role="img"
-            aria-label="Correspondence-analysis map of all text-bearing inscriptions, colored by find-site"
+            aria-label="Correspondence-analysis map of all text-bearing inscriptions, colored by find-site; scroll to zoom, drag to pan"
+            onWheel={(e) => {
+              e.preventDefault();
+              setView((v) => ({
+                ...v,
+                scale: Math.min(
+                  12,
+                  Math.max(1, v.scale * (e.deltaY < 0 ? 1.25 : 0.8)),
+                ),
+              }));
+            }}
+            onPointerDown={(e) => {
+              dragRef.current = {
+                x: e.clientX,
+                y: e.clientY,
+                cx: view.cx,
+                cy: view.cy,
+              };
+              (e.target as Element).setPointerCapture?.(e.pointerId);
+            }}
+            onPointerMove={(e) => {
+              const d = dragRef.current;
+              if (!d) return;
+              const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
+              setView((v) => ({
+                ...v,
+                cx: d.cx - (e.clientX - d.x) / rect.width / v.scale,
+                cy: d.cy - (e.clientY - d.y) / rect.height / v.scale,
+              }));
+            }}
+            onPointerUp={() => {
+              dragRef.current = null;
+            }}
+            onDoubleClick={() => setView({ cx: 0.5, cy: 0.5, scale: 1 })}
           >
-            {data.points.map((p) => (
-              <circle
-                key={p.id}
-                cx={plot.sx(p.x)}
-                cy={plot.sy(p.y)}
-                r={hover === p.id ? 7 : 2.5 + Math.sqrt(p.tokens) * 0.7}
-                fill={colorOf(p.site)}
-                opacity={hover && hover !== p.id ? 0.35 : 0.8}
-                style={{ cursor: "pointer" }}
-                onMouseEnter={() => setHover(p.id)}
-                onMouseLeave={() => setHover(null)}
-                onClick={() => showInscription(p.id)}
-              >
-                <title>{`${p.id} — ${p.site}, ${p.tokens} word tokens. Click to open.`}</title>
-              </circle>
-            ))}
-            {hover && (
-              <text
-                x={12}
-                y={22}
-                fontSize={13}
-                fill="var(--text)"
-                fontFamily="var(--mono)"
-              >
-                {hover}
-              </text>
-            )}
+            {data.points.map((p, i) => {
+              const dimmed = hiddenSites.has(p.site);
+              return (
+                <circle
+                  key={p.id}
+                  cx={plot.px[i]}
+                  cy={plot.py[i]}
+                  r={
+                    (hover === p.id ? 7 : 2.5 + Math.sqrt(p.tokens) * 0.7) /
+                    Math.sqrt(view.scale)
+                  }
+                  fill={colorOf(p.site)}
+                  opacity={
+                    dimmed ? 0.08 : hover && hover !== p.id ? 0.35 : 0.8
+                  }
+                  style={{ cursor: "pointer" }}
+                  onMouseEnter={() => setHover(p.id)}
+                  onMouseLeave={() => setHover(null)}
+                  onClick={() => {
+                    if (!dragRef.current) showInscription(p.id);
+                  }}
+                >
+                  <title>{`${p.id} — ${p.site}, ${p.tokens} word tokens. Click to open.`}</title>
+                </circle>
+              );
+            })}
           </svg>
+          {hover && (
+            <div
+              className="dim"
+              style={{ fontFamily: "var(--mono)", fontSize: 12, marginTop: 4 }}
+            >
+              {hover}
+            </div>
+          )}
         </>
       ) : (
         <div className="dim">

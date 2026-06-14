@@ -75,32 +75,34 @@ export default function Timeline() {
     return { m, undated };
   }, [scoped.inscriptions]);
 
-  const bands = useMemo(() => {
-    const W = 920;
-    const H = 150;
-    const x = (yearBC: number) =>
-      ((SPAN_FROM - yearBC) / (SPAN_FROM - SPAN_TO)) * (W - 80) + 40;
+  // One swimlane per phase, chronologically ordered — the phases nest
+  // and overlap in time (MM III contains IIIA/IIIB; LM I contains IA/IB),
+  // so stacking them on one band painted labels over each other. A row
+  // each keeps every phase readable; the shared axis keeps the time
+  // relationships visible.
+  const lanes = useMemo(() => {
+    const pos = (yearBC: number) =>
+      ((SPAN_FROM - yearBC) / (SPAN_FROM - SPAN_TO)) * 100;
     const maxCount = Math.max(
       1,
       ...PERIODS.map((p) => byPeriod.m.get(p.key)?.count ?? 0),
     );
-    return {
-      W,
-      H,
-      x,
-      list: PERIODS.filter((p) => (byPeriod.m.get(p.key)?.count ?? 0) > 0).map(
-        (p) => {
-          const count = byPeriod.m.get(p.key)!.count;
-          return {
-            ...p,
-            count,
-            x1: x(p.from),
-            x2: x(p.to),
-            h: 14 + (Math.log(1 + count) / Math.log(1 + maxCount)) * 80,
-          };
-        },
-      ),
-    };
+    const list = PERIODS.filter(
+      (p) => (byPeriod.m.get(p.key)?.count ?? 0) > 0,
+    )
+      .map((p) => {
+        const count = byPeriod.m.get(p.key)!.count;
+        return {
+          ...p,
+          count,
+          left: pos(p.from),
+          width: Math.max(1.2, pos(p.to) - pos(p.from)),
+          intensity:
+            0.25 + (Math.log(1 + count) / Math.log(1 + maxCount)) * 0.65,
+        };
+      })
+      .sort((a, b) => b.from - a.from || b.to - a.to);
+    return { pos, list };
   }, [byPeriod]);
 
   const sel = selected ? byPeriod.m.get(selected) : null;
@@ -124,68 +126,109 @@ export default function Timeline() {
         </p>
       </div>
 
-      <svg
-        viewBox={`0 0 ${bands.W} ${bands.H + 40}`}
-        style={{ width: "100%", height: "auto" }}
-        role="img"
-        aria-label="Timeline of the corpus by ceramic phase, band height proportional to inscription count"
-      >
-        <line
-          x1={20}
-          y1={bands.H}
-          x2={bands.W - 20}
-          y2={bands.H}
-          stroke="var(--border-strong)"
-        />
-        {[2100, 1900, 1700, 1500, 1300, 1100, 900, 700].map((y) => (
-          <g key={y}>
-            <line
-              x1={bands.x(y)}
-              y1={bands.H}
-              x2={bands.x(y)}
-              y2={bands.H + 5}
-              stroke="var(--border-strong)"
-            />
-            <text
-              x={bands.x(y)}
-              y={bands.H + 18}
-              fontSize={10}
-              fill="var(--text-muted)"
-              textAnchor="middle"
+      <div className="card" style={{ padding: "10px 12px" }}>
+        {/* shared date axis */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "150px 1fr",
+            gap: 10,
+            marginBottom: 6,
+          }}
+        >
+          <span />
+          <div style={{ position: "relative", height: 18 }}>
+            {[2100, 1900, 1700, 1500, 1300, 1100, 900, 700].map((y) => (
+              <span
+                key={y}
+                className="dim"
+                style={{
+                  position: "absolute",
+                  left: `${lanes.pos(y)}%`,
+                  transform: "translateX(-50%)",
+                  fontSize: 10,
+                  whiteSpace: "nowrap",
+                }}
+              >
+                {y} BC
+              </span>
+            ))}
+          </div>
+        </div>
+        <div style={{ maxHeight: 420, overflowY: "auto" }}>
+          {lanes.list.map((p) => (
+            <button
+              key={p.key}
+              onClick={() => setSelected(p.key === selected ? null : p.key)}
+              title={`${p.label} (c. ${p.from}–${p.to} BC) — ${p.count} inscription${p.count === 1 ? "" : "s"}. ${p.note}`}
+              style={{
+                display: "grid",
+                gridTemplateColumns: "150px 1fr",
+                gap: 10,
+                alignItems: "center",
+                width: "100%",
+                background:
+                  selected === p.key ? "var(--surface-1)" : "transparent",
+                border: "none",
+                borderRadius: 4,
+                padding: "5px 4px",
+                cursor: "pointer",
+                font: "inherit",
+                color: "inherit",
+                textAlign: "left",
+              }}
             >
-              {y} BC
-            </text>
-          </g>
-        ))}
-        {bands.list.map((b) => (
-          <g
-            key={b.key}
-            onClick={() => setSelected(b.key === selected ? null : b.key)}
-            style={{ cursor: "pointer" }}
-          >
-            <rect
-              x={Math.min(b.x1, b.x2)}
-              y={bands.H - b.h}
-              width={Math.max(4, Math.abs(b.x2 - b.x1))}
-              height={b.h}
-              fill={selected === b.key ? "var(--ac)" : "var(--ac)"}
-              opacity={selected === b.key ? 0.75 : 0.35}
-              stroke="var(--ac)"
-            >
-              <title>{`${b.label} (c. ${b.from}–${b.to} BC) — ${b.count} inscriptions. ${b.note}`}</title>
-            </rect>
-            <text
-              x={(b.x1 + b.x2) / 2}
-              y={bands.H - b.h - 4}
-              fontSize={10}
-              fill="var(--text)"
-              textAnchor="middle"
-            >
-              {b.label} ({b.count})
-            </text>
-          </g>
-        ))}
-      </svg>
+              <span style={{ fontSize: 12, whiteSpace: "nowrap" }}>
+                <b>{p.label}</b>{" "}
+                <span className="dim" style={{ fontSize: 11 }}>
+                  ({p.count})
+                </span>
+              </span>
+              <span
+                style={{
+                  position: "relative",
+                  height: 16,
+                  background: "var(--surface-1)",
+                  borderRadius: 3,
+                  overflow: "hidden",
+                }}
+              >
+                {/* axis gridlines inside each track */}
+                {[2100, 1900, 1700, 1500, 1300, 1100, 900, 700].map((y) => (
+                  <span
+                    key={y}
+                    style={{
+                      position: "absolute",
+                      left: `${lanes.pos(y)}%`,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      background: "var(--border)",
+                    }}
+                  />
+                ))}
+                <span
+                  style={{
+                    position: "absolute",
+                    left: `${p.left}%`,
+                    width: `${p.width}%`,
+                    top: 2,
+                    bottom: 2,
+                    background: "var(--ac)",
+                    opacity: selected === p.key ? 0.95 : p.intensity,
+                    borderRadius: 2,
+                  }}
+                />
+              </span>
+            </button>
+          ))}
+        </div>
+        <div className="dim" style={{ fontSize: 11, marginTop: 6 }}>
+          One row per phase, darker = more inscriptions (log scale).
+          Overlapping rows are real: MM III contains IIIA/IIIB, LM I
+          contains IA/IB, and LB I is a generic Late Bronze dating.
+        </div>
+      </div>
 
       {sel && selMeta ? (
         <div className="card" style={{ marginTop: 8 }}>

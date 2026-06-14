@@ -10,6 +10,22 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   <https://linearaworkbench.xyz> — citations, the data API, embeds, and
   the social-preview metadata all point there. Old github.io links
   redirect.
+- **A Home page instead of a popup**: the first-run welcome modal is
+  gone; its content lives on a proper landing page (a new *Start*
+  sidebar group) with the intro, feature cards, try-one-now buttons,
+  and the corpus credit. Fresh visits land there; returning users keep
+  whatever module they were in.
+- **Chart legibility pass** from a visual review: the Commodity
+  Catalog's correspondence-analysis biplot no longer renders empty in
+  the scribal-hands and periods modes (a zero-margin column made the
+  analysis degenerate; columns are now pruned against the selected
+  rows), labels are collision-laid-out with only the heaviest
+  commodities labeled, and axes scale to the bulk of the points with
+  outliers pinned at the edge; the Timeline's overlapping bands became
+  one swimlane per phase on a shared date axis (the phases genuinely
+  nest — MM III contains IIIA/IIIB); and the Constellation gained
+  zoom, pan, per-site legend toggles, and small deterministic rings
+  that spread identical-vocabulary documents apart.
 
 Eleven new modules — the workbench now has **50**:
 

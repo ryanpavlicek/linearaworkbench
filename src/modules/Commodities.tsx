@@ -695,7 +695,6 @@ function CommodityCA({
         m.set(head, (m.get(head) ?? 0) + 1);
       }
     }
-    // Keep rows with ≥ 12 commodity tokens and columns attested ≥ 5 times.
     const colTotals = new Map<string, number>();
     for (const m of table.values())
       for (const [c, v] of m) colTotals.set(c, (colTotals.get(c) ?? 0) + v);
@@ -703,32 +702,111 @@ function CommodityCA({
       .filter(([, v]) => v >= 5)
       .map(([c]) => c)
       .sort();
-    const rows = [...table.entries()]
-      .filter(([, m]) => {
-        let s = 0;
-        for (const c of cols) s += m.get(c) ?? 0;
-        return s >= 12;
-      })
-      .map(([r]) => r)
-      .sort();
+    // Adaptive row threshold: sites clear 12 commodity tokens easily, but
+    // individual scribal hands and the sparse periods don't — a fixed cut
+    // left those modes empty. Walk down until at least 3 rows qualify;
+    // the view reports which floor it used.
+    let rows: string[] = [];
+    let minTokens = 0;
+    for (const t of [12, 8, 5, 3]) {
+      rows = [...table.entries()]
+        .filter(([, m]) => {
+          let s = 0;
+          for (const c of cols) s += m.get(c) ?? 0;
+          return s >= t;
+        })
+        .map(([r]) => r)
+        .sort();
+      minTokens = t;
+      if (rows.length >= 3) break;
+    }
     if (rows.length < 3 || cols.length < 3) return null;
-    const counts = rows.map((r) => cols.map((c) => table.get(r)?.get(c) ?? 0));
-    return correspondenceAnalysis(rows, cols, counts);
+    // Drop columns no SELECTED row uses: a zero column margin makes the
+    // CA degenerate (correspondenceAnalysis correctly refuses it), and in
+    // the thin row modes (hands, periods) the qualifying rows only touch
+    // a subset of the corpus-wide commodity list. This, not the row
+    // threshold, was why those modes rendered empty.
+    const usedCols = cols.filter((c) =>
+      rows.some((r) => (table.get(r)?.get(c) ?? 0) > 0),
+    );
+    if (usedCols.length < 3) return null;
+    const counts = rows.map((r) =>
+      usedCols.map((c) => table.get(r)?.get(c) ?? 0),
+    );
+    const result = correspondenceAnalysis(rows, usedCols, counts);
+    return result ? { ...result, minTokens } : null;
   }, [inscriptions, rowMode]);
 
   const plot = useMemo(() => {
     if (!ca) return null;
     const pts = [...ca.rows, ...ca.cols];
-    const maxAbs = Math.max(
-      0.05,
-      ...pts.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y))),
+    // Scale to the bulk of the points, not the extremes: one hand that
+    // writes only one kind of document otherwise compresses everyone else
+    // into a band. Coordinates are scaled to the 90th percentile per axis
+    // and anything beyond is pinned at the plot edge — readability over
+    // true CA distances, and the footer says so.
+    const p90 = (vals: number[]) => {
+      const s = [...vals].sort((a, b) => a - b);
+      return s[Math.min(s.length - 1, Math.floor(s.length * 0.9))];
+    };
+    const maxX = Math.max(0.05, p90(pts.map((p) => Math.abs(p.x))) * 1.25);
+    const maxY = Math.max(0.05, p90(pts.map((p) => Math.abs(p.y))) * 1.25);
+    const W = 720;
+    const H = 480;
+    const PAD = 40;
+    const clamp = (v: number, lo: number, hi: number) =>
+      Math.min(hi, Math.max(lo, v));
+    const sx = (x: number) =>
+      clamp(W / 2 + (x / maxX) * (W / 2 - PAD), PAD, W - PAD);
+    const sy = (y: number) =>
+      clamp(H / 2 - (y / maxY) * (H / 2 - PAD), PAD, H - PAD);
+    // Label layout: only the heaviest columns get text (the rest stay
+    // dots with tooltips — labeling 30 logograms is what made the plot
+    // unreadable), and every rendered label runs through a greedy
+    // de-overlap pass that nudges later labels down until they clear
+    // earlier ones in the same horizontal band.
+    const LABELED_COLS = 14;
+    const labeledCols = new Set(
+      [...ca.cols]
+        .sort((a, b) => b.mass - a.mass)
+        .slice(0, LABELED_COLS)
+        .map((c) => c.label),
     );
-    const W = 620;
-    const H = 420;
-    const PAD = 34;
-    const sx = (x: number) => W / 2 + (x / maxAbs) * (W / 2 - PAD);
-    const sy = (y: number) => H / 2 - (y / maxAbs) * (H / 2 - PAD);
-    return { W, H, sx, sy };
+    // Width-aware: ~6.5px per character at these font sizes. Two labels
+    // collide when their estimated boxes intersect, not when their
+    // centers are within a fixed window — the fixed window left long
+    // names overlapping.
+    const estW = (label: string) => label.length * 6.5;
+    const placed: { x: number; y: number; w: number }[] = [];
+    const layout = (label: string, x: number, y: number) => {
+      const w = estW(label);
+      let yy = y;
+      let moved = true;
+      while (moved) {
+        moved = false;
+        for (const p of placed) {
+          if (Math.abs(p.x - x) < (p.w + w) / 2 + 4 && Math.abs(p.y - yy) < 13) {
+            yy = p.y + 13;
+            moved = true;
+          }
+        }
+      }
+      placed.push({ x, y: yy, w });
+      return yy;
+    };
+    // Rows first (they matter most), heaviest first so big sites keep
+    // their natural spot and small ones move aside.
+    const rowLabelY = new Map<string, number>();
+    for (const r of [...ca.rows].sort((a, b) => b.mass - a.mass)) {
+      rowLabelY.set(r.label, layout(r.label, sx(r.x), sy(r.y) - 10));
+    }
+    const colLabelY = new Map<string, number>();
+    for (const c of [...ca.cols]
+      .filter((c) => labeledCols.has(c.label))
+      .sort((a, b) => b.mass - a.mass)) {
+      colLabelY.set(c.label, layout(c.label, sx(c.x), sy(c.y) + 4));
+    }
+    return { W, H, sx, sy, labeledCols, rowLabelY, colLabelY };
   }, [ca]);
 
   return (
@@ -748,8 +826,8 @@ function CommodityCA({
         share a plane, and a row lies in the direction of the commodities
         it records more than the corpus average. Distance from the center
         is deviation from the average profile — points near the origin are
-        unremarkable. Rows with under 12 commodity tokens are dropped
-        rather than plotted as fake geometry.
+        unremarkable. Rows too thin to place honestly are dropped, with
+        the cutoff stated under the plot.
       </div>
       <div className="toolbar">
         <label
@@ -771,67 +849,93 @@ function CommodityCA({
       </div>
       {!ca || !plot ? (
         <div className="dim" style={{ fontSize: 12 }}>
-          Not enough data for this view — fewer than 3 qualifying rows or
-          commodities (try a different row mode or a wider Scope).
+          Not enough data for this view — fewer than 3 rows have even 3
+          commodity tokens (try a different row mode or a wider Scope).
         </div>
       ) : (
-        <svg
-          viewBox={`0 0 ${plot.W} ${plot.H}`}
-          style={{ width: "100%", height: "auto", maxWidth: 720 }}
-          role="img"
-          aria-label={`Correspondence analysis biplot of ${rowMode}s against commodities`}
-        >
-          <line
-            x1={plot.sx(0)}
-            y1={0}
-            x2={plot.sx(0)}
-            y2={plot.H}
-            stroke="var(--border)"
-          />
-          <line
-            x1={0}
-            y1={plot.sy(0)}
-            x2={plot.W}
-            y2={plot.sy(0)}
-            stroke="var(--border)"
-          />
-          {ca.cols.map((c) => (
-            <text
-              key={`c-${c.label}`}
-              x={plot.sx(c.x)}
-              y={plot.sy(c.y)}
-              fontSize={10}
-              fontFamily="var(--mono)"
-              fill="var(--am)"
-              textAnchor="middle"
-            >
-              {c.label}
-              <title>{`${c.label} — ${(c.mass * 100).toFixed(1)}% of commodity tokens`}</title>
-            </text>
-          ))}
-          {ca.rows.map((r) => (
-            <g key={`r-${r.label}`}>
-              <circle
-                cx={plot.sx(r.x)}
-                cy={plot.sy(r.y)}
-                r={3 + Math.sqrt(r.mass) * 14}
-                fill="var(--ac)"
-                opacity={0.35}
-              >
-                <title>{`${r.label} — ${(r.mass * 100).toFixed(1)}% of commodity tokens`}</title>
-              </circle>
-              <text
-                x={plot.sx(r.x)}
-                y={plot.sy(r.y) - 7 - Math.sqrt(r.mass) * 14}
-                fontSize={10}
-                fill="var(--text)"
-                textAnchor="middle"
-              >
-                {r.label}
-              </text>
-            </g>
-          ))}
-        </svg>
+        <>
+          <svg
+            viewBox={`0 0 ${plot.W} ${plot.H}`}
+            style={{ width: "100%", height: "auto", maxWidth: 860 }}
+            role="img"
+            aria-label={`Correspondence analysis biplot of ${rowMode}s against commodities`}
+          >
+            <line
+              x1={plot.sx(0)}
+              y1={0}
+              x2={plot.sx(0)}
+              y2={plot.H}
+              stroke="var(--border)"
+            />
+            <line
+              x1={0}
+              y1={plot.sy(0)}
+              x2={plot.W}
+              y2={plot.sy(0)}
+              stroke="var(--border)"
+            />
+            {ca.cols.map((c) => (
+              <g key={`c-${c.label}`}>
+                <circle
+                  cx={plot.sx(c.x)}
+                  cy={plot.sy(c.y)}
+                  r={2.5}
+                  fill="var(--am)"
+                  opacity={0.8}
+                >
+                  <title>{`${c.label} — ${(c.mass * 100).toFixed(1)}% of commodity tokens`}</title>
+                </circle>
+                {plot.labeledCols.has(c.label) && (
+                  <text
+                    x={plot.sx(c.x)}
+                    y={plot.colLabelY.get(c.label)! + 12}
+                    fontSize={10}
+                    fontFamily="var(--mono)"
+                    fill="var(--am)"
+                    textAnchor="middle"
+                  >
+                    {c.label}
+                  </text>
+                )}
+              </g>
+            ))}
+            {ca.rows.map((r) => (
+              <g key={`r-${r.label}`}>
+                <circle
+                  cx={plot.sx(r.x)}
+                  cy={plot.sy(r.y)}
+                  r={3 + Math.sqrt(r.mass) * 14}
+                  fill="var(--ac)"
+                  opacity={0.35}
+                >
+                  <title>{`${r.label} — ${(r.mass * 100).toFixed(1)}% of commodity tokens`}</title>
+                </circle>
+                <text
+                  x={plot.sx(r.x)}
+                  y={plot.rowLabelY.get(r.label)}
+                  fontSize={11}
+                  fontWeight={600}
+                  fill="var(--text)"
+                  textAnchor="middle"
+                >
+                  {r.label}
+                </text>
+              </g>
+            ))}
+          </svg>
+          <div className="dim" style={{ fontSize: 11, marginTop: 4 }}>
+            Rows need ≥{ca.minTokens} commodity tokens to qualify
+            {ca.minTokens < 12
+              ? " (relaxed automatically — this dimension slices the corpus thin)"
+              : ""}
+            . The {plot.labeledCols.size} heaviest commodities are labeled;
+            the rest are dots — hover any point for its name and share.
+            Axes are scaled to the bulk of the points and extreme outliers
+            are pinned at the plot edge — compare positions along each
+            axis, not diagonal distances, and treat edge-pinned points as
+            "far out in this direction".
+          </div>
+        </>
       )}
     </div>
   );

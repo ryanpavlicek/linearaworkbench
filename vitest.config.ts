@@ -10,6 +10,11 @@ import { defineConfig } from "vitest/config";
 export default defineConfig({
   test: {
     environment: "node",
+    // Run test files in forked child processes rather than the default
+    // worker_threads (tinypool) pool: the thread pool crashes with
+    // "Worker exited unexpectedly" under the heavy jsdom behavior tests on
+    // newer Node (observed on v26). Forks are slower to spawn but stable.
+    pool: "forks",
     include: ["src/**/*.test.ts", "src/**/*.test.tsx"],
     // Keeps jsdom's localStorage visible on Nodes that define their own
     // experimental webstorage getter (see the file for the full story).
