@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { correspondenceAnalysis } from "../lib/multivariate";
@@ -35,6 +35,12 @@ export default function Constellation() {
   const dragRef = useRef<{ x: number; y: number; cx: number; cy: number } | null>(
     null,
   );
+  // Did the pointer actually move during this press? Survives the
+  // pointerup that clears dragRef, so the click that ends a drag can be
+  // suppressed (a click fires AFTER pointerup, by which point dragRef is
+  // already null — checking dragRef in onClick would never catch a drag).
+  const movedRef = useRef(false);
+  const svgRef = useRef<SVGSVGElement>(null);
 
   const data = useMemo(() => {
     // Inscription rows with ≥3 word tokens; columns = top vocabulary.
@@ -141,10 +147,33 @@ export default function Constellation() {
     return `${x} ${y} ${w} ${h}`;
   }, [plot, view]);
 
+  // The first 7 sites get distinct palette colors; the 8th-onward (and the
+  // unlisted overflow) all share the last entry (gray), matching the
+  // legend's "+N more sites in gray". Never wrap the palette — that would
+  // give an overflow site the same color as a named legend site.
   const colorOf = (site: string) => {
     const i = data.sites.indexOf(site);
-    return SITE_COLORS[i >= 0 ? i % SITE_COLORS.length : SITE_COLORS.length - 1];
+    return SITE_COLORS[
+      i >= 0 && i < SITE_COLORS.length - 1 ? i : SITE_COLORS.length - 1
+    ];
   };
+
+  // Non-passive wheel zoom: React attaches `wheel` as a passive listener,
+  // so an onWheel preventDefault is a no-op and the page scrolls behind the
+  // chart. Attach natively instead (same pattern as the Findspot map).
+  useEffect(() => {
+    const svg = svgRef.current;
+    if (!svg) return;
+    const handler = (e: WheelEvent) => {
+      e.preventDefault();
+      setView((v) => ({
+        ...v,
+        scale: Math.min(12, Math.max(1, v.scale * (e.deltaY < 0 ? 1.25 : 0.8))),
+      }));
+    };
+    svg.addEventListener("wheel", handler, { passive: false });
+    return () => svg.removeEventListener("wheel", handler);
+  }, [plot]);
 
   return (
     <div className="panel" style={{ maxWidth: 1100 }}>
@@ -184,7 +213,7 @@ export default function Constellation() {
               fontSize: 11,
             }}
           >
-            {data.sites.slice(0, 8).map((s) => (
+            {data.sites.slice(0, SITE_COLORS.length - 1).map((s) => (
               <button
                 key={s}
                 onClick={() =>
@@ -229,8 +258,11 @@ export default function Constellation() {
                 </span>
               </button>
             ))}
-            {data.sites.length > 8 && (
-              <span className="dim">+{data.sites.length - 8} more sites in gray</span>
+            {data.sites.length > SITE_COLORS.length - 1 && (
+              <span className="dim">
+                +{data.sites.length - (SITE_COLORS.length - 1)} more sites in
+                gray
+              </span>
             )}
             <span style={{ flex: 1 }} />
             <span className="dim">
@@ -247,6 +279,7 @@ export default function Constellation() {
             )}
           </div>
           <svg
+            ref={svgRef}
             viewBox={viewBox}
             style={{
               width: "100%",
@@ -259,16 +292,6 @@ export default function Constellation() {
             }}
             role="img"
             aria-label="Correspondence-analysis map of all text-bearing inscriptions, colored by find-site; scroll to zoom, drag to pan"
-            onWheel={(e) => {
-              e.preventDefault();
-              setView((v) => ({
-                ...v,
-                scale: Math.min(
-                  12,
-                  Math.max(1, v.scale * (e.deltaY < 0 ? 1.25 : 0.8)),
-                ),
-              }));
-            }}
             onPointerDown={(e) => {
               dragRef.current = {
                 x: e.clientX,
@@ -276,11 +299,16 @@ export default function Constellation() {
                 cx: view.cx,
                 cy: view.cy,
               };
+              movedRef.current = false;
               (e.target as Element).setPointerCapture?.(e.pointerId);
             }}
             onPointerMove={(e) => {
               const d = dragRef.current;
               if (!d) return;
+              // Past a few pixels it's a drag, not a click — remember it so
+              // the trailing click that ends the drag doesn't open a tablet.
+              if (Math.abs(e.clientX - d.x) + Math.abs(e.clientY - d.y) > 4)
+                movedRef.current = true;
               const rect = (e.currentTarget as SVGSVGElement).getBoundingClientRect();
               setView((v) => ({
                 ...v,
@@ -312,7 +340,7 @@ export default function Constellation() {
                   onMouseEnter={() => setHover(p.id)}
                   onMouseLeave={() => setHover(null)}
                   onClick={() => {
-                    if (!dragRef.current) showInscription(p.id);
+                    if (!movedRef.current) showInscription(p.id);
                   }}
                 >
                   <title>{`${p.id} — ${p.site}, ${p.tokens} word tokens. Click to open.`}</title>

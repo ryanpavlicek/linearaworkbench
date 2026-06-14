@@ -63,6 +63,27 @@ describe("wordSurprisal", () => {
     expect(kuRo.bits).toBeLessThan(2);
   });
 
+  it("leave-one-out subtracts per-occurrence for a repeated transition", () => {
+    // A word whose ONLY internal structure is a repeated bigram, and which
+    // is the sole corpus source of that bigram. Proper per-occurrence LOO
+    // must remove all of its self-support so the repeated transition becomes
+    // very surprising; a flat single subtraction would leave mass behind.
+    const vocab = [
+      { word: "PI-RE-PI-RE", count: 4 }, // carries PI->RE and RE->PI twice each
+      { word: "KU-RO", count: 30 },
+      { word: "SA-RO", count: 8 },
+    ];
+    const model = trainSignBigramModel(vocab);
+    // PI->RE appears 2*4 = 8 times, all from this one word.
+    expect(model.bigram.get("PI")?.get("RE")).toBe(8);
+    const loo = wordSurprisal(model, "PI-RE-PI-RE", 4);
+    const piRe = loo.steps.find((s) => s.from === "PI" && s.to === "RE")!;
+    // With every self-occurrence removed PI->RE has no outside support, so it
+    // must be highly surprising — far above what a single-subtraction
+    // (which would leave 4 of 8 behind) would yield.
+    expect(piRe.bits).toBeGreaterThan(4);
+  });
+
   it("probabilities stay valid under heavy exclusion", () => {
     // Excluding more tokens than exist must not produce negative counts,
     // probabilities over 1, or negative bits.

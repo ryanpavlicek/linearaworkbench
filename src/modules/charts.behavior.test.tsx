@@ -27,25 +27,31 @@ function caCard(container: HTMLElement): HTMLElement {
 }
 
 describe("Commodity Catalog — correspondence analysis (all row modes render)", () => {
-  for (const mode of ["site", "scribe", "period"] as const) {
-    it(`renders a non-empty biplot in "${mode}" mode`, () => {
-      const { container } = render(<Commodities />);
-      const card = caCard(container);
-      const select = card.querySelector("select") as HTMLSelectElement;
+  // One mount, switch the select in place: rendering the full catalog three
+  // times is needlessly heavy. The regression guarded here is that the
+  // scribal-hands and periods modes used to show "Not enough data" instead
+  // of a plot (a zero-margin column made the analysis degenerate).
+  it("draws a non-empty biplot in every row mode", () => {
+    const { container } = render(<Commodities />);
+    const card = caCard(container);
+    const select = card.querySelector("select") as HTMLSelectElement;
+    for (const mode of ["site", "scribe", "period"] as const) {
       fireEvent.change(select, { target: { value: mode } });
-
-      // The regression: these modes used to show the "Not enough data"
-      // fallback instead of a plot.
-      expect(card.textContent).not.toMatch(/not enough data/i);
+      expect(
+        card.textContent,
+        `${mode} mode should not show the empty fallback`,
+      ).not.toMatch(/not enough data/i);
       const svg = card.querySelector("svg");
       expect(svg, `${mode} mode should draw an SVG`).toBeTruthy();
       // Rows (blue) + commodity columns (amber) both plot as circles.
-      const circles = svg!.querySelectorAll("circle");
-      expect(circles.length, `${mode} mode should plot points`).toBeGreaterThan(3);
-      // At least a few row labels are drawn (the heaviest rows always label).
+      expect(
+        svg!.querySelectorAll("circle").length,
+        `${mode} mode should plot points`,
+      ).toBeGreaterThan(3);
+      // The heaviest rows always draw a text label.
       expect(svg!.querySelectorAll("text").length).toBeGreaterThan(2);
-    });
-  }
+    }
+  });
 });
 
 describe("Timeline — one lane per attested phase (no overlapping bands)", () => {

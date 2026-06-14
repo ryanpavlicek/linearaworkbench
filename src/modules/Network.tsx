@@ -86,6 +86,10 @@ export default function Network() {
   const dragRef = useRef<{ node: Node; offsetX: number; offsetY: number } | null>(
     null,
   );
+  // True once a drag actually moved the node. Survives the pointerup that
+  // nulls dragRef, so the trailing click can tell a drag from a real click
+  // (the click fires after pointerup, when dragRef is already null).
+  const didDragRef = useRef(false);
   // Bump on pair change or manual reload — forces React to re-execute the
   // SVG render after refs have been populated in the layout effect below.
   const [renderVersion, setRenderVersion] = useState(0);
@@ -293,6 +297,7 @@ export default function Network() {
       offsetX: node.x - local.x,
       offsetY: node.y - local.y,
     };
+    didDragRef.current = false;
     (e.currentTarget as Element).setPointerCapture(e.pointerId);
   }
   function onPointerMove(e: React.PointerEvent) {
@@ -304,6 +309,7 @@ export default function Network() {
     pt.x = e.clientX;
     pt.y = e.clientY;
     const local = pt.matrixTransform(ctm.inverse());
+    didDragRef.current = true;
     dragRef.current.node.x = local.x + dragRef.current.offsetX;
     dragRef.current.node.y = local.y + dragRef.current.offsetY;
     dragRef.current.node.vx = 0;
@@ -550,7 +556,12 @@ export default function Network() {
                 style={{ cursor: "grab", opacity: inFocus ? 1 : 0.2 }}
                 onPointerDown={(e) => onPointerDown(n, e)}
                 onClick={(e) => {
-                  if (dragRef.current) return;
+                  // Suppress the click that ends a drag (dragRef is already
+                  // null by now — the click fires after pointerup).
+                  if (didDragRef.current) {
+                    didDragRef.current = false;
+                    return;
+                  }
                   // Click = focus; double-click = open word detail
                   if (e.detail === 2) showWord(n.word);
                   else setFocusWord(n.word === focusWord ? null : n.word);

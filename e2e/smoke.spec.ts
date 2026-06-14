@@ -8,8 +8,13 @@ test("boot → home → search → open a tablet detail", async ({ page }) => {
   await page.goto("/");
 
   // A fresh browser lands on the Home page (no first-run modal anymore).
+  // Target the page's own h2 specifically — the top bar carries an h1 with
+  // the same title, so an unscoped heading match is ambiguous.
   await expect(
-    page.getByRole("heading", { name: /linear a research workbench/i }),
+    page.getByRole("heading", {
+      level: 2,
+      name: /linear a research workbench/i,
+    }),
   ).toBeVisible({ timeout: 30_000 });
 
   // Navigate to Corpus Search via the sidebar, the way a new user would.

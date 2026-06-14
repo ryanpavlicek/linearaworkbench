@@ -4,12 +4,14 @@ import { test, expect } from "@playwright/test";
 // so the two stay in lockstep; this is the real-browser proof.
 test("command palette (Ctrl+K) jumps to another module", async ({ page }) => {
   await page.goto("/");
-  await page
-    .getByRole("button", { name: /got it — let me explore/i })
-    .click({ timeout: 30_000 });
+  // Fresh browser lands on Home (no first-run modal anymore). Match the
+  // page's own level-2 heading; the top bar carries an h1 with the same text.
   await expect(
-    page.getByRole("heading", { name: /corpus search/i }),
-  ).toBeVisible();
+    page.getByRole("heading", {
+      level: 2,
+      name: /linear a research workbench/i,
+    }),
+  ).toBeVisible({ timeout: 30_000 });
 
   await page.keyboard.press("Control+k");
   const palette = page.getByPlaceholder(/jump to a module/i);

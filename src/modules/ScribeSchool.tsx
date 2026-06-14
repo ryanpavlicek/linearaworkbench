@@ -92,6 +92,9 @@ export default function ScribeSchool() {
 
   function grade() {
     if (!ex) return;
+    // Already graded this exercise — don't double-count the score on a
+    // repeat Check click (result is cleared by Next or an answer edit).
+    if (result) return;
     const r = close(answer, ex.scribeTotal)
       ? "scribe"
       : close(answer, ex.itemSum)

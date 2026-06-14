@@ -34,7 +34,14 @@ export default function PlateWorkbench() {
   });
   const [imgIdx, setImgIdx] = useState(0);
 
-  const ins = imaged[idx];
+  // Clamp idx when the Scope narrows the imaged set out from under it —
+  // otherwise a stale high index points past the end and the component
+  // falsely renders "No imaged inscriptions" while documents still exist.
+  useEffect(() => {
+    if (idx > imaged.length - 1) setIdx(Math.max(0, imaged.length - 1));
+  }, [imaged.length, idx]);
+
+  const ins = imaged[Math.min(idx, imaged.length - 1)];
   const images = useMemo(
     () => (ins ? [...ins.facsimileImages, ...ins.images] : []),
     [ins],
