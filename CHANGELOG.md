@@ -37,6 +37,14 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   smaller than the nudge step, which guarantees each nudge clears the
   point it dodged. (This same hang was what intermittently wedged the
   jsdom test worker; the full suite runs clean now.)
+- **Constellation no longer collapses to a band**: the starfield scaled
+  both axes by the single largest coordinate, so one outlier document
+  (a correspondence-analysis first axis is usually dominated by one or
+  two) crushed every other star into a thin vertical line near the
+  origin — the "stacked" look the redesign was meant to cure. It now
+  scales each axis to its own 90th-percentile coordinate and pins the
+  rare points beyond it at the plot edge, filling the plane — the same
+  treatment the Commodity Catalog biplot got.
 
 Eleven new modules — the workbench now has **50**:
 

@@ -104,15 +104,29 @@ export default function Constellation() {
 
   const plot = useMemo(() => {
     if (data.points.length === 0) return null;
-    const maxAbs = Math.max(
-      0.05,
-      ...data.points.map((p) => Math.max(Math.abs(p.x), Math.abs(p.y))),
-    );
     const W = 880;
     const H = 560;
     const PAD = 24;
-    const sx = (x: number) => W / 2 + (x / maxAbs) * (W / 2 - PAD);
-    const sy = (y: number) => H / 2 - (y / maxAbs) * (H / 2 - PAD);
+    // Scale each axis to its own 90th-percentile coordinate, not the single
+    // largest magnitude: a CA's first axis is typically dominated by one or
+    // two outlier documents, so scaling both axes by the global max crushes
+    // the whole cloud into a thin vertical band near the origin. Per-axis
+    // percentile scaling fills the plane; the rare points beyond it are
+    // pinned at the plot edge (zoom/pan still reaches them). The trade-off —
+    // shared with the Commodity Catalog biplot — is that the picture shows
+    // relative position along each axis, not literal CA distances.
+    const p90 = (vals: number[]) => {
+      const s = [...vals].sort((a, b) => a - b);
+      return s[Math.min(s.length - 1, Math.floor(s.length * 0.9))];
+    };
+    const maxX = Math.max(0.02, p90(data.points.map((p) => Math.abs(p.x))) * 1.1);
+    const maxY = Math.max(0.02, p90(data.points.map((p) => Math.abs(p.y))) * 1.1);
+    const clamp = (v: number, lo: number, hi: number) =>
+      Math.min(hi, Math.max(lo, v));
+    const sx = (x: number) =>
+      clamp(W / 2 + (x / maxX) * (W / 2 - PAD), PAD, W - PAD);
+    const sy = (y: number) =>
+      clamp(H / 2 - (y / maxY) * (H / 2 - PAD), PAD, H - PAD);
     // Spread exactly-coincident documents (identical vocabulary profiles
     // — duplicate formulas land on the same CA point) in a small
     // deterministic ring so each star stays hoverable.
