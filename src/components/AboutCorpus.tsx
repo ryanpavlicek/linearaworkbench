@@ -177,21 +177,17 @@ export function AboutCorpus({
 
           <Section title="About the author">
             <p>
-              I'm a software engineer in the midwestern United States. My
-              classical-languages credentials start and end at amateur
-              Koine Greek — proficient enough to read my Bible in the
-              original, no further. I'm not a classicist, not a Linear A
-              researcher, and I have no aspirations to be either.
+              <b>Ryan Pavlicek</b>
             </p>
             <p>
-              So why Linear A? Because building a serious research tool
-              for a language that, by definition, can't be deciphered
-              struck me as an unusually fun engineering problem. Most
-              research software is written by domain experts for domain
-              experts; this is the inverse — an outsider's attempt to
-              provide useful infrastructure that the actual specialists
-              are free to pick up, ignore, or correct. If something here
-              is wrong, please open an issue.
+              I'm a software engineer that likes creating useful tools for
+              exploring interesting problems.
+            </p>
+            <p>
+              If you need to reach me please email{" "}
+              <a href="mailto:ryan.pavlicek.github@gmail.com">
+                ryan.pavlicek.github@gmail.com
+              </a>
             </p>
           </Section>
 
