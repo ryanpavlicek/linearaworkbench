@@ -94,7 +94,7 @@ export default function DataExport() {
       let best: { word: string; lang: string; meaning: string; dist: number } | null = null;
       for (const [ln, entries] of Object.entries(langs)) {
         for (const e of entries) {
-          const dist = phoneticDistance(ph, e.p!);
+          const dist = phoneticDistance(ph, e.p ?? e.w.toLowerCase());
           if (dist < 0.55 && (!best || dist < best.dist))
             best = { word: e.w, lang: ln, meaning: e.m, dist };
         }
@@ -123,7 +123,7 @@ export default function DataExport() {
       let best: { word: string; lang: string; meaning: string; dist: number } | null = null;
       for (const [ln, entries] of Object.entries(langs)) {
         for (const e of entries) {
-          const dist = phoneticDistance(ph, e.p!);
+          const dist = phoneticDistance(ph, e.p ?? e.w.toLowerCase());
           if (dist < 0.55 && (!best || dist < best.dist))
             best = { word: e.w, lang: ln, meaning: e.m, dist };
         }

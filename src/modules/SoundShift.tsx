@@ -118,7 +118,7 @@ export default function SoundShift() {
       } | null = null;
       for (const [ln, entries] of Object.entries(allLangs)) {
         for (const e of entries) {
-          const d = phoneticDistance(ph, e.p!);
+          const d = phoneticDistance(ph, e.p ?? e.w.toLowerCase());
           if (!best || d < best.dist)
             best = { word: e.w, meaning: e.m, lang: ln, dist: d };
         }

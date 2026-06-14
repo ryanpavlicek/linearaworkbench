@@ -15,7 +15,9 @@ const CONF_COLOR = {
 const CONF_RANK = { high: 3, medium: 2, low: 1 } as const;
 type ConfFilter = "all" | "high" | "medium" | "low";
 
-function TargetCell({ target }: { target: AnnotationTarget }) {
+function TargetCell({ target }: { target?: AnnotationTarget }) {
+  if (!target || typeof target.value !== "string")
+    return <span className="dim">—</span>;
   if (target.kind === "word") return <WordToken word={target.value} />;
   if (target.kind === "inscription") return <InscriptionLink id={target.value} />;
   return (
@@ -45,25 +47,27 @@ export default function Annotations() {
 
   const filtered = useMemo(() => {
     const u = q.toLowerCase();
+    // Null-safe field access throughout: an imported or persisted-from-an-
+    // older-build annotation may be missing target / proposedMeaning / notes.
     return annotations
-      .filter((a) => kindFilter === "all" || a.target.kind === kindFilter)
+      .filter((a) => kindFilter === "all" || a.target?.kind === kindFilter)
       .filter((a) => confFilter === "all" || a.confidence === confFilter)
       .filter((a) => {
         if (!u) return true;
         return (
-          a.proposedMeaning.toLowerCase().includes(u) ||
-          a.notes.toLowerCase().includes(u) ||
-          a.target.value.toLowerCase().includes(u)
+          (a.proposedMeaning ?? "").toLowerCase().includes(u) ||
+          (a.notes ?? "").toLowerCase().includes(u) ||
+          (a.target?.value ?? "").toLowerCase().includes(u)
         );
       });
   }, [annotations, q, kindFilter, confFilter]);
 
   const sorted = sortRows(filtered, {
-    target: (a) => a.target.value,
-    kind: (a) => a.target.kind,
-    meaning: (a) => a.proposedMeaning,
-    confidence: (a) => CONF_RANK[a.confidence],
-    updated: (a) => new Date(a.updatedAt).getTime(),
+    target: (a) => a.target?.value ?? "",
+    kind: (a) => a.target?.kind ?? "",
+    meaning: (a) => a.proposedMeaning ?? "",
+    confidence: (a) => CONF_RANK[a.confidence] ?? 0,
+    updated: (a) => new Date(a.updatedAt ?? 0).getTime(),
   });
 
   function exportJson() {
@@ -81,15 +85,42 @@ export default function Annotations() {
     const reader = new FileReader();
     reader.onload = () => {
       try {
-        const data = JSON.parse(String(reader.result)) as Annotation[];
+        const data = JSON.parse(String(reader.result));
         if (!Array.isArray(data)) throw new Error("Not an array");
+        // Keep only well-formed entries and coerce the string fields, so a
+        // hand-edited or foreign file can't persist an annotation that later
+        // crashes the table's filter/sort/render on a missing field.
+        const clean: Annotation[] = data
+          .filter(
+            (a) =>
+              a &&
+              typeof a === "object" &&
+              a.target &&
+              typeof a.target.value === "string" &&
+              ["word", "inscription", "sign"].includes(a.target.kind),
+          )
+          .map((a) => ({
+            ...a,
+            proposedMeaning:
+              typeof a.proposedMeaning === "string" ? a.proposedMeaning : "",
+            notes: typeof a.notes === "string" ? a.notes : "",
+            confidence: ["high", "medium", "low"].includes(a.confidence)
+              ? a.confidence
+              : "low",
+          }));
+        if (clean.length === 0)
+          throw new Error("No well-formed annotations in this file");
+        const skipped = data.length - clean.length;
         const mode = window.confirm(
-          `Import ${data.length} annotations.\n\nClick OK to MERGE with your existing annotations, or Cancel to REPLACE them.`,
+          `Import ${clean.length} annotations.\n\nClick OK to MERGE with your existing annotations, or Cancel to REPLACE them.`,
         )
           ? "merge"
           : "replace";
-        importEntries(data, mode);
-        toast(`Imported ${data.length} annotations (${mode})`);
+        importEntries(clean, mode);
+        toast(
+          `Imported ${clean.length} annotations (${mode})` +
+            (skipped > 0 ? `, skipped ${skipped} malformed` : ""),
+        );
       } catch (err) {
         toast(`Import failed: ${err}`, "error");
       }

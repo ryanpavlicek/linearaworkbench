@@ -12,9 +12,14 @@ function parseWordlistFile(file: File): Promise<ComparisonEntry[]> {
     r.onload = () => {
       try {
         const text = String(r.result);
-        let entries: ComparisonEntry[];
+        let raw: Partial<ComparisonEntry>[];
         if (file.name.endsWith(".json")) {
-          entries = JSON.parse(text);
+          const parsed = JSON.parse(text);
+          if (!Array.isArray(parsed))
+            throw new Error(
+              "A JSON wordlist must be an array of {w, m, d} entries",
+            );
+          raw = parsed;
         } else {
           const lines = text.split("\n").filter((l) => l.trim());
           // The documented format includes a header row — drop it instead
@@ -23,14 +28,30 @@ function parseWordlistFile(file: File): Promise<ComparisonEntry[]> {
             const first = lines[0].split(",").map((s) => s.trim().toLowerCase());
             if (first[0] === "word") lines.shift();
           }
-          entries = lines.map((l) => {
+          raw = lines.map((l) => {
             const [w, m, d] = l.split(",").map((s) => s.trim());
-            return { w, m: m || "?", d: d || "?" };
+            return { w, m, d };
           });
         }
-        entries.forEach(
-          (e) => (e.p = e.w.replace(/[*₁₂₃ʰʷ]/g, "").toLowerCase()),
-        );
+        // Normalize every entry so downstream code (the entry filter, the
+        // corpus-engagement preview, the comparator) can assume string
+        // w/m/d and a precomputed p. The CSV branch always had a headword,
+        // but a hand-built JSON upload can omit m/d (or even w) — which used
+        // to crash the entry filter on e.m.toLowerCase(). Entries without a
+        // usable headword are dropped rather than stored as junk.
+        const entries: ComparisonEntry[] = raw
+          .filter((e) => e && e.w != null && String(e.w).trim() !== "")
+          .map((e) => {
+            const w = String(e.w);
+            return {
+              w,
+              m: e.m == null ? "?" : String(e.m),
+              d: e.d == null ? "?" : String(e.d),
+              p: w.replace(/[*₁₂₃ʰʷ]/g, "").toLowerCase(),
+            };
+          });
+        if (entries.length === 0)
+          throw new Error("No valid entries found (each needs a headword)");
         resolve(entries);
       } catch (err) {
         reject(err);
@@ -69,11 +90,13 @@ export default function WordlistManager() {
     if (!openEntries) return [];
     const u = entryQ.trim().toLowerCase();
     if (!u) return openEntries;
+    // Null-safe field access: entries persisted by an earlier build (before
+    // JSON uploads were normalized) may still carry undefined m/d.
     return openEntries.filter(
       (e) =>
-        e.w.toLowerCase().includes(u) ||
-        e.m.toLowerCase().includes(u) ||
-        e.d.toLowerCase().includes(u),
+        (e.w ?? "").toLowerCase().includes(u) ||
+        (e.m ?? "").toLowerCase().includes(u) ||
+        (e.d ?? "").toLowerCase().includes(u),
     );
   }, [openEntries, entryQ]);
 

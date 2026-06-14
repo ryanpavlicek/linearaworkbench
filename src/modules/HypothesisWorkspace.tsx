@@ -71,7 +71,7 @@ export default function HypothesisWorkspace() {
       let best = Infinity;
       for (const entries of Object.values(allLangs))
         for (const e of entries) {
-          const d = phoneticDistance(ph, e.p!);
+          const d = phoneticDistance(ph, e.p ?? e.w.toLowerCase());
           if (d < best) best = d;
         }
       return best === Infinity ? 0 : 1 - best;
@@ -279,7 +279,7 @@ export default function HypothesisWorkspace() {
                       let best: { w: string; lang: string; dist: number } | null = null;
                       for (const [ln, entries] of Object.entries(allLangs)) {
                         for (const e of entries) {
-                          const d = phoneticDistance(ph, e.p!);
+                          const d = phoneticDistance(ph, e.p ?? e.w.toLowerCase());
                           if (d < 0.5 && (!best || d < best.dist))
                             best = { w: e.w, lang: ln, dist: d };
                         }

@@ -45,6 +45,25 @@ citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
   scales each axis to its own 90th-percentile coordinate and pins the
   rare points beyond it at the plot edge, filling the plane — the same
   treatment the Commodity Catalog biplot got.
+- **Audit-pass fixes** (a fan-out review of every module's render and
+  interaction paths, after the Commodity Catalog hang showed mount-only
+  tests weren't enough):
+  - *Compare Inscriptions* now shows the text when only one inscription
+    is selected — the per-row "Compare" pivot from Tablet Structure and
+    Query Builder deep-links a single id, which previously rendered an
+    empty interlinear table (alignment needs ≥2); it now falls back to
+    the per-inscription Columns layout with a hint to add another.
+  - *Wordlist Manager* normalizes JSON uploads the way CSV uploads were
+    already normalized, so a list whose entries omit `m`/`d` no longer
+    crashes the entry filter; the filter is null-safe for older saved
+    lists too.
+  - Hardened unguarded `e.p!` phonetic-distance calls in *Hypothesis
+    Workspace*, *Sound Shift*, and *Data Export* against custom-language
+    entries that lack a precomputed form (matching Wordlist Manager's
+    existing guard); *Annotations* validates imported files and reads
+    fields null-safely; *Commentary Browser* resets the imagery toggle
+    when the selected document changes, so a facsimile/photo mode can't
+    carry over to a document that lacks that image.
 
 Eleven new modules — the workbench now has **50**:
 

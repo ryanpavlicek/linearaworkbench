@@ -87,6 +87,14 @@ export default function CommentaryBrowser() {
     };
   }, []);
 
+  // Reset the imagery toggle whenever the selected doc changes: imageMode is
+  // module-level, so a doc opened with "Facsimile" active would otherwise
+  // keep that mode on the next doc — which, if the next doc has only a photo,
+  // renders an empty imagery strip with no image and no explanatory hint.
+  useEffect(() => {
+    setImageMode("off");
+  }, [selectedId]);
+
   // Lazy-fetch the selected doc's full HTML.
   useEffect(() => {
     if (!selectedId || !index) return;

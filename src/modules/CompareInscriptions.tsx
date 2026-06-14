@@ -161,6 +161,13 @@ export default function CompareInscriptions() {
     [selected],
   );
 
+  // With a single inscription there is nothing to align or tab between, so
+  // force the per-inscription Columns layout. The interlinear view is driven
+  // by `alignment` (empty for <2), so without this a single-id deep-link —
+  // the state Tablet Structure's and Query Builder's "Compare" pivots land
+  // in — renders an empty table with only a header.
+  const effectiveView = selected.length >= 2 ? view : "columns";
+
   function add(id: string) {
     if (ids.includes(id)) return;
     if (ids.length >= 4) return;
@@ -582,6 +589,12 @@ export default function CompareInscriptions() {
 
       {selected.length > 0 && (
         <>
+          {selected.length === 1 && (
+            <div className="dim" style={{ marginBottom: 12, fontSize: 12 }}>
+              Showing one inscription. Add another above to align them side by
+              side and highlight the words and signs they share.
+            </div>
+          )}
           {sharedColor.size > 0 && (
             <div style={{ marginBottom: 12 }}>
               <div
@@ -615,7 +628,7 @@ export default function CompareInscriptions() {
             </div>
           )}
 
-          {view === "interlinear" && (
+          {effectiveView === "interlinear" && (
             <div style={{ overflowX: "auto" }}>
               <table className="interlinear-table">
                 <thead>
@@ -739,7 +752,7 @@ export default function CompareInscriptions() {
             </div>
           )}
 
-          {view === "columns" && (
+          {effectiveView === "columns" && (
           <div
             style={{
               display: "grid",
