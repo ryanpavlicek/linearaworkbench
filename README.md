@@ -370,15 +370,8 @@ mirrored from the upstream repository.
 
 ## About the author
 Ryan Pavlicek
-
-I'm a software engineer in Cincinnati, Ohio. My classical-languages credentials
-start and end at amateur Koine Greek — 85-90% proficient enough to read the
-Biblical New Testament in Greek, no further. I'm not a classicist, not a 
-Linear A researcher, and I have no delusions about becoming one
-in mid-life. Creating a tool for working with Linear A seemed like an
-interesting engineering problem to tackle.
-
-If something here is wrong, please open an issue on github.
+I'm a software engineer that likes creating useful tools for exploring interesting problems.
+If you need to reach me please email or create an issue on the github repo.
 
 **Email**: 'ryan [dot] pavlicek [dot] github [at] gmail [dot] com'
 
