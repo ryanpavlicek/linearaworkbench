@@ -23,6 +23,8 @@ export const PLEIADES_IDS: Record<string, number> = {
   Apodoulou: 119143959,
   Zominthos: 156165259,
   Kamilari: 589835,
+  // GORILA site KA; the Pleiades date range (750 BC–AD 640) covers the site's
+  // later phases, but the Linear A find (a bronze double-axe) is Bronze Age.
   Kardamoutsa: 589839,
   Thera: 599478,
   Kea: 570348,

@@ -50,8 +50,9 @@ splits these into **1,721 tagged entries** (separately-numbered
 sealings, obverse/reverse faces, etc.) and that's what this workbench
 loads and analyzes; see [Methodology](docs/METHODOLOGY.md#corpus-normalization)
 for the count distinction. We can read most of the *sounds* (the script
-shares ~60% of its signs with the deciphered Linear B), but not the
-language. The corpus is small, fragmentary, and mostly administrative.
+shares a core inventory of about 90 signs with the deciphered Linear B),
+but not the language. The corpus is small, fragmentary, and mostly
+administrative.
 
 This workbench gives you **50 interactive modules** for analyzing that
 corpus: searching, browsing, statistics, sign concordances, accounting verification,

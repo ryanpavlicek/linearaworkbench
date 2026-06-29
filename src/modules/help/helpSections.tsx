@@ -1191,8 +1191,9 @@ export const SECTIONS: Section[] = [
           }}
         >
           <li>
-            <b>AB-shared</b> — signs with Linear B equivalents (about 60% of
-            the corpus by attestation). These have known phonetic values.
+            <b>AB-shared</b> — signs with Linear B equivalents (47 of the 84
+            sign types here, ~56%). These carry Linear B's phonetic values as
+            a working hypothesis.
           </li>
           <li>
             <b>Linear A only</b> — signs marked with <code>*</code> in

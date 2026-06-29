@@ -846,8 +846,9 @@ The Sign Inventory's comparison card asks: do the two scripts use the
 signary they share in the same proportions?
 
 **Data.** The Linear B side is the DAMOS corpus (Aurora, F. 2015, *DAMOS:
-Database of Mycenaean at Oslo*, damos.hf.uio.no — the most complete
-edition of the Mycenaean corpus), via the `damos-corpus.json` dataset
+Database of Mycenaean at Oslo*, *Procedia - Social and Behavioral Sciences*
+198: 21–31; damos.hf.uio.no — the most complete edition of the Mycenaean
+corpus), via the `damos-corpus.json` dataset
 published with pyaegean (~5,900 documents). DAMOS is licensed **CC
 BY-NC-SA 4.0**, so the workbench never bundles it: the researcher
 downloads the file and loads it locally, and only the ~50-value
