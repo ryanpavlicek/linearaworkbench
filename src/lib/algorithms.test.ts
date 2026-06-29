@@ -116,6 +116,17 @@ describe("Fisher's exact (two-sided)", () => {
   it("never exceeds 1 and is 1 for a degenerate margin", () => {
     expect(fishersExact(0, 0, 5, 10)).toBe(1);
   });
+
+  it("returns 1 (not NaN) for an impossible table with a negative implied cell", () => {
+    // joint > countA (a12 < 0), joint > countB (a21 < 0), and a22 < 0 must each be
+    // rejected as not a real table, matching chiSquared2x2/logLikelihoodRatio2x2's
+    // graceful return — never feed lnChoose an out-of-range argument.
+    expect(fishersExact(5, 3, 5, 10)).toBe(1); // joint 5 > countA 3
+    expect(fishersExact(5, 5, 3, 10)).toBe(1); // joint 5 > countB 3
+    expect(fishersExact(3, 5, 5, 6)).toBe(1); // a22 = 6 − 5 − 5 + 3 = −1 < 0
+    // a valid table is unaffected by the tightened guard:
+    expect(fishersExact(5, 5, 5, 10)).toBeCloseTo(0.007937, 5);
+  });
 });
 
 describe("keynessG2", () => {

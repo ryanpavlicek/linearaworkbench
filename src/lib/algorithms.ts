@@ -621,8 +621,19 @@ export function fishersExact(
   countB: number,
   total: number,
 ): number {
+  // Reject impossible / degenerate tables (mirrors chiSquared2x2's cell guard): any
+  // implied cell going negative — joint > countA (a12), joint > countB (a21), or
+  // total − countA − countB + joint < 0 (a22) — is not a real table. Return the
+  // degenerate value 1 rather than feeding an out-of-range argument to lnChoose,
+  // which would otherwise yield a silent NaN.
+  const a12 = countA - joint;
+  const a21 = countB - joint;
+  const a22 = total - countA - countB + joint;
   if (
     joint < 0 ||
+    a12 < 0 ||
+    a21 < 0 ||
+    a22 < 0 ||
     countA <= 0 ||
     countB <= 0 ||
     countA > total ||
