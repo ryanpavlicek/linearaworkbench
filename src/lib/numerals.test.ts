@@ -6,6 +6,9 @@ import {
   formatValue,
   parseAccountLines,
   checkBalances,
+  TOTAL_MARKERS,
+  GRAND_TOTAL_MARKERS,
+  DEFICIT_MARKERS,
 } from "./numerals";
 
 describe("parseValue", () => {
@@ -196,6 +199,22 @@ describe("parseAccountLines — role tagging", () => {
     expect(line.ideograms).toContain("GRA");
     expect(line.terms).toContain("KU-RO");
     expect(line.terms).not.toContain("GRA");
+  });
+});
+
+describe("transaction-term markers", () => {
+  // KU-RO (and its variant KU-RA) means "total"; KI-RO is the deficit term.
+  // KU-RO₂ is not an attested word and never appears in the corpus, so it must
+  // not be treated as a deficit marker (it had wrongly been bundled with KI-RO).
+  it("treats KI-RO as the only deficit marker", () => {
+    expect([...DEFICIT_MARKERS]).toEqual(["KI-RO"]);
+    expect(DEFICIT_MARKERS.has("KU-RO₂")).toBe(false);
+  });
+
+  it("keeps KU-RO a total and PO-TO-KU-RO a grand total, not deficits", () => {
+    expect(TOTAL_MARKERS.has("KU-RO")).toBe(true);
+    expect(GRAND_TOTAL_MARKERS.has("PO-TO-KU-RO")).toBe(true);
+    expect(DEFICIT_MARKERS.has("KU-RO")).toBe(false);
   });
 });
 

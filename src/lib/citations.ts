@@ -139,16 +139,17 @@ function siglaCitation(style: CitationStyle): string {
     case "bibtex":
       return [
         "@misc{sigla,",
+        "  author = {Salgarella, Ester and Castellan, Simon},",
         "  title  = {SigLA: The Signs of Linear A},",
         "  url    = {https://sigla.phis.me/},",
         "}",
       ].join("\n");
     case "apa":
-      return "*SigLA: The Signs of Linear A*. https://sigla.phis.me/";
+      return "Salgarella, E., & Castellan, S. *SigLA: The Signs of Linear A*. https://sigla.phis.me/";
     case "chicago":
-      return "*SigLA: The Signs of Linear A*. https://sigla.phis.me/.";
+      return "Salgarella, Ester, and Simon Castellan. *SigLA: The Signs of Linear A*. https://sigla.phis.me/.";
     case "mla":
-      return "*SigLA: The Signs of Linear A*. https://sigla.phis.me/.";
+      return "Salgarella, Ester, and Simon Castellan. *SigLA: The Signs of Linear A*. https://sigla.phis.me/.";
   }
 }
 

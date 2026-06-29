@@ -54,7 +54,7 @@ export const SITE_COORDS: Record<string, SiteCoord> = {
   "Prassa": { name: "Prassa", lat: 35.3, lon: 25.2, region: "crete" },
   "Selakanos": { name: "Selakanos", lat: 35.12, lon: 25.6, region: "crete" },
   "Skhinia": { name: "Skhinia", lat: 35.0, lon: 24.8, region: "crete" },
-  "Kardamoutsa": { name: "Kardamoutsa", lat: 35.0, lon: 25.5, region: "crete" },
+  "Kardamoutsa": { name: "Kardamoutsa", lat: 35.207, lon: 25.458, region: "crete" },
   "Kalo Chorafi": { name: "Kalo Chorafi", lat: 35.3, lon: 25.2, region: "crete" },
   "Haghios Stehanos": { name: "Hagios Stefanos", lat: 36.84, lon: 22.83, region: "mainland" },
   "Crete": { name: "Crete (unspecified)", lat: 35.2, lon: 24.9, region: "crete" },

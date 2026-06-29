@@ -86,6 +86,9 @@ describe("buildCitations", () => {
       expect(out).toContain("Godart");
       expect(out).toContain("Younger");
       expect(out).toContain("SigLA");
+      // SigLA must credit its authors, not just the database title.
+      expect(out).toContain("Salgarella");
+      expect(out).toContain("Castellan");
     }
   });
 

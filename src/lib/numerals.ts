@@ -105,7 +105,7 @@ export function formatValue(v: number): string {
 // identifications in Linear A scholarship.
 export const TOTAL_MARKERS = new Set(["KU-RO"]);
 export const GRAND_TOTAL_MARKERS = new Set(["PO-TO-KU-RO"]);
-export const DEFICIT_MARKERS = new Set(["KI-RO", "KU-RO₂"]);
+export const DEFICIT_MARKERS = new Set(["KI-RO"]);
 
 export type LineRole = "header" | "item" | "total" | "grand-total" | "deficit";
 
