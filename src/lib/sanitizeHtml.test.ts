@@ -54,3 +54,42 @@ describe("sanitizeHtmlFragment", () => {
     expect(out).toContain("color:red");
   });
 });
+
+describe("sanitizeHtmlFragment — XSS vectors that bypassed the hand-rolled sanitizer", () => {
+  // Regression for the three holes the quality audit found in the previous
+  // scheme-regex sanitizer; DOMPurify closes all three.
+  const reparse = (out: string) =>
+    new DOMParser().parseFromString(out, "text/html");
+
+  it("drops data:text/html URLs, not just javascript:", () => {
+    const out = sanitizeHtmlFragment(
+      '<a href="data:text/html,<script>alert(1)</script>">x</a>',
+    );
+    const href = reparse(out).querySelector("a")?.getAttribute("href") ?? "";
+    expect(href).not.toMatch(/^\s*data:/i);
+  });
+
+  it("drops javascript: obfuscated with an embedded control character", () => {
+    // Browsers strip TAB/newline from a URL before resolving its scheme, so the
+    // raw value does not literally start with "javascript:".
+    const out = sanitizeHtmlFragment('<a href="java\tscript:alert(1)">x</a>');
+    const href = reparse(out).querySelector("a")?.getAttribute("href") ?? "";
+    expect(href.replace(/[\t\n\r\0]/g, "").toLowerCase()).not.toContain(
+      "javascript:",
+    );
+  });
+
+  it("neutralizes the SVG SMIL <animate> href vector", () => {
+    const out = sanitizeHtmlFragment(
+      '<svg><a><animate attributeName="href" to="javascript:alert(1)"/></a></svg>',
+    );
+    expect(out.toLowerCase()).not.toContain("javascript:");
+    const to = reparse(out).querySelector("animate")?.getAttribute("to") ?? "";
+    expect(to).not.toMatch(/javascript:/i);
+  });
+
+  it("drops vbscript: URLs", () => {
+    const out = sanitizeHtmlFragment('<a href="vbscript:msgbox(1)">x</a>');
+    expect(out.toLowerCase()).not.toContain("vbscript:");
+  });
+});
