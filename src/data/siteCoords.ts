@@ -63,7 +63,7 @@ export const SITE_COORDS: Record<string, SiteCoord> = {
   "Thera": { name: "Thera (Akrotiri)", lat: 36.36, lon: 25.4, region: "aegean" },
   "Kea": { name: "Kea (Ayia Irini)", lat: 37.61, lon: 24.34, region: "aegean" },
   "Milos": { name: "Milos (Phylakopi)", lat: 36.73, lon: 24.42, region: "aegean" },
-  "Kythera": { name: "Kythera", lat: 36.27, lon: 22.95, region: "aegean" },
+  "Kythera": { name: "Kythera", lat: 36.230, lon: 23.029, region: "aegean" },
   "Samothrace": { name: "Samothrace", lat: 40.48, lon: 25.53, region: "aegean" },
 
   // Greek mainland

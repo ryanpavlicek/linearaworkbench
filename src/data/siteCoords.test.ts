@@ -21,4 +21,13 @@ describe("SITE_COORDS", () => {
     expect(k.lat).toBeCloseTo(35.207, 2);
     expect(k.lon).toBeCloseTo(25.458, 2);
   });
+
+  it("places Kythera on the SE coast of the island (Pleiades 570400)", () => {
+    // Pleiades 570400 "Kythera (settlement)" repr. point is 36.230 N, 23.029 E.
+    // The site had been recorded at 36.27/22.95, ~8-10 km inland to the NW of
+    // the real find-spot area (the Minoan site lies on the SE/E coast).
+    const k = SITE_COORDS["Kythera"];
+    expect(k.lat).toBeCloseTo(36.23, 2);
+    expect(k.lon).toBeCloseTo(23.03, 2);
+  });
 });
