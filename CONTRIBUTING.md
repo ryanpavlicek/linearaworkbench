@@ -61,7 +61,14 @@ npm run assets:fetch    # ~10–20 min, ~500 MB
 
 - [ ] Typecheck passes (`npm run typecheck`)
 - [ ] Tests pass (`npm test`) — CI also enforces the coverage gate on
-      `src/lib` + `src/store` (`npm run test:coverage`)
+      `src/lib` + `src/store` (`npm run test:coverage`), and the Stryker
+      mutation gate (`npm run test:mutation`)
+- [ ] **Correctness, not smoke.** A test for new `src/lib` logic must assert the
+      actual output is *right* — against a hand-computed / known-answer value or a
+      property invariant (round-trip, range, symmetry) — not merely that the call
+      runs. Cover the degenerate and out-of-range inputs too (empty, zero,
+      negative, impossible tables): the mutation gate is unforgiving, and the
+      subtle bugs hide on the inputs nobody tests.
 - [ ] Production build succeeds (`npm run build`)
 - [ ] If you added data, cite the source in the same commit
 - [ ] If you changed the corpus build script, regenerate the corpus and
