@@ -32,12 +32,28 @@ export function buildBackup(): BackupFile {
     const key = fullKey.slice(PREFIX.length);
     const raw = localStorage.getItem(fullKey);
     if (raw === null) continue;
+    // Lift the value into a real JSON value (so the file is human-readable,
+    // not strings-of-JSON-inside-JSON) ONLY when doing so round-trips exactly:
+    // the value must be a non-string that re-serializes to the identical raw
+    // bytes. Otherwise keep the raw string verbatim. This guards two lossy
+    // cases that would otherwise contradict the faithful-round-trip contract:
+    //   - a bare string that happens to be valid JSON (e.g. raw `"hi"` with
+    //     literal quotes, or `42`-as-a-string) would parse to a value that
+    //     applyBackup cannot tell apart from a bare string;
+    //   - non-canonical JSON text (e.g. `[1, 2]`, `1.0`, `1e3`) would be
+    //     silently re-formatted on restore.
+    // applyBackup inverts this exactly: non-strings via JSON.stringify, strings
+    // written verbatim.
+    let value: unknown = raw;
     try {
-      data[key] = JSON.parse(raw);
+      const parsed: unknown = JSON.parse(raw);
+      if (typeof parsed !== "string" && JSON.stringify(parsed) === raw) {
+        value = parsed;
+      }
     } catch {
-      // Fall back to storing the raw string if it isn't valid JSON.
-      data[key] = raw;
+      // Not valid JSON: keep the raw string (value already === raw).
     }
+    data[key] = value;
   }
   return {
     kind: BACKUP_KIND,

@@ -184,6 +184,18 @@ describe("griesDP", () => {
     expect(griesDP([0, 0], [100, 100])).toBe(0);
     expect(griesDP([1, 2], [0, 0])).toBe(0);
   });
+
+  it("rejects a counts/partSizes length mismatch instead of distorting DP", () => {
+    // counts and partSizes index the SAME parts; a surplus count has no part.
+    // The first two-part comparison is well-defined and concentrated:
+    //   item all in part 1 of equal halves → DP = ½(|1−½| + |0−½|) = ½.
+    const wellFormed = griesDP([6, 0], [100, 100]);
+    expect(wellFormed).toBeCloseTo(0.5, 10);
+    // A 3rd surplus count (no 3rd part) used to inflate itemTotal from 6 to 12,
+    // halving every v share and silently changing the answer. Now rejected.
+    expect(griesDP([6, 0, 6], [100, 100])).toBe(0);
+    expect(griesDP([6], [100, 100])).toBe(0); // counts shorter than partSizes
+  });
 });
 
 describe("cooccurrencePairs", () => {
@@ -233,6 +245,24 @@ describe("wilsonInterval", () => {
 
   it("returns the full interval for n = 0", () => {
     expect(wilsonInterval(0, 0)).toEqual([0, 1]);
+  });
+
+  it("handles invalid k > n and negative n with a sane in-[0,1] interval", () => {
+    // k > n is not a valid binomial: p̂ = 1.5 made p̂(1−p̂) < 0 and the √ NaN,
+    // returning [NaN, NaN]. Clamp k to n (p̂ = 1) instead: a finite interval
+    // whose bounds stay in [0,1], identical to the legitimate k = n case.
+    const [lo, hi] = wilsonInterval(15, 10);
+    expect(Number.isNaN(lo)).toBe(false);
+    expect(Number.isNaN(hi)).toBe(false);
+    expect(lo).toBeGreaterThanOrEqual(0);
+    expect(hi).toBeLessThanOrEqual(1);
+    expect(lo).toBeLessThanOrEqual(hi);
+    expect(hi).toBe(1); // p̂ clamped to 1 ⇒ upper bound pinned at 1
+    expect(wilsonInterval(15, 10)).toEqual(wilsonInterval(10, 10));
+    // Negative n broke the formula (out-of-[0,1] bounds); reject it.
+    expect(wilsonInterval(3, -5)).toEqual([0, 1]);
+    // Negative k clamps up to 0 (the all-failures interval, also = k = 0).
+    expect(wilsonInterval(-4, 10)).toEqual(wilsonInterval(0, 10));
   });
 });
 

@@ -130,6 +130,20 @@ describe("parseValue — exhaustive forms", () => {
     expect(parseValue("5/0")).toBeNull();
     expect(parseValue("x/2")).toBeNull();
   });
+
+  it("rejects malformed slash tokens instead of coercing them to a number", () => {
+    // Empty numerator: Number("") === 0, so "/2" used to parse as 0/2 = 0.
+    expect(parseValue("/2")).toBeNull();
+    expect(parseValue("3/")).toBeNull();
+    // Non-digit numerator must be rejected, not coerced.
+    expect(parseValue("x/2")).toBeNull();
+    // Improper / non-proper fractions are not metrological fractions.
+    expect(parseValue("5/4")).toBeNull(); // numerator >= denominator
+    expect(parseValue("4/4")).toBeNull(); // == 1, not a proper fraction
+    expect(parseValue("0/4")).toBeNull(); // zero numerator
+    // A genuine proper fraction still parses to its exact value.
+    expect(parseValue("3/8")).toBeCloseTo(0.375, 10);
+  });
 });
 
 describe("formatValue — exact glyph rendering", () => {
@@ -146,6 +160,18 @@ describe("formatValue — exact glyph rendering", () => {
     expect(formatValue(1.234)).toBe("1.234");
     expect(formatValue(2.51)).toBe("2.51");
     expect(formatValue(7)).toBe("7");
+  });
+
+  it("keeps the sign and integer part of a negative mixed number", () => {
+    // -1.5 = -(1 + ½): both the minus sign and the "1" must survive.
+    // The old Math.floor(-1.5) === -2 path dropped them and rendered "½".
+    expect(formatValue(-1.5)).toBe("-1½");
+    // A negative integer is still rendered plainly (sign preserved).
+    expect(formatValue(-3)).toBe("-3");
+    // A negative bare fraction has no integer part to show.
+    expect(formatValue(-0.25)).toBe("-¼");
+    // Positives are unchanged by the sign handling.
+    expect(formatValue(2.75)).toBe("2¾");
   });
 });
 

@@ -165,9 +165,9 @@ function wordRowMatch(
     case "word-suffix":
       return !v || upper.endsWith(String(v).toUpperCase());
     case "word-min-syllables":
-      return parts.length >= Number(v);
+      return String(v ?? "").trim() === "" || parts.length >= Number(v);
     case "word-max-syllables":
-      return parts.length <= Number(v);
+      return String(v ?? "").trim() === "" || parts.length <= Number(v);
     case "word-contains-sign": {
       if (!v) return true;
       const target = String(v).toUpperCase();

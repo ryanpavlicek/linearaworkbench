@@ -104,6 +104,22 @@ describe("wordMatches — word-scope predicates", () => {
     expect(wordMatches("KU-RO", [row("word-cooccurs-with", "PA-I-TO")], cooc)).toBe(true);
     expect(wordMatches("KU-RO", [row("word-cooccurs-with", "ZZ")], cooc)).toBe(false);
   });
+
+  it("empty min/max-syllables values are neutral (no-op match), like the sibling predicates", () => {
+    // A blank value must not filter — matching word-contains/prefix/suffix.
+    // word-max-syllables was the dangerous case: Number("") is 0, so the old
+    // `parts.length <= 0` rejected every real word; an empty value must match.
+    expect(wordMatches("KU-NE-RO", [row("word-max-syllables", "")], cooc)).toBe(true);
+    expect(wordMatches("KU-NE-RO", [row("word-min-syllables", "")], cooc)).toBe(true);
+    // Whitespace-only and nullish values are blank too.
+    expect(wordMatches("KU-NE-RO", [row("word-max-syllables", "  ")], cooc)).toBe(true);
+    expect(wordMatches("KU-NE-RO", [row("word-min-syllables", null)], cooc)).toBe(true);
+    // A real value still filters correctly: KU-NE-RO has 3 signs.
+    expect(wordMatches("KU-NE-RO", [row("word-max-syllables", 2)], cooc)).toBe(false);
+    expect(wordMatches("KU-RO", [row("word-max-syllables", 2)], cooc)).toBe(true);
+    expect(wordMatches("KU-NE-RO", [row("word-min-syllables", 4)], cooc)).toBe(false);
+    expect(wordMatches("KU-NE-RO", [row("word-min-syllables", 3)], cooc)).toBe(true);
+  });
 });
 
 describe("evalQuery", () => {

@@ -216,13 +216,22 @@ export function fitHeaps(
     sxy += x * y;
     syy += y * y;
   }
+  // denom = n·Σx² − (Σx)² is exactly 0 only when every x is identical (no
+  // spread in log-tokens to regress against). Constant-x input does not hit
+  // exactly 0, though: catastrophic cancellation leaves a tiny float residue
+  // (e.g. −1.1e-13) of the opposite sign, so an `=== 0` guard misses it and
+  // the fit is fabricated (a spurious β, and an r² like −3.6e-15). Treat the
+  // denominator as degenerate when it is negligible relative to the scale of
+  // its terms (a true value is positive and O(n·Σx²)), with an absolute floor
+  // for the all-zero edge. Same reasoning for ssTot below.
   const denom = n * sxx - sx * sx;
-  if (denom === 0) return null;
+  const eps = 1e-9;
+  if (denom <= eps * Math.max(n * sxx, 1)) return null;
   const beta = (n * sxy - sx * sy) / denom;
   const logK = (sy - beta * sx) / n;
   const ssTot = syy - (sy * sy) / n;
   const ssRes = ssTot - (beta * (n * sxy - sx * sy)) / n;
-  const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 0;
+  const r2 = ssTot > eps * Math.max(syy, 1) ? 1 - ssRes / ssTot : 0;
   return { k: Math.exp(logK), beta, r2 };
 }
 

@@ -364,6 +364,12 @@ export function keynessG2(
 // Gries (2008), "Dispersions and adjusted frequencies in corpora".
 // Returns 0 when the item or the corpus is empty.
 export function griesDP(counts: number[], partSizes: number[]): number {
+  // counts[i] and partSizes[i] are the per-part occurrence count and size of
+  // the SAME part i; a length mismatch means the two arrays don't describe one
+  // partition. A longer counts adds surplus occurrences to itemTotal (the
+  // share denominator) that have no matching part, silently distorting DP, so
+  // reject the mismatch as undefined rather than returning a wrong number.
+  if (counts.length !== partSizes.length) return 0;
   const itemTotal = counts.reduce((s, c) => s + c, 0);
   const sizeTotal = partSizes.reduce((s, c) => s + c, 0);
   if (itemTotal <= 0 || sizeTotal <= 0) return 0;
@@ -392,8 +398,14 @@ export function wilsonInterval(
   n: number,
   z = 1.96,
 ): [number, number] {
-  if (n === 0) return [0, 1];
-  const p = k / n;
+  // p̂ = k/n must be a valid binomial proportion in [0,1]: k successes out of
+  // n trials. k > n makes p̂ > 1, which drives p̂(1−p̂) negative and the
+  // √ to NaN (so the interval would be [NaN, NaN]); a negative n likewise
+  // breaks the formula and yields out-of-[0,1] bounds. Clamp k into [0,n] and
+  // reject a non-positive n with the maximally-uncertain [0,1] interval.
+  if (n <= 0) return [0, 1];
+  const kc = Math.min(Math.max(k, 0), n);
+  const p = kc / n;
   const denom = 1 + (z * z) / n;
   const center = (p + (z * z) / (2 * n)) / denom;
   const half =

@@ -173,6 +173,29 @@ describe("fitHeaps", () => {
       ]),
     ).toBeNull();
   });
+
+  it("returns null for constant-x input (no regression slope is defined)", () => {
+    // Every point shares tokens=100, so log-tokens has zero spread and the
+    // least-squares denominator n·Σx²−(Σx)² is mathematically 0. Float
+    // cancellation leaves it at ~−1.1e-13, not exactly 0, so the old
+    // `=== 0` guard missed it and fabricated a fit (a spurious β and an r²
+    // like −3.6e-15). The scale-relative guard now rejects it as degenerate.
+    const constantX = Array.from({ length: 6 }, (_, i) => ({
+      tokens: 100,
+      types: (i + 1) * 10,
+    }));
+    expect(fitHeaps(constantX)).toBeNull();
+  });
+
+  it("returns null when every point is identical (degenerate, x and y flat)", () => {
+    // No spread in either variable: both the slope denominator and ssTot are
+    // ~0. Must be null, never a fabricated {k, beta, r2}.
+    const allEqual = Array.from({ length: 7 }, () => ({
+      tokens: 50,
+      types: 12,
+    }));
+    expect(fitHeaps(allEqual)).toBeNull();
+  });
 });
 
 describe("fitZipfMandelbrotMLE", () => {

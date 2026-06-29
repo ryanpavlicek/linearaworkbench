@@ -45,9 +45,15 @@ export function parseValue(token: string): number | null {
   if (parts.length === 2) {
     const num = mapDigits(parts[0], SUPERSCRIPTS) ?? parts[0];
     const den = mapDigits(parts[1], SUBSCRIPTS) ?? parts[1];
+    // Both sides must be a non-empty run of ASCII digits. An empty numerator
+    // or denominator ("/2", "3/") would otherwise coerce to Number("") === 0
+    // and yield a bogus value; non-digit junk ("x/2") would coerce to NaN.
+    if (!/^\d+$/.test(num) || !/^\d+$/.test(den)) return null;
     const n = Number(num);
     const d = Number(den);
-    if (Number.isFinite(n) && Number.isFinite(d) && d !== 0) return n / d;
+    // A metrological fraction is a proper, positive fraction (0 < n < d).
+    // Reject zero/improper numerators and zero denominators.
+    if (n > 0 && d > 0 && n < d) return n / d;
   }
   return null;
 }
@@ -81,10 +87,15 @@ const FRACTION_GLYPH: [number, string][] = [
 ];
 export function formatValue(v: number): string {
   if (Number.isInteger(v)) return String(v);
-  const whole = Math.floor(v);
-  const frac = v - whole;
+  // Work on the magnitude so a negative mixed number keeps its sign and its
+  // integer part: -1.5 → "-1½", not "½". Math.floor would round -1.5 to -2.
+  const sign = v < 0 ? "-" : "";
+  const abs = Math.abs(v);
+  const whole = Math.floor(abs);
+  const frac = abs - whole;
   for (const [f, glyph] of FRACTION_GLYPH) {
-    if (Math.abs(frac - f) < 1e-6) return whole > 0 ? `${whole}${glyph}` : glyph;
+    if (Math.abs(frac - f) < 1e-6)
+      return whole > 0 ? `${sign}${whole}${glyph}` : `${sign}${glyph}`;
   }
   // Unknown fraction — show a tidy decimal.
   return v.toFixed(3).replace(/\.?0+$/, "");
