@@ -30,4 +30,14 @@ describe("SITE_COORDS", () => {
     expect(k.lat).toBeCloseTo(36.23, 2);
     expect(k.lon).toBeCloseTo(23.03, 2);
   });
+
+  it("flags Margiana as a contested, non-genuine find-spot", () => {
+    // The inscription (MARGWa1-26) stays in the corpus for upstream/parity
+    // fidelity, but Margiana is not an accepted Linear A find-spot, so its
+    // gazetteer entry must carry the `contested` reason that the map renders.
+    const m = SITE_COORDS["Margiana"];
+    expect(m).toBeDefined();
+    expect(m.contested).toBeTruthy();
+    expect(m.contested).toMatch(/disputed/i);
+  });
 });

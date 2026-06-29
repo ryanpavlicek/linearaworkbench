@@ -44,6 +44,7 @@ interface Point {
   inView: boolean;
   lat: number;
   lon: number;
+  contested?: string;
 }
 
 const VIEW_W = 900;
@@ -165,6 +166,7 @@ export default function FindspotMap() {
         inView,
         lat: coord.lat,
         lon: coord.lon,
+        contested: coord.contested,
       });
     }
     list.sort((a, b) => b.count - a.count);
@@ -1111,6 +1113,22 @@ export default function FindspotMap() {
                     }}
                   />
                   <span style={{ flex: 1 }}>{p.site}</span>
+                  {p.contested && (
+                    <span
+                      title={p.contested}
+                      style={{
+                        font: "600 9px var(--sans)",
+                        textTransform: "uppercase",
+                        letterSpacing: 0.4,
+                        color: "var(--warn, #b45309)",
+                        border: "1px solid var(--warn, #b45309)",
+                        borderRadius: 3,
+                        padding: "0 4px",
+                      }}
+                    >
+                      ⚠ disputed
+                    </span>
+                  )}
                   <span className="dim" style={{ fontSize: 10 }}>
                     {p.lat.toFixed(1)}°,{p.lon.toFixed(1)}°
                   </span>

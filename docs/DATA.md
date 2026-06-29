@@ -20,6 +20,18 @@ silent drift fails the build on whichever side drifted. The stable,
 documented public surface for *consumers* is the deployed
 [static API](API.md) (`api/v1/`), not these internal files.
 
+### Contested find-spots
+
+The corpus is reproduced verbatim from the upstream snapshot, including one
+entry whose provenance is not accepted: `MARGWa1-26`, recorded as found in
+**Margiana** (Turkmenistan). No Linear A inscription has been excavated in
+Central Asia; the apparent attribution traces to a misreading of the GORILA
+corpus total (1427 = all Linear A artefacts, overwhelmingly Cretan) and the
+fringe "Cretan Protolinear" theory. The inscription is kept, so the corpus
+stays faithful to upstream and the parity checksum holds, but its find-spot is
+flagged `contested` in `src/data/siteCoords.ts` and rendered **⚠ disputed** on
+the Findspot Map, so it is never presented as a genuine provenance.
+
 ## Release assets (immutable)
 
 pyaegean pins each asset's **URL and sha256**, so a published asset is never

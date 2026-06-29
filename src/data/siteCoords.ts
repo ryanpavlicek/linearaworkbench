@@ -11,6 +11,11 @@ export interface SiteCoord {
   lat: number;
   lon: number;
   region: "crete" | "aegean" | "anatolia" | "levant" | "mainland" | "remote";
+  // Set when the provenance is disputed: the entry exists because the upstream
+  // corpus carries it, but it is not an accepted Linear A find-spot. The string
+  // is the reason, surfaced wherever the site is plotted so it is never shown
+  // as a genuine provenance.
+  contested?: string;
 }
 
 export const SITE_COORDS: Record<string, SiteCoord> = {
@@ -76,5 +81,16 @@ export const SITE_COORDS: Record<string, SiteCoord> = {
 
   // Levant / further afield
   "Tel Haror": { name: "Tel Haror (Negev)", lat: 31.38, lon: 34.61, region: "levant" },
-  "Margiana": { name: "Margiana (Turkmenistan)", lat: 37.7, lon: 62.0, region: "remote" },
+  "Margiana": {
+    name: "Margiana (Turkmenistan)",
+    lat: 37.7,
+    lon: 62.0,
+    region: "remote",
+    contested:
+      "Disputed: no Linear A inscription is accepted from Central Asia. Present " +
+      "in the upstream corpus but not a genuine find-spot — the only link is the " +
+      "fringe 'Cretan Protolinear' theory, and the '1427 in Margiana' claim is a " +
+      "misreading of the GORILA corpus total (1427 = all Linear A artefacts, " +
+      "overwhelmingly Cretan).",
+  },
 };
