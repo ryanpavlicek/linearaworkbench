@@ -4,6 +4,30 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 1.5.3 — 2026-06-29
+
+- **Transaction-term markers corrected.** Removed `KU-RO₂` from the deficit
+  set: KU-RO (with its variant KU-RA) means *total*, KI-RO is the deficit term,
+  and KU-RO₂ is unattested. The KU-RO accounting reconciliation is unchanged —
+  the sign never occurred in the corpus.
+- **Gazetteer accuracy.** Kythera now sits on the Minoan site on the island's
+  south-east coast (it had been placed ~8–10 km inland to the north-west), and
+  Kardamoutsa is aligned to its Pleiades point (was ~23 km off). The phonetic
+  map covers the full w-series (adds *we* and *wo*).
+- **Margiana flagged as a disputed find-spot.** The single Margiana inscription
+  stays in the corpus, but its provenance is not accepted — no Linear A is
+  attested in Central Asia — so the Findspot Map now marks it **⚠ disputed** and
+  the data documentation records the caveat.
+- **Citations.** SigLA credits its authors (Salgarella and Castellan), and the
+  DAMOS reference carries its full article citation.
+- **Sign-sharing stated precisely.** The "shares signs with Linear B" wording
+  now gives a denominator-explicit count (the core "AB" inventory of about 90
+  signs; 47 of 84 in the inventory view) instead of an unsourced "~60%", and
+  frames the shared phonetic values as a working hypothesis.
+- **Lexical-stats wording matches the app.** The WordFrequency help and a Chao1
+  note now state the hapax fraction the module shows (about 84% of multi-sign
+  word types), not "about half".
+
 ## 1.5.2 — 2026-06-29
 
 - **Security: hardened HTML sanitization.** The finding-report and commentary
