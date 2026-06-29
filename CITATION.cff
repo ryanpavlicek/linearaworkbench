@@ -25,8 +25,8 @@ abstract: >-
 authors:
   - family-names: Pavlicek
     given-names: Ryan
-version: 1.5.1
-date-released: "2026-06-14"
+version: 1.5.2
+date-released: "2026-06-29"
 url: "https://github.com/ryanpavlicek/linearaworkbench"
 repository-code: "https://github.com/ryanpavlicek/linearaworkbench"
 license: Apache-2.0

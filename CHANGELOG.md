@@ -4,6 +4,21 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 1.5.2 — 2026-06-29
+
+- **Security: hardened HTML sanitization.** The finding-report and commentary
+  renderer (which can show HTML restored from an imported backup) now uses
+  DOMPurify instead of a hand-rolled sanitizer, closing three cross-site-scripting
+  bypasses: `data:` URIs, a `javascript:` URL obfuscated with a control character,
+  and the SVG SMIL `<animate>` href vector. Update self-hosted copies.
+- **Statistics & numerals — degenerate-input correctness.** Fisher's exact test,
+  the Wilson interval, Heaps'-law fitting, and Gries' DP now reject impossible or
+  degenerate inputs cleanly instead of returning `NaN` or a fabricated value;
+  negative mixed numbers keep their sign and integer part; malformed fraction
+  tokens are rejected rather than silently read as a number.
+- **Backups round-trip faithfully** — a stored value whose text is itself valid
+  JSON is now restored byte-identically.
+
 ## 1.5.1 — 2026-06-14
 
 - **Offline & self-hosting note**: a short pointer on the Home page and in
