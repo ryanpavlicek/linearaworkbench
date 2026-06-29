@@ -38,7 +38,7 @@ const PHONETIC_MAP = {
   RA: "ra", RE: "re", RI: "ri", RO: "ro", RU: "ru",
   SA: "sa", SE: "se", SI: "si", SU: "su",
   TA: "ta", TE: "te", TI: "ti", TO: "to", TU: "tu",
-  WA: "wa", WI: "wi",
+  WA: "wa", WE: "we", WI: "wi", WO: "wo",
   ZA: "dza", ZE: "dze", ZO: "dzo",
 };
 
