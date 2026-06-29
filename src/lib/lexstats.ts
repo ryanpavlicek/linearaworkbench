@@ -111,7 +111,7 @@ export function bootstrapCountsCI(
 //
 // with Chao's (1987) variance and the standard log-normal 95% CI on the
 // unseen-type count. It is a LOWER bound: it only sees the rare-type tail,
-// and a corpus this small with ~60% hapax has a large unseen mass.
+// and a corpus this small with ~84% hapax has a large unseen mass.
 export interface Chao1Result {
   estimate: number;
   ciLow: number;

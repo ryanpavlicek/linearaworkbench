@@ -768,7 +768,7 @@ export const SECTIONS: Section[] = [
       <>
         <P>
           Every multi-sign word ranked by attestation count. Shows total
-          words, hapax legomena (words attested only once — about half the
+          words, hapax legomena (words attested only once — most of the
           vocabulary), max frequency, and distribution sites.
         </P>
         <H3>Read it as</H3>
