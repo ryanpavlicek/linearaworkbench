@@ -40,6 +40,13 @@ export const PLEIADES_IDS: Record<string, number> = {
   Enkomi: 13818291,
   "Tel Haror": 687907,
   Margiana: 961934,
+  // recovered in the gazetteer trust pass (each validated against the Pleiades reprPoint)
+  Pyrgos: 589949,
+  Sitia: 590045,
+  Fourni: 589657,
+  Troullos: 589657,
+  "Skoteino Cave": 14671932,
+  "Poros Herakleiou": 589802,
 };
 
 export function pleiadesUrl(site: string): string | null {

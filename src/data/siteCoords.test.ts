@@ -31,6 +31,17 @@ describe("SITE_COORDS", () => {
     expect(k.lon).toBeCloseTo(23.03, 2);
   });
 
+  it("keeps the trust-pass-corrected coordinates (validated against Pleiades)", () => {
+    // These had each drifted from their Pleiades representative point: Apodoulou
+    // ~7.5 km, Zominthos ~7.5 km, and Pyrgos a 39 km mislocation (it is the Linear A
+    // "PYR" find-spot Myrtos-Pyrgos on the south coast, not a central-Crete Pyrgos).
+    expect(SITE_COORDS["Apodoulou"].lon).toBeCloseTo(24.73, 2);
+    expect(SITE_COORDS["Zominthos"].lon).toBeCloseTo(24.887, 2);
+    const p = SITE_COORDS["Pyrgos"];
+    expect(p.lat).toBeCloseTo(35.007, 2);
+    expect(p.lon).toBeCloseTo(25.59, 2);
+  });
+
   it("flags Margiana as a contested, non-genuine find-spot", () => {
     // The inscription (MARGWa1-26) stays in the corpus for upstream/parity
     // fidelity, but Margiana is not an accepted Linear A find-spot, so its
