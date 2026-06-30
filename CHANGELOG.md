@@ -4,6 +4,14 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 1.5.4 — 2026-06-29
+
+- **Gazetteer coordinates validated against Pleiades.** A full check of every Pleiades-linked
+  find-site against its representative point corrected six drifted coordinates: Apodoulou and
+  Zominthos (~7.5 km each), Pyrgos (a 39 km mislocation, now placed at Myrtos-Pyrgos, the Linear A
+  "PYR" find-spot), the Skotino cave, Troullos, and the Margiana centroid. It also adds the Pleiades
+  ids recovered for Pyrgos, Sitia, Fourni, Troullos, the Skotino cave, and Poros.
+
 ## 1.5.3 — 2026-06-29
 
 - **Transaction-term markers corrected.** Removed `KU-RO₂` from the deficit
