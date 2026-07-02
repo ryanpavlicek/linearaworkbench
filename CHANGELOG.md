@@ -4,6 +4,99 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 1.6.0 — 2026-07-02
+
+A correctness pass across the whole workbench, with every fix pinned by a
+regression test (88 added).
+
+### Security
+- **Stored XSS in research notes closed.** A `wb:` reference link's label
+  reached the note preview unescaped (the http and plain branches escaped;
+  the wb: branch did not), and note bodies restore verbatim from imported
+  backups. The label is now escaped like its siblings, and the preview HTML
+  passes through the DOMPurify boundary as defense in depth.
+- **Exported research reports are sanitized.** The HTML export spliced a
+  finding's stored report HTML raw while the in-app viewer sanitized the same
+  field; both now pass the same boundary. Legitimate module snippets survive
+  byte-for-byte.
+
+### Sign table (data correction)
+- **The sign aligner no longer counts the damage marker as a sign.** Upstream
+  renders lacunae with the unassigned codepoint U+1076B (2,257 occurrences);
+  the aligner's block-wide range counted each as a syllabic sign, desyncing
+  the alignment gate on every damaged tablet. With the range corrected to the
+  assigned Unicode repertoire, the evidence base grows from 127 to 236
+  cleanly-aligned inscriptions and the table from **84 to 95 signs** — 15
+  recovered signs (PU, PU₂, QI, *34, *47, and ten more, each verified against
+  its Unicode chart name) and one phantom entry gone. Inscriptions and the
+  cross-project parity checksum are unchanged.
+- **AB-shared classification follows the Unicode chart.** Shared-with-Linear-B
+  was previously inferred from "has a phonetic value", missing 14 AB-series
+  signs (RA₂, PA₃, AU, NWA, the AB-numbered ideograms); it now follows the
+  sign's codepoint name (66 AB-shared / 23 Linear A-only / 6 composites).
+- **A drifted rebuild now fails loudly**: the duplicate-glyph tripwire exits
+  nonzero and a test pins the shipped table (counts, recovered signs, *903
+  unrendered, no duplicate glyphs), so alignment drift can no longer ship.
+
+### Subscripted signs read as themselves, everywhere
+- 1.5.5 fixed `wordToPhonetic`; the same doctrine now holds at every surface
+  via one shared lookup: Minimal Pairs no longer manufactures phonological
+  types from unattested values (105 subscript-involving alternations now
+  honestly type as "no AB values", including the PA~PU₂ pair formerly shown
+  as a flagship vowel alternation), Sign Concordance / Sound Shift / Root
+  Cognates / Hypothesis Workspace / CSV exports show `?` instead of the plain
+  series' value, per-sign attestation counts no longer fold RA₂ into RA, and
+  roots and melodies agree again within Root Cognates.
+- **Query Builder's "word contains sign" works on its own example**: `*301`
+  (or `301`, any case) now matches; subscripted queries match only their
+  exact sign.
+
+### Accounting and corpus statistics
+- **Built-up fractions count as numerals.** The numeral character class
+  lacked U+2044, the fraction slash every corpus fraction uses: 291 fraction
+  tokens and 29 fraction-only documents (Document Types "with numerals"
+  349 → 378) were invisible to numeral-aware analyses.
+- **Approximate readings join the sums.** `≈ ¹⁄₆` now parses at the editor's
+  value instead of dropping silently from accounting totals.
+- **KU-RA joins the total markers**, as 1.5.3 documented it should.
+- **Corpus Health counts real damage.** The damage statistic missed the
+  erased-sign marker 𐝫 entirely, reporting 3.9% of tablets damaged; counting
+  it as ScribeSchool already does puts the honest figure at 21% (366 of
+  1,721).
+- **Positional Grammar no longer double-counts single-word inscriptions** in
+  both the initial and final slots; they report in their own "alone" column.
+
+### Cross-linguistic and curated data
+- **The Linear B frequency comparison joins the q- and z-series again**: the
+  join matched phonetic values (kwa, dza) against transliteration keys (qa,
+  za) that could never agree; an explicit bridge restores those rows.
+- **The libation word list carries only attested forms**: the dead entry
+  A-DI-KI-TE-TE-DU (a fragment of Younger's restored reading, zero corpus
+  tokens) is replaced by the four attested a-di-ki-te family forms, and a
+  liveness test now requires every list entry to match the corpus. KU-RO₂ is
+  likewise gone from Onomastics' function-word list.
+- **The AB-number chart covers its full membership** (adds 16 QA, 29 PU₂,
+  48 NWA and four more, each pinned by Unicode name).
+
+### Offline and export
+- **Offline works after the first visit, as documented**: the service worker
+  now precaches the app shell, corpus, and fonts at install (previously
+  offline only worked from the second visit), never caches error responses
+  (a 404 during a deploy could poison the offline fallback), and versions its
+  cache per release, pruning stale ones.
+- **Corpus re-import round-trips faithfully**: importing the workbench's own
+  export no longer drops the dating period and imagery.
+- **BibTeX citations escape `#`** in permalinks (LaTeX-safe); headings in the
+  in-app methodology renderer keep Unicode letters and dedupe duplicates,
+  matching GitHub anchors.
+
+### Test hardening
+- Mutation testing now covers the heavy statistical modules (8 modules,
+  2,678 mutants); a real-browser backup → restore e2e joins the suite; a
+  version-sync test pins the package/CITATION/citation-constant triple; the
+  report-snippet escaping boundary and the markdown slugger gained
+  known-answer suites.
+
 ## 1.5.5 — 2026-07-01
 
 - **Subscripted signs read as themselves.** `wordToPhonetic` stripped the ₂₃₄

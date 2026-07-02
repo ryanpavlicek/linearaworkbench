@@ -21,7 +21,7 @@ export const CITATION_STYLE_LABEL: Record<CitationStyle, string> = {
 // package.json so the self-citation pins a reproducible release. Bump
 // version + year + date together on a release. Mirrored in CITATION.cff
 // at the repo root (cff `version` + `date-released`) and in package.json.
-export const WORKBENCH_VERSION = "1.5.5";
+export const WORKBENCH_VERSION = "1.6.0";
 const WORKBENCH_RELEASE_YEAR = "2026";
 const WORKBENCH_URL = "https://github.com/ryanpavlicek/linearaworkbench";
 
@@ -173,6 +173,11 @@ export function buildInscriptionCitation(
     case "bibtex": {
       const key = ins.id.replace(/[^A-Za-z0-9]+/g, "");
       const bibtexCefael = GORILA_CEFAEL_URL.replace(/%/g, "\\%");
+      // # is a parameter/concatenation character and % starts a comment in
+      // LaTeX/BibTeX, so the permalink (hash route, plus any percent-encoded
+      // id like HT42%2B59) needs escaping here; the other styles keep the
+      // raw URL.
+      const bibtexLink = link.replace(/[#%]/g, (c) => `\\${c}`);
       return [
         `@misc{lineara_${key},`,
         "  author       = {Godart, Louis and Olivier, Jean-Pierre},",
@@ -181,7 +186,7 @@ export function buildInscriptionCitation(
         "                  ({\\'E}tudes Cr{\\'e}toises 21). Paris: {\\'E}cole",
         "                  Fran{\\c{c}}aise d'Ath{\\`e}nes, 1976--1985},",
         `  note         = {Viewed in the Linear A Research Workbench v${v},`,
-        `                  ${link}, accessed ${date}.`,
+        `                  ${bibtexLink}, accessed ${date}.`,
         `                  Edition digitized at CEFAEL: ${bibtexCefael}}`,
         "}",
       ].join("\n");
