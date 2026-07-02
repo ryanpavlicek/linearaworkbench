@@ -137,6 +137,10 @@ function subCost(
 
 // Convert a hyphenated Linear A word to its phonetic Latin form using the
 // active sign→sound map. Unknown signs fall through as lowercased text.
+// Only the "*" of unread sign labels (*118) is stripped for the lookup:
+// subscripted signs (RA₂, PA₃, TA₂, PU₂) are distinct signs, not variants of
+// the plain series, so they read only where the map attests a value for that
+// exact sign.
 export function wordToPhonetic(
   word: string,
   overrides: PhoneticOverrides = {},
@@ -145,7 +149,7 @@ export function wordToPhonetic(
   return word
     .split("-")
     .map((s) => {
-      const cleaned = s.replace(/[₂₃₄*]/g, "");
+      const cleaned = s.replace(/\*/g, "");
       return map[cleaned] ?? s.toLowerCase();
     })
     .join("");

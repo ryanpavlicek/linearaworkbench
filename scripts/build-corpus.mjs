@@ -187,6 +187,36 @@ for (const [label, tallies] of signTally) {
 }
 signs.sort((a, b) => b.total - a.total);
 
+// Known correction: upstream renders *903 with U+10102 AEGEAN CHECK MARK
+// (Aegean Numbers block), which syllabicGlyphs skips — so the aligner drifts
+// one glyph at *903 and tallies a neighboring sign's glyph (it wore the vowel
+// I's 𐘚 until 1.5.5). The sign has no Linear A codepoint: keep it unrendered
+// rather than wrong. (*904 = GORILA *319 and *905 = the fraction sign J used
+// in a sign-group are genuine identifications carried under upstream's alias
+// labels, not this error class — their glyphs stay.)
+for (const s of signs) {
+  if (s.label === "*903") {
+    s.glyph = null;
+    s.codepoint = null;
+    s.altGlyphs = [];
+  }
+}
+
+// Tripwire for the same error class: two labels sharing a modal glyph means
+// the alignment drifted somewhere. Warn loudly rather than ship a shadowed sign.
+const glyphOwners = new Map();
+for (const s of signs) {
+  if (!s.glyph) continue;
+  const prev = glyphOwners.get(s.glyph);
+  if (prev) {
+    console.warn(
+      `WARN: duplicate modal glyph ${s.glyph} for ${prev} and ${s.label} — alignment drift?`,
+    );
+  } else {
+    glyphOwners.set(s.glyph, s.label);
+  }
+}
+
 // ───────────────────────── Write outputs ─────────────────────────
 
 writeFileSync(

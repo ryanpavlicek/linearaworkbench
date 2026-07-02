@@ -19,7 +19,7 @@ export interface Inscription {
 
 export interface SignData {
   label: string; // GORILA label, e.g. "KA" or "*301"
-  glyph: string; // Unicode Linear A character (modal of corpus alignment)
+  glyph: string | null; // Unicode Linear A character (modal of corpus alignment); null when the sign has no Unicode encoding (the *9xx complex signs)
   codepoint: number | null;
   phonetic: string | null; // Linear B value if AB-shared
   sharedWithLinearB: boolean;

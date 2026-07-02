@@ -13,7 +13,7 @@ interface Props {
 // placeholder if the sign isn't found in the derived sign mapping.
 export function Glyph({ sign, glyph, size = 18, title }: Props) {
   const signsByLabel = useWorkbench((s) => s.corpus.signsByLabel);
-  let displayGlyph = glyph;
+  let displayGlyph: string | null | undefined = glyph;
   let phon: string | null = null;
   if (!displayGlyph && sign) {
     const data = signsByLabel.get(normalizeSignLabel(sign));

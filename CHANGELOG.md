@@ -4,6 +4,28 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 1.5.5 — 2026-07-01
+
+- **Subscripted signs read as themselves.** `wordToPhonetic` stripped the ₂₃₄
+  subscripts before the sign→sound lookup, silently reading the distinct signs
+  RA₂, PA₃, TA₂, PU₂ as plain ra/pa/ta/pu. Only the `*` of unread sign labels
+  is stripped now: a subscripted sign reads only where the map attests a value
+  for that exact sign, and falls through otherwise (RA₂-RO is `ra₂ro`, not
+  `raro`). The shared golden parity values move with it.
+- **Sign table: `*903` no longer wears the vowel I's glyph.** The upstream
+  corpus renders *903 with the Aegean check mark (U+10102), which the sign
+  aligner's syllabic filter skips, so the derived table had drifted one glyph
+  and assigned 𐘚 (the vowel I) to *903. The sign has no Linear A codepoint;
+  its table entry is now unrendered (the UI shows the honest placeholder), the
+  corpus builder pins the correction so a rebuild cannot resurrect it, and a
+  duplicate-glyph tripwire in the builder warns if alignment ever drifts a
+  shadowed sign again.
+- **`*904` and `*905` verified genuine.** Both were audited against Younger's
+  readings and the upstream mapping: *904 is GORILA \*319 ("like a capital I",
+  its I-beam glyph is correct) and *905 is the fraction sign J used as a
+  sign-group member on HT Wa 1025. They are alias labels, not errors, and are
+  documented as such in the builder.
+
 ## 1.5.4 — 2026-06-29
 
 - **Gazetteer coordinates validated against Pleiades.** A full check of every Pleiades-linked

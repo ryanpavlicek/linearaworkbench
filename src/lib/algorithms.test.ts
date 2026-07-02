@@ -380,8 +380,15 @@ describe("referenceKey / describePhoneticScheme", () => {
 });
 
 describe("wordToPhonetic — subscripts and unknowns", () => {
-  it("folds sign subscripts before lookup", () => {
-    expect(wordToPhonetic("RA₂-RO")).toBe("raro");
+  it("treats subscripted signs as distinct signs, never the plain series", () => {
+    // RA₂ has no attested value in the map: it falls through lowercased
+    // instead of borrowing RA's reading.
+    expect(wordToPhonetic("RA₂-RO")).toBe("ra₂ro");
+    expect(wordToPhonetic("SA-RA₂")).not.toBe(wordToPhonetic("SA-RA"));
+  });
+  it("reads a subscripted sign only from its own map entry", () => {
+    expect(wordToPhonetic("SA-RA₂", { RA: "xx" })).toBe("sara₂");
+    expect(wordToPhonetic("SA-RA₂", { "RA₂": "rya" })).toBe("sarya");
   });
   it("maps each known sign and lowercases unknown fall-through", () => {
     expect(wordToPhonetic("A-DU")).toBe("adu");
