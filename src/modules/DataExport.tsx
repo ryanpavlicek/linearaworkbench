@@ -4,7 +4,7 @@ import { useScopedCorpus } from "../store/scope";
 import { isScopeActive, scopeSummary } from "../store/scope";
 import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
 import { csvEscape, downloadFile } from "../lib/helpers";
-import { PHONETIC_MAP } from "../data/phoneticMap";
+import { lookupPhonetic } from "../lib/signKeys";
 import {
   applyBackup,
   buildBackup,
@@ -242,7 +242,7 @@ export default function DataExport() {
     for (const [s, d] of sorted) {
       rows.push([
         s,
-        PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")] || "?",
+        lookupPhonetic(s) ?? "?",
         d.count,
         d.initial,
         d.medial,

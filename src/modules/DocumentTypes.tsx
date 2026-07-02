@@ -53,6 +53,13 @@ const fold = (s: string) => {
   return TYPE_NOTES[t] ? t : TYPE_NOTES[norm] ? norm : t || "(unrecorded)";
 };
 
+// A token counts toward the "with numerals" column only when it carries an
+// actual digit or fraction character: isNumeralToken alone also matches the
+// 𐄁 separator dot, which libation texts use densely — counting that would
+// make dedications look like accounts. Exported for tests.
+export const isCountableNumeral = (w: string): boolean =>
+  isNumeralToken(w) && /[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟₁₂₃₄₅₆₇₈₉₀]/.test(w);
+
 export default function DocumentTypes() {
   const scoped = useScopedCorpus();
   const setScope = useWorkbench((s) => s.setScope);
@@ -102,11 +109,7 @@ export default function DocumentTypes() {
           t.wordTokens++;
           t.words.set(w, (t.words.get(w) ?? 0) + 1);
         }
-        // Require an actual digit/fraction character: isNumeralToken also
-        // matches the 𐄁 separator dot, which libation texts use densely —
-        // counting that would make dedications look like accounts.
-        if (isNumeralToken(w) && /[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟₁₂₃₄₅₆₇₈₉₀]/.test(w))
-          hasNum = true;
+        if (isCountableNumeral(w)) hasNum = true;
       }
       if (hasNum) t.withNumerals++;
     }

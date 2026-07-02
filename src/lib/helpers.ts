@@ -53,7 +53,9 @@ export function classifyToken(
   word: string,
 ): "word" | "numeral" | "ideogram" | "separator" | "text" {
   if (word === "𐄁") return "separator";
-  if (/^[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟₁₂₃₄₅₆₇₈₉₀≈]+$/.test(word)) return "numeral";
+  // Includes the U+2044 fraction slash so built-up fractions ("¹⁄₂") — the
+  // form every corpus fraction actually uses — classify as numerals.
+  if (/^[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟⁄₁₂₃₄₅₆₇₈₉₀≈]+$/.test(word)) return "numeral";
   if (
     !word.includes("-") &&
     ["OLE", "GRA", "VIN", "FIC", "AES", "AUR", "ARG"].includes(word)

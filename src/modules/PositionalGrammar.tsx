@@ -28,7 +28,14 @@ interface Stat {
   first: number;
   last: number;
   mid: number;
+  // Attestations where the word is the inscription's only word. A one-word
+  // document has no internal word order, so these count in neither the
+  // initial nor the final slot (they used to inflate both) — they get their
+  // own category instead.
+  alone: number;
 }
+
+const slotTotal = (d: Stat): number => d.first + d.mid + d.last;
 
 function dominant(d: Stat): "first" | "mid" | "last" {
   if (d.first >= d.mid && d.first >= d.last) return "first";
@@ -51,20 +58,19 @@ export default function PositionalGrammar() {
       ws.forEach((w, i) => {
         let s = map.get(w);
         if (!s) {
-          s = { count: 0, first: 0, last: 0, mid: 0 };
+          s = { count: 0, first: 0, last: 0, mid: 0, alone: 0 };
           map.set(w, s);
         }
         s.count++;
-        if (ws.length === 1) {
-          s.first++;
-          s.last++;
-        } else if (i === 0) s.first++;
+        if (ws.length === 1) s.alone++;
+        else if (i === 0) s.first++;
         else if (i === ws.length - 1) s.last++;
         else s.mid++;
       });
     }
     // Corpus-wide slot totals (over every word, hapax included) — the
-    // baseline each word's positional rate is tested against.
+    // baseline each word's positional rate is tested against. Alone
+    // attestations carry no slot, so they stay out of the baseline too.
     let first = 0;
     let mid = 0;
     let last = 0;
@@ -87,7 +93,12 @@ export default function PositionalGrammar() {
     const m = new Map<string, number>();
     for (const [w, d] of all) {
       const p = dominant(d);
-      const slots = d.first + d.mid + d.last;
+      const slots = slotTotal(d);
+      // Attested only alone — no positional evidence to test.
+      if (slots === 0) {
+        m.set(w, 0);
+        continue;
+      }
       const inPos = p === "first" ? d.first : p === "mid" ? d.mid : d.last;
       const totPos =
         p === "first"
@@ -114,7 +125,9 @@ export default function PositionalGrammar() {
     return all.filter(([w, d]) => {
       if (d.count < minCount) return false;
       if (u && !w.toUpperCase().includes(u)) return false;
-      if (bias !== "any" && dominant(d) !== bias) return false;
+      // A word attested only alone has no dominant slot to filter on.
+      if (bias !== "any" && (slotTotal(d) === 0 || dominant(d) !== bias))
+        return false;
       return true;
     });
   }, [all, q, minCount, bias]);
@@ -125,6 +138,7 @@ export default function PositionalGrammar() {
     initial: ([, d]) => d.first,
     medial: ([, d]) => d.mid,
     final: ([, d]) => d.last,
+    alone: ([, d]) => d.alone,
     bias: ([w]) => biasG2.get(w) ?? 0,
   });
   const display = sorted.slice(0, DISPLAY_CAP);
@@ -147,7 +161,7 @@ export default function PositionalGrammar() {
 
   function exportCsv() {
     const rows: (string | number)[][] = [
-      ["word", "count", "initial", "medial", "final", "dominant", "bias_g2"],
+      ["word", "count", "initial", "medial", "final", "alone", "dominant", "bias_g2"],
     ];
     for (const [w, d] of sorted) {
       rows.push([
@@ -156,7 +170,8 @@ export default function PositionalGrammar() {
         d.first,
         d.mid,
         d.last,
-        BIAS_LABEL[dominant(d)],
+        d.alone,
+        slotTotal(d) === 0 ? "alone" : BIAS_LABEL[dominant(d)],
         (biasG2.get(w) ?? 0).toFixed(3),
       ]);
     }
@@ -178,7 +193,10 @@ export default function PositionalGrammar() {
           isolate candidates. The <b>Bias G²</b> column tests the dominant
           position against the corpus-wide slot baseline — a word that is
           "mostly medial" only because medial slots are common scores near
-          zero, while a genuine slot preference scores high.
+          zero, while a genuine slot preference scores high. Single-word
+          inscriptions carry no internal word order, so those attestations
+          are tallied under <b>Alone</b> and stay out of the slot counts and
+          the baseline.
         </p>
       </div>
       <div className="dim" style={{ margin: "6px 0 12px" }}>
@@ -250,10 +268,13 @@ export default function PositionalGrammar() {
               { label: "Initial", render: ([, d]) => esc(d.first), align: "right" },
               { label: "Medial", render: ([, d]) => esc(d.mid), align: "right" },
               { label: "Final", render: ([, d]) => esc(d.last), align: "right" },
+              { label: "Alone", render: ([, d]) => esc(d.alone), align: "right" },
               {
                 label: "Dominant",
                 render: ([, d]) => {
-                  const dom = d.first >= d.mid && d.first >= d.last ? "initial" : d.last >= d.mid && d.last >= d.first ? "final" : "medial";
+                  if (slotTotal(d) === 0)
+                    return `<span style="color:#6b7280;">alone</span>`;
+                  const dom = BIAS_LABEL[dominant(d)];
                   const c = dom === "initial" ? "#16a34a" : dom === "medial" ? "#1d4ed8" : "#b45309";
                   return `<span style="color:${c};">${dom}</span>`;
                 },
@@ -289,6 +310,13 @@ export default function PositionalGrammar() {
               <SortHeader label="Medial" sortKey="medial" sort={sort} onToggle={toggle} />
               <SortHeader label="Final" sortKey="final" sort={sort} onToggle={toggle} />
               <SortHeader
+                label="Alone"
+                sortKey="alone"
+                sort={sort}
+                onToggle={toggle}
+                title="Attestations as the inscription's only word — no internal position, so these count in neither the initial nor the final slot"
+              />
+              <SortHeader
                 label="Bias G²"
                 sortKey="bias"
                 sort={sort}
@@ -301,7 +329,7 @@ export default function PositionalGrammar() {
           </thead>
           <tbody>
             {display.map(([w, d]) => {
-              const t = d.first + d.mid + d.last;
+              const t = slotTotal(d);
               const pi = t ? (d.first / t) * 100 : 0;
               const pm = t ? (d.mid / t) * 100 : 0;
               const pf = t ? (d.last / t) * 100 : 0;
@@ -316,23 +344,33 @@ export default function PositionalGrammar() {
                   <td className="dim">{d.first}</td>
                   <td className="dim">{d.mid}</td>
                   <td className="dim">{d.last}</td>
-                  <td
-                    className="numeral"
-                    style={{
-                      color:
-                        g >= 3.84
-                          ? dom === "first"
-                            ? "var(--gn)"
-                            : dom === "mid"
-                              ? "var(--ac)"
-                              : "var(--am)"
-                          : "var(--text-muted)",
-                    }}
-                    title={`${BIAS_LABEL[dom]}-dominant; G² vs corpus slot baseline = ${g >= 0 ? "+" : "−"}${Math.abs(g).toFixed(2)}`}
-                  >
-                    {g >= 0 ? "+" : "−"}
-                    {Math.abs(g).toFixed(1)}
-                  </td>
+                  <td className="dim">{d.alone}</td>
+                  {t === 0 ? (
+                    <td
+                      className="dim"
+                      title="Attested only alone — no positional evidence"
+                    >
+                      —
+                    </td>
+                  ) : (
+                    <td
+                      className="numeral"
+                      style={{
+                        color:
+                          g >= 3.84
+                            ? dom === "first"
+                              ? "var(--gn)"
+                              : dom === "mid"
+                                ? "var(--ac)"
+                                : "var(--am)"
+                            : "var(--text-muted)",
+                      }}
+                      title={`${BIAS_LABEL[dom]}-dominant; G² vs corpus slot baseline = ${g >= 0 ? "+" : "−"}${Math.abs(g).toFixed(2)}`}
+                    >
+                      {g >= 0 ? "+" : "−"}
+                      {Math.abs(g).toFixed(1)}
+                    </td>
+                  )}
                   <td>
                     <div className="pos-bar" style={{ width: 120 }}>
                       <div className="pos-first" style={{ width: `${pi}%` }} />
@@ -354,7 +392,7 @@ export default function PositionalGrammar() {
             })}
             {display.length === 0 && (
               <tr>
-                <td colSpan={8} className="dim" style={{ padding: 12 }}>
+                <td colSpan={9} className="dim" style={{ padding: 12 }}>
                   No words match these filters.
                 </td>
               </tr>

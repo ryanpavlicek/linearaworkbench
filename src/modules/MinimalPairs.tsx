@@ -1,7 +1,8 @@
 import { Fragment, useMemo, useState } from "react";
 import { csvEscape, downloadFile } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
-import { PHONETIC_MAP } from "../data/phoneticMap";
+import { mulberry32 } from "../lib/lexstats";
+import { lookupPhonetic } from "../lib/signKeys";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import { useSort, SortHeader } from "../components/sort";
@@ -26,9 +27,11 @@ const PHONO_LABEL: Record<PhonoType, string> = {
 
 // Decompose a Linear B phonetic value into (consonant onset, vowel
 // nucleus). "ku" → ["k","u"], "a" → ["","a"], "kwa"/"dwe" keep their
-// complex onsets. Returns null for signs without a usable value.
+// complex onsets. Returns null for signs without a usable value —
+// subscripted signs (PU₂, RA₂, …) are distinct signs with no attested AB
+// value, so they never decompose via their plain series.
 function cvOf(sign: string): [string, string] | null {
-  const p = PHONETIC_MAP[sign.replace(/[₂₃₄*]/g, "")];
+  const p = lookupPhonetic(sign);
   if (!p) return null;
   const m = /^([^aeiou]*)([aeiou]+)$/.exec(p.toLowerCase());
   return m ? [m[1], m[2]] : null;
@@ -229,6 +232,9 @@ export default function MinimalPairs() {
       });
     }
     const reps = 20;
+    // Seeded like every other baseline in the workbench, so the envelope a
+    // researcher cites is reproducible on reload.
+    const rand = mulberry32(1);
     const counts: number[] = [];
     for (let r = 0; r < reps; r++) {
       const fake = new Set<string>();
@@ -236,7 +242,7 @@ export default function MinimalPairs() {
         const w = signs
           .map((_, i) => {
             const pool = pools.get(Math.min(i, 7))!;
-            return pool[Math.floor(Math.random() * pool.length)];
+            return pool[Math.floor(rand() * pool.length)];
           })
           .join("-");
         fake.add(w);

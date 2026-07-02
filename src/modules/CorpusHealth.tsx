@@ -9,7 +9,12 @@ import { useSort, SortHeader } from "../components/sort";
 // so any analysis elsewhere can be read against what's missing. Always
 // corpus-wide (the point is the dataset, not the current Scope).
 
-const DAMAGE_RE = /[[\]?]/;
+// Damage/uncertainty marks: the source transcription's editorial brackets
+// and "?", plus the 𐝫 lost-sign marker (U+1076B) — the same lacuna reading
+// ScribeSchool uses to exclude damaged tablets from its drills. Brackets
+// alone put "damaged" at 3.9% of tablets; with 𐝫 counted the true corpus
+// figure is ~21%.
+const DAMAGE_RE = /[[\]?𐝫]/u;
 
 export default function CorpusHealth() {
   const corpus = useWorkbench((s) => s.corpus);
@@ -165,7 +170,7 @@ export default function CorpusHealth() {
         </div>
         <div
           className="stat-box"
-          title={`${health.damagedTokens.toLocaleString()} tokens carry damage/uncertainty marks ([ ] ?) inherited from the source transcription`}
+          title={`${health.damagedTokens.toLocaleString()} tokens carry damage/uncertainty marks ([ ] ? or the 𐝫 lost-sign marker) inherited from the source transcription`}
         >
           <span className="val">{pct(health.damagedTablets)}%</span>
           <span className="lbl">Tablets with damaged tokens</span>

@@ -432,6 +432,14 @@ describe("isNumeralToken", () => {
     expect(isNumeralToken("KU-RO")).toBe(false);
     expect(isNumeralToken("")).toBe(false);
   });
+
+  it("accepts built-up fractions using the U+2044 fraction slash", () => {
+    // The corpus renders every metrological fraction this way (superscript
+    // numerator + ⁄ + subscript denominator); ⅟ alone missed all of them.
+    expect(isNumeralToken("¹⁄₂")).toBe(true);
+    expect(isNumeralToken("³⁄₄")).toBe(true);
+    expect(isNumeralToken("¹⁄₁₆")).toBe(true);
+  });
 });
 
 describe("findMorphologicalClusters — stem/suffix/threshold exactness", () => {

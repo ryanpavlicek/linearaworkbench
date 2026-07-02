@@ -20,14 +20,16 @@ import {
 } from "node:fs";
 import { resolve, dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
+import { UPSTREAM_REPO, UPSTREAM_SHA } from "./upstream.mjs";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = resolve(__dirname, "..");
 const corpusPath = resolve(root, "public", "corpus", "inscriptions.json");
 const outRoot = resolve(root, "public", "upstream");
 
-const UPSTREAM_RAW =
-  "https://raw.githubusercontent.com/mwenge/lineara.xyz/master";
+// Pinned to the same upstream commit as the corpus text (scripts/upstream.mjs)
+// so images and papers can never drift ahead of the inscriptions they belong to.
+const UPSTREAM_RAW = `https://raw.githubusercontent.com/${UPSTREAM_REPO}/${UPSTREAM_SHA}`;
 const COMMENTARY_HOST = "https://lineara.xyz/commentary";
 const CONCURRENCY = 12;
 

@@ -44,7 +44,41 @@ const PHONETIC_MAP = {
 
 // Unicode codepoint classifiers
 const isAegeanNumber = (cp) => cp >= 0x10100 && cp <= 0x1013f;
-const isSyllabicSign = (cp) => cp >= 0x10600 && cp <= 0x107ff;
+// The Linear A block is U+10600–U+1077F, but only three ranges carry assigned
+// signs (enumerated from Unicode 16.0 unicodedata, Linear A code chart):
+//   U+10600–10736  AB001..A664 (syllabograms, ideograms, composites)
+//   U+10740–10755  A701a..A732 JE (fractions and fraction compounds)
+//   U+10760–10767  A800..A807 (sign-group ligatures)
+// U+10737–1073F, U+10756–1075F, and U+10768–1077F are UNASSIGNED; upstream
+// uses the unassigned U+1076B as its damage/lacuna marker (2,257 occurrences
+// in glyph streams), so a block-wide range would count damage marks as signs,
+// desync the alignment count gate, and ship unassigned codepoints as glyphs.
+// U+10780+ is Latin Extended-F, not Linear A at all.
+const isSyllabicSign = (cp) =>
+  (cp >= 0x10600 && cp <= 0x10736) ||
+  (cp >= 0x10740 && cp <= 0x10755) ||
+  (cp >= 0x10760 && cp <= 0x10767);
+
+// AB-series membership: the signs Linear A shares with Linear B. Rule: a sign
+// is AB-shared iff its modal glyph's codepoint carries a "LINEAR A SIGN ABnnn"
+// name in the Unicode 16.0 code chart (enumerated with python unicodedata):
+//   U+10600–1061A  AB001..AB028
+//   U+1061C–10646  AB029..AB087
+//   U+10648–10649  AB118, AB120
+//   U+1064B–1064E  AB122..AB131B
+//   U+10650–10654  AB164..AB191
+// The gaps (U+1061B A028B, U+10647 A100-102, U+1064A A120B, U+1064F A131C)
+// and everything from U+10655 up are Linear-A-only names. This replaces the
+// old "phonetic value known" proxy, which missed AB signs without standard
+// transliterations (RA₂, PA₃, TA₂, AU, NWA, ZU, *21F, *86, *118, *164, *188)
+// and the AB-numbered ideograms (VIN, GRA, OLIV).
+const isABSeries = (cp) =>
+  (cp >= 0x10600 && cp <= 0x1061a) ||
+  (cp >= 0x1061c && cp <= 0x10646) ||
+  cp === 0x10648 ||
+  cp === 0x10649 ||
+  (cp >= 0x1064b && cp <= 0x1064e) ||
+  (cp >= 0x10650 && cp <= 0x10654);
 
 // Strip combining/diacritic marks from sign labels for normalization. Keep
 // 2/3/4 subscripts as part of the label since those are semantically distinct
@@ -172,14 +206,18 @@ for (const [label, tallies] of signTally) {
   const confidence = total > 0 ? bestCount / total : 0;
   const phoneticKey = label.replace(/[₂₃₄*]/g, "");
   const phonetic = PHONETIC_MAP[phoneticKey] || null;
-  const isLinearAOnly = label.startsWith("*");
+  const codepoint = bestGlyph ? bestGlyph.codePointAt(0) : null;
+  const sharedWithLinearB = codepoint !== null && isABSeries(codepoint);
   signs.push({
     label,
     glyph: bestGlyph,
-    codepoint: bestGlyph ? bestGlyph.codePointAt(0) : null,
+    codepoint,
     phonetic,
-    sharedWithLinearB: !isLinearAOnly && phonetic !== null,
-    linearAOnly: isLinearAOnly,
+    sharedWithLinearB,
+    // GORILA's *-prefixed labels are the signs without standard Linear B
+    // transliterations; the ones that are nonetheless AB-series (*86, *118,
+    // *164, *188, *21F) are shared, not Linear-A-only.
+    linearAOnly: label.startsWith("*") && !sharedWithLinearB,
     total,
     confidence,
     altGlyphs: altGlyphs.slice(0, 3),
@@ -199,22 +237,35 @@ for (const s of signs) {
     s.glyph = null;
     s.codepoint = null;
     s.altGlyphs = [];
+    // Keep the classification consistent with the nulled codepoint: no glyph
+    // means no AB-series evidence, and the * label keeps it Linear-A-only.
+    s.sharedWithLinearB = false;
+    s.linearAOnly = true;
   }
 }
 
 // Tripwire for the same error class: two labels sharing a modal glyph means
-// the alignment drifted somewhere. Warn loudly rather than ship a shadowed sign.
+// the alignment drifted somewhere. Fail the build rather than ship a
+// shadowed sign — this runs before any output is written.
 const glyphOwners = new Map();
+let duplicateGlyphs = 0;
 for (const s of signs) {
   if (!s.glyph) continue;
   const prev = glyphOwners.get(s.glyph);
   if (prev) {
-    console.warn(
-      `WARN: duplicate modal glyph ${s.glyph} for ${prev} and ${s.label} — alignment drift?`,
+    duplicateGlyphs++;
+    console.error(
+      `ERROR: duplicate modal glyph ${s.glyph} for ${prev} and ${s.label} — alignment drift?`,
     );
   } else {
     glyphOwners.set(s.glyph, s.label);
   }
+}
+if (duplicateGlyphs > 0) {
+  console.error(
+    `Refusing to write outputs: ${duplicateGlyphs} duplicate modal glyph(s).`,
+  );
+  process.exit(1);
 }
 
 // ───────────────────────── Write outputs ─────────────────────────

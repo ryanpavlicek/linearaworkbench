@@ -9,6 +9,7 @@ import {
 } from "../lib/notes";
 import { wordToPhonetic } from "../lib/algorithms";
 import { normalizeSignLabel } from "../lib/helpers";
+import { sanitizeHtmlFragment } from "../lib/sanitizeHtml";
 import type { ResearchNote } from "../lib/types";
 
 // One free-form Markdown note can reference any inscription, word, sign,
@@ -474,15 +475,20 @@ function NotePreview({
   const hoverTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Render Markdown to HTML, swap our wb: links for clickable chips with a
-  // data attribute the wrapping onClick handler delegates from.
+  // data attribute the wrapping onClick handler delegates from. The result
+  // feeds dangerouslySetInnerHTML below, and note bodies restore verbatim
+  // from imported backup files — so beyond renderNoteHtml's own escaping it
+  // gets the same DOMPurify pass as every other HTML-injection site.
   const html = useMemo(
     () =>
-      renderNoteHtml(body, {
-        refHtml: ({ kind, value, label }) =>
-          `<button class="note-chip" data-ref-kind="${kind}" data-ref-value="${encodeURIComponent(
-            value,
-          )}" style="background:${KIND_COLOR[kind]}1f;color:${KIND_COLOR[kind]};border:1px solid ${KIND_COLOR[kind]}66;padding:0 5px;border-radius:3px;font-size:12px;font-family:var(--mono);cursor:pointer;">${label}</button>`,
-      }),
+      sanitizeHtmlFragment(
+        renderNoteHtml(body, {
+          refHtml: ({ kind, value, label }) =>
+            `<button class="note-chip" data-ref-kind="${kind}" data-ref-value="${encodeURIComponent(
+              value,
+            )}" style="background:${KIND_COLOR[kind]}1f;color:${KIND_COLOR[kind]};border:1px solid ${KIND_COLOR[kind]}66;padding:0 5px;border-radius:3px;font-size:12px;font-family:var(--mono);cursor:pointer;">${label}</button>`,
+        }),
+      ),
     [body],
   );
 

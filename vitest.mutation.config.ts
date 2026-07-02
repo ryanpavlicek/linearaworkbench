@@ -12,6 +12,10 @@ export default defineConfig({
       "src/lib/numerals.test.ts",
       "src/lib/signPattern.test.ts",
       "src/lib/compareAlign.test.ts",
+      "src/lib/lexstats.test.ts",
+      "src/lib/surprisal.test.ts",
+      "src/lib/multivariate.test.ts",
+      "src/lib/linearB.test.ts",
     ],
   },
 });

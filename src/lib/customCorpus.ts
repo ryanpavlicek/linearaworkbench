@@ -5,7 +5,10 @@
 //   1. a plain JSON array of inscription records (the same shape as
 //      public/corpus/inscriptions.json, with most fields optional), or
 //   2. a schema-v1 corpus export (the object Data Export and api/v1
-//      produce, with the records under `inscriptions`).
+//      produce, with the records under `inscriptions`). Its renamed
+//      fields are mapped back: `period` -> `context`, and the nested
+//      `images` block -> the flat imagery fields, so the workbench's own
+//      export re-imports losslessly.
 //
 // Missing fields get safe defaults so a minimal corpus — say, a pyaegean
 // dump with just ids, words, and sites — loads with every module working.
@@ -84,23 +87,34 @@ export function normalizeCorpusJson(raw: unknown): NormalizedCorpus {
       continue;
     }
     seen.add(id);
+    // The schema-v1 export nests imagery under an `images` object
+    // (facsimile/photograph/rights/rightsUrl); the legacy array shape
+    // keeps the flat fields.
+    const img =
+      r.images && typeof r.images === "object" && !Array.isArray(r.images)
+        ? (r.images as Record<string, unknown>)
+        : null;
     out.push({
       id,
       site: str(r.site) || "Unknown",
       support: str(r.support) || "unknown",
       scribe: str(r.scribe),
       findspot: str(r.findspot),
-      context: str(r.context),
+      // The export writes the dating period as `period`; the legacy shape
+      // (and the bundled corpus) calls it `context`.
+      context: str(r.context) || str(r.period),
       name: str(r.name) || id,
       words: finalWords,
       translations: alignTranslations(r.translations, finalWords.length),
       lines: lines.length > 0 ? lines : [finalWords],
       glyphs: str(r.glyphs),
       transcription: str(r.transcription),
-      facsimileImages: strArray(r.facsimileImages),
-      images: strArray(r.images),
-      imageRights: str(r.imageRights),
-      imageRightsURL: str(r.imageRightsURL),
+      facsimileImages: img
+        ? strArray(img.facsimile)
+        : strArray(r.facsimileImages),
+      images: img ? strArray(img.photograph) : strArray(r.images),
+      imageRights: img ? str(img.rights) : str(r.imageRights),
+      imageRightsURL: img ? str(img.rightsUrl) : str(r.imageRightsURL),
     });
   }
 

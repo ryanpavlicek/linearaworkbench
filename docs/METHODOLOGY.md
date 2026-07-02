@@ -89,9 +89,13 @@ Algorithm in [`scripts/build-corpus.mjs`](../scripts/build-corpus.mjs):
 
 1. For each inscription with both `transliteratedWords` and
    `parsedInscription`:
-   - Extract syllabic glyphs from the parsed string (Unicode codepoints in
-     the Linear A block `U+10600 – U+107FF`, excluding the Aegean Numbers
-     block `U+10100 – U+1013F` and word separators).
+   - Extract syllabic glyphs from the parsed string: only the Linear A
+     block's *assigned* ranges (`U+10600–10736`, `U+10740–10755`,
+     `U+10760–10767`), excluding the Aegean Numbers block
+     (`U+10100–1013F`), word separators, and — critically — the unassigned
+     codepoint `U+1076B` the upstream data uses as its damage/lacuna marker
+     (2,257 occurrences). Counting the marker as a sign would desync the
+     alignment gate on every damaged tablet.
    - Count expected syllabic signs from the multi-sign word transliterations.
    - **Use only inscriptions where syllabic-glyph count equals
      expected-sign count.** This filters out tablets with damaged
@@ -109,10 +113,12 @@ Sign labels with subscript digits (`RA₂`, `PA₃`) are normalized to ASCII
 transliteration tokens. The lookup helper in
 [`src/lib/helpers.ts`](../src/lib/helpers.ts) handles the normalization.
 
-The final dataset (`public/corpus/signs.json`) contains 84 unique signs
-attested in cleanly-aligned inscriptions: 47 AB-shared (with known Linear B
-phonetic values), 22 Linear A-only (starting with `*`), and 15 variant
-forms (subscripted) without standard phonetic values.
+The final dataset (`public/corpus/signs.json`) contains 95 unique signs
+attested in cleanly-aligned inscriptions: 66 AB-shared (shape-shared with
+Linear B by Unicode's AB-series naming; 18 of them, such as `RA₂` and the
+AB-numbered ideograms, carry no standard phonetic value), 23 Linear A-only,
+and 6 composite/ligature forms. AB-shared membership follows the sign's
+codepoint name in the Unicode chart, not whether a phonetic value is known.
 
 **Caveat**: only inscriptions with perfect alignment contribute to the
 mapping. A given sign may be attested in many more inscriptions in the
@@ -1077,9 +1083,10 @@ or CSV format for ad-hoc comparison against any reference vocabulary.
 - **Phonetic distance is heuristic.** The weights encode general
   typological intuitions, not validated sound correspondences for any
   specific language family pairing.
-- **Sign mapping reflects clean alignments only.** Inscriptions with
-  damaged transcriptions don't contribute to the mapping, even though
-  they are still searchable and analyzable elsewhere in the workbench.
+- **Sign mapping reflects clean alignments only.** Inscriptions whose
+  sign count cannot be reconciled with their glyph stream don't contribute
+  to the mapping (236 of 1,721 currently do), even though all are
+  searchable and analyzable elsewhere in the workbench.
 - **Statistical significance** is reported via Yates-corrected χ² +
   p-values, optional Bonferroni correction, on-demand Fisher's exact,
   and a small-N warning glyph on pairs whose joint count ≤ 5 (where the
@@ -1087,7 +1094,8 @@ or CSV format for ad-hoc comparison against any reference vocabulary.
   intervals on PMI are available via a toggle. Confidence intervals on
   G² are not yet computed.
 - **Numeral parsing is partial.** The Accounting & Metrology module parses
-  decimal integers and the common metrological fractions and verifies
+  decimal integers and the metrological fractions (including
+  editorially-approximate `≈` readings, taken at the editor's value) and verifies
   KU-RO / PO-TO-KU-RO sums (see that section). Rarer or compound fraction
   signs and damaged numerals may not parse; the sequence-pattern tokenizer
   still treats numerals as opaque `N` symbols.

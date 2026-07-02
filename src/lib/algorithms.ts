@@ -192,7 +192,11 @@ export function extractRoot(word: string, overrides?: PhoneticOverrides): string
   return wordToPhonetic(word, overrides).replace(VOWEL_STRIP_RE, "");
 }
 
-const TOKEN_DIGITS = /^[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟₁₂₃₄₅₆₇₈₉₀≈𐄁]+$/;
+// Digits plus everything a corpus numeral token can be built from: the
+// superscript/subscript pieces and the U+2044 fraction slash of built-up
+// fractions ("¹⁄₂"), the ⅟ fraction-numerator form, the ≈ approximation
+// mark, and the 𐄁 separator dot.
+const TOKEN_DIGITS = /^[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟⁄₁₂₃₄₅₆₇₈₉₀≈𐄁]+$/;
 export const isNumeralToken = (w: string) => TOKEN_DIGITS.test(w);
 
 // ─── Statistical helpers ────────────────────────────────────────────────

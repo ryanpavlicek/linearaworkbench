@@ -89,8 +89,28 @@ function staticApiPlugin(): Plugin {
   };
 }
 
+// Stamps the service worker's cache-name placeholder with the app version
+// (package.json) at build time, so each release opens a fresh offline cache
+// and the worker's activate step prunes the previous release's entries.
+function swVersionPlugin(): Plugin {
+  return {
+    name: "stamp-sw-version",
+    apply: "build",
+    closeBundle() {
+      const { version } = JSON.parse(
+        readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
+      ) as { version: string };
+      const swPath = resolve(process.cwd(), "dist", "sw.js");
+      writeFileSync(
+        swPath,
+        readFileSync(swPath, "utf8").replace("__WORKBENCH_VERSION__", version),
+      );
+    },
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), staticApiPlugin()],
+  plugins: [react(), staticApiPlugin(), swVersionPlugin()],
   base,
   build: {
     target: "es2020",

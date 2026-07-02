@@ -32,10 +32,16 @@ function mapDigits(s: string, table: Record<string, string>): string | null {
 }
 
 // Parse a single token into a numeric value, or null if it isn't a numeral.
-// Handles: plain integers, built-up fractions (³⁄₄), and precomposed vulgar
-// fractions (¾).
+// Handles: plain integers, built-up fractions (³⁄₄), precomposed vulgar
+// fractions (¾), and approximate readings ("≈ ¹⁄₆").
 export function parseValue(token: string): number | null {
-  const t = token.trim();
+  // "≈" prefixes an editor-estimated reading of a damaged or unclear
+  // quantity ("≈ ¹⁄₆"). Use the estimated value itself — returning null
+  // silently dropped these quantities from every accounting sum they feed.
+  // The ≈ qualifier is editorial apparatus, like the marks classifyTokens
+  // skips; it is not propagated, so the value sums at face value (the
+  // module's convention: quantities are the editor's best reading).
+  const t = token.trim().replace(/^≈\s*/, "");
   if (!t) return null;
   if (/^\d+$/.test(t)) return parseInt(t, 10);
   if (PRECOMPOSED[t] !== undefined) return PRECOMPOSED[t];
@@ -102,8 +108,9 @@ export function formatValue(v: number): string {
 }
 
 // Total-marker recognition. These are among the most secure lexical
-// identifications in Linear A scholarship.
-export const TOTAL_MARKERS = new Set(["KU-RO"]);
+// identifications in Linear A scholarship. KU-RA (ZA20, ARKH2) is read as
+// a variant of KU-RO and closes a list the same way.
+export const TOTAL_MARKERS = new Set(["KU-RO", "KU-RA"]);
 export const GRAND_TOTAL_MARKERS = new Set(["PO-TO-KU-RO"]);
 export const DEFICIT_MARKERS = new Set(["KI-RO"]);
 

@@ -33,7 +33,10 @@ export interface RenderedMarkdown {
 function slugify(s: string): string {
   return s
     .toLowerCase()
-    .replace(/[^\w\s-]/g, "") // drop punctuation but keep word chars, spaces, hyphens
+    // Drop punctuation, keep letters/digits/underscore/spaces/hyphens in any
+    // script (GitHub's slugger keeps Unicode letters, so a Greek or Linear A
+    // heading anchors the same here as it would on GitHub).
+    .replace(/[^\p{L}\p{N}_\s-]/gu, "")
     .trim()
     .replace(/ /g, "-"); // each space → one hyphen, no collapse (matches GitHub)
 }
@@ -163,6 +166,10 @@ type Block =
 function parseBlocks(src: string): Block[] {
   const lines = src.split(/\r?\n/);
   const blocks: Block[] = [];
+  // Duplicate headings dedupe GitHub-style: "notes", "notes-1", "notes-2" —
+  // otherwise repeated headings collide and an in-page link can only reach
+  // the first occurrence.
+  const slugCounts = new Map<string, number>();
   let i = 0;
   while (i < lines.length) {
     const line = lines[i];
@@ -183,10 +190,13 @@ function parseBlocks(src: string): Block[] {
     const hm = line.match(/^(#{1,6})\s+(.+)$/);
     if (hm) {
       const text = hm[2];
+      const base = slugify(text);
+      const seen = slugCounts.get(base) ?? 0;
+      slugCounts.set(base, seen + 1);
       blocks.push({
         kind: "heading",
         level: hm[1].length,
-        id: slugify(text),
+        id: seen === 0 ? base : `${base}-${seen}`,
         text,
       });
       i++;

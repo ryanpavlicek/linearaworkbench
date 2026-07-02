@@ -1,4 +1,6 @@
 import { describe, it, expect } from "vitest";
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
 import {
   parseValue,
   isValueToken,
@@ -10,6 +12,29 @@ import {
   GRAND_TOTAL_MARKERS,
   DEFICIT_MARKERS,
 } from "./numerals";
+
+// The real bundled corpus, read directly (no store) — the known-answer
+// tests below pin values on actual tablets.
+interface CorpusDoc {
+  id: string;
+  lines: string[][];
+}
+let corpusCache: CorpusDoc[] | null = null;
+function corpus(): CorpusDoc[] {
+  if (!corpusCache)
+    corpusCache = JSON.parse(
+      readFileSync(
+        resolve(process.cwd(), "public/corpus/inscriptions.json"),
+        "utf8",
+      ),
+    ) as CorpusDoc[];
+  return corpusCache;
+}
+const doc = (id: string): CorpusDoc => {
+  const d = corpus().find((i) => i.id === id);
+  if (!d) throw new Error(`corpus fixture missing ${id}`);
+  return d;
+};
 
 describe("parseValue", () => {
   it("parses plain decimal integers", () => {
@@ -301,5 +326,74 @@ describe("checkBalances — sectioning and deficits", () => {
     expect(grand.marker).toBe("PO-TO-KU-RO");
     expect(grand.computedSum).toBe(7); // 5 + 2
     expect(grand.balances).toBe(true);
+  });
+});
+
+describe("approximate fractions (≈)", () => {
+  it("parses the editor's estimated value, dropping the ≈ qualifier", () => {
+    // The value is the editor's reading of a damaged/unclear quantity; it
+    // sums at face value (the qualifier is not propagated).
+    expect(parseValue("≈ ¹⁄₆")).toBeCloseTo(1 / 6, 10);
+    expect(parseValue("≈ ¹⁄₄")).toBeCloseTo(0.25, 10);
+    expect(parseValue("≈5")).toBe(5);
+    expect(isValueToken("≈ ¹⁄₆")).toBe(true);
+    // A bare ≈ (nothing legible after it) is still not a value.
+    expect(parseValue("≈")).toBeNull();
+  });
+
+  it("HT93b: the approximate fraction joins its line sum", () => {
+    // HT93b line 1 reads "165 ≈ ¹⁄₆" — the estimated sixth used to be
+    // silently dropped, understating the quantity to a flat 165.
+    const ht93b = doc("HT93b");
+    expect(ht93b.lines[0]).toEqual(["165", "≈ ¹⁄₆"]);
+    expect(lineValue(ht93b.lines[0])).toBeCloseTo(165 + 1 / 6, 10);
+  });
+
+  it("HT123+124a: ≈ quantities feed both the items and the stated total", () => {
+    const lines = parseAccountLines(doc("HT123+124a").lines);
+    // The *308 item line "4 ≈ ¹⁄₆" carries 4⅙, not 4.
+    expect(lines[7].tokens).toEqual(["*308", "4", "≈ ¹⁄₆"]);
+    expect(lines[7].value).toBeCloseTo(4 + 1 / 6, 10);
+    // The second KU-RO states "25 ≈ ¹⁄₆" = 25⅙.
+    expect(lines[14].role).toBe("total");
+    expect(lines[14].value).toBeCloseTo(25 + 1 / 6, 10);
+    // And the balance check's computed item sum includes the item's ⅙:
+    // 31 + 8¼ + 31½ + 8¾ + 16 + 4⅙ + 15 + 4¼ (deficit KI-RO lines excluded).
+    const [check] = checkBalances(lines);
+    expect(check.itemCount).toBe(8);
+    expect(check.computedSum).toBeCloseTo(118 + 11 / 12, 10);
+  });
+});
+
+describe("KU-RA total marker", () => {
+  it("recognizes KU-RA as KU-RO's variant", () => {
+    expect(TOTAL_MARKERS.has("KU-RA")).toBe(true);
+    expect(TOTAL_MARKERS.has("KU-RO")).toBe(true);
+  });
+
+  it("ZA20: the KU-RA line yields a balance check", () => {
+    // ZA20 closes with "KU-RA 130"; the surviving items sum to
+    // 4 + 1 + 6 + 12 + 3 = 26 (the tablet is broken at both ends).
+    const checks = checkBalances(parseAccountLines(doc("ZA20").lines));
+    expect(checks).toHaveLength(1);
+    expect(checks[0].marker).toBe("KU-RA");
+    expect(checks[0].statedTotal).toBe(130);
+    expect(checks[0].computedSum).toBe(26);
+    expect(checks[0].itemCount).toBe(5);
+    expect(checks[0].balances).toBe(false);
+  });
+
+  it("corpus-wide: KU-RA adds exactly the ZA20 check and flips no other tablet", () => {
+    // ARKH2's KU-RA leads its list (no items above it), so it stays
+    // checkless by the leading-total rule; ZA20's is the one new check.
+    let total = 0;
+    const kuraTablets: string[] = [];
+    for (const d of corpus()) {
+      const checks = checkBalances(parseAccountLines(d.lines));
+      total += checks.length;
+      if (checks.some((c) => c.marker === "KU-RA")) kuraTablets.push(d.id);
+    }
+    expect(kuraTablets).toEqual(["ZA20"]);
+    expect(total).toBe(35); // 34 KU-RO/PO-TO-KU-RO checks + ZA20's KU-RA
   });
 });

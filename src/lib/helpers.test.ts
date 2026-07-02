@@ -34,6 +34,12 @@ describe("classifyToken", () => {
     expect(classifyToken("𐄁")).toBe("separator");
     expect(classifyToken("abc")).toBe("text");
   });
+
+  it("classifies built-up fractions (U+2044 fraction slash) as numerals", () => {
+    expect(classifyToken("¹⁄₂")).toBe("numeral");
+    expect(classifyToken("³⁄₈")).toBe("numeral");
+    expect(classifyToken("¹⁄₁₆")).toBe("numeral");
+  });
 });
 
 describe("normalizeSignLabel", () => {

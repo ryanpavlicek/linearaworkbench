@@ -3,6 +3,7 @@ import { useWorkbench, getAllLanguages } from "../store/workbench";
 import { useMultiWords, csvEscape, downloadFile } from "../lib/helpers";
 import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
 import { PHONETIC_MAP } from "../data/phoneticMap";
+import { phoneticKeyOf } from "../lib/signKeys";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
@@ -34,7 +35,9 @@ export default function HypothesisWorkspace() {
   // the affected words' best cross-linguistic match score changes from A to
   // B. The evaluation set is the words that CONTAIN a differing sign (the
   // global top-10 would show all-zero deltas for rare-sign hypotheses);
-  // when the snapshots differ in no signs the top-10 stands in.
+  // when the snapshots differ in no signs the top-10 stands in. Sign keys
+  // strip only the "*" of unread labels — subscripted signs are distinct,
+  // so a snapshot differing on RA never pulls in RA₂-only words.
   const diffData = useMemo(() => {
     if (saved.length < 2) return null;
     const A = saved[Math.min(aIdx, saved.length - 1)];
@@ -53,16 +56,12 @@ export default function HypothesisWorkspace() {
     }
     signDiffs.sort((x, y) => x.sign.localeCompare(y.sign));
 
-    const touched = new Set(
-      signDiffs.map((d) => d.sign.replace(/[₂₃₄*]/g, "")),
-    );
+    const touched = new Set(signDiffs.map((d) => phoneticKeyOf(d.sign)));
     const evalWords =
       touched.size > 0
         ? words
             .filter(({ word }) =>
-              word
-                .split("-")
-                .some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
+              word.split("-").some((p) => touched.has(phoneticKeyOf(p))),
             )
             .slice(0, 25)
         : words.slice(0, 10);
@@ -100,12 +99,11 @@ export default function HypothesisWorkspace() {
   const compareWords = useMemo(() => {
     const touched = new Set<string>();
     for (const h of saved)
-      for (const s of Object.keys(h.overrides))
-        touched.add(s.replace(/[₂₃₄*]/g, ""));
+      for (const s of Object.keys(h.overrides)) touched.add(phoneticKeyOf(s));
     if (touched.size === 0) return words.slice(0, 10);
     return words
       .filter(({ word }) =>
-        word.split("-").some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
+        word.split("-").some((p) => touched.has(phoneticKeyOf(p))),
       )
       .slice(0, 25);
   }, [saved, words]);

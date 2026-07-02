@@ -152,8 +152,30 @@ export function linearASignValueCounts(
 
 // ─── The divergence join ─────────────────────────────────────────────────
 
+// Transliteration bridge for the join. PHONETIC_MAP writes phonological
+// values — kwa/kwe for the labiovelar signs QA/QE, dza/dze/dzo for the
+// affricate signs ZA/ZE/ZO — while Linear B transliteration (the DAMOS
+// side) writes those same series with q and z: qa, qe, za, ze, zo. These
+// five are the only divergent pairs in the intersection of the two
+// alphabets; every other shared value (a … wo) is spelled identically on
+// both sides, i.e. the DAMOS key for a shared sign is always its label
+// lowercased. Without the bridge the whole q- and z-series silently drops
+// out of the comparison (kwa can never equal qa).
+export const LA_VALUE_TO_LB_TRANSLIT: Readonly<Record<string, string>> = {
+  kwa: "qa",
+  kwe: "qe",
+  dza: "za",
+  dze: "ze",
+  dzo: "zo",
+};
+
 export interface DivergenceRow {
-  value: string; // shared phonetic value, e.g. "ku"
+  /**
+   * Shared phonetic value in the workbench's convention, e.g. "ku" or
+   * "kwa"; joined to the DAMOS counts via LA_VALUE_TO_LB_TRANSLIT where
+   * the Linear B transliteration spells it differently (kwa ↔ qa).
+   */
+  value: string;
   labels: string[]; // Linear A sign label(s) behind the value
   laCount: number;
   lbCount: number;
@@ -170,7 +192,7 @@ export function buildLbDivergence(
   const rows: DivergenceRow[] = [];
   if (la.totalSigns === 0 || lb.totalSigns === 0) return rows;
   for (const [value, rec] of la.byValue) {
-    const lbCount = lb.counts[value] ?? 0;
+    const lbCount = lb.counts[LA_VALUE_TO_LB_TRANSLIT[value] ?? value] ?? 0;
     if (lbCount === 0) continue; // not a shared attested value
     const laRate = rec.count / la.totalSigns;
     const lbRate = lbCount / lb.totalSigns;

@@ -3,11 +3,18 @@
   "_comment": "Mutation testing proves the unit tests actually catch bugs (kill mutants), not just execute lines. Scoped to pure, fast-to-test modules; uses a trimmed Vitest config so each mutant evaluates quickly. Run with `npm run test:mutation`.",
   "testRunner": "vitest",
   "vitest": { "configFile": "vitest.mutation.config.ts" },
+  "_ignore_comment": "Keep build/report output out of the sandbox copy: it's dead weight per test-runner process and a rebuild racing the copy aborts the run. disableTypeChecks is scoped to the TS sources so the preprocessor doesn't try to parse the vendored commentary HTML under public/upstream/.",
+  "ignorePatterns": ["dist", "coverage", "reports", "playwright-report", "test-results"],
+  "disableTypeChecks": "src/**/*.{ts,tsx}",
   "mutate": [
     "src/lib/algorithms.ts",
     "src/lib/numerals.ts",
     "src/lib/signPattern.ts",
-    "src/lib/compareAlign.ts"
+    "src/lib/compareAlign.ts",
+    "src/lib/lexstats.ts",
+    "src/lib/surprisal.ts",
+    "src/lib/multivariate.ts",
+    "src/lib/linearB.ts"
   ],
   "reporters": ["progress", "clear-text", "html"],
   "coverageAnalysis": "perTest",

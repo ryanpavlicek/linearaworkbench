@@ -1,7 +1,9 @@
-// HTML-fragment sanitizer for the two places the app renders HTML it did not
-// build itself: the bundled Younger commentary, and a finding's stored report
-// HTML (which may have come from an imported backup file). Both flow into
-// React's dangerouslySetInnerHTML, so this is a security trust boundary.
+// HTML-fragment sanitizer for every place the app renders HTML it did not
+// build itself: the bundled Younger commentary, a finding's stored report
+// HTML (in-app and in the exported report file), and the research-note
+// preview (all of which may carry content from an imported backup file).
+// Each flows into dangerouslySetInnerHTML or an exported document, so this
+// is a security trust boundary.
 //
 // Built on DOMPurify, the audited industry-standard sanitizer, rather than a
 // hand-rolled DOM walk. A bespoke sanitizer cannot keep up with the bypass

@@ -24,6 +24,7 @@ import {
   DEFAULT_CITATION_OPTIONS,
   type CitationStyle,
 } from "../lib/citations";
+import { sanitizeHtmlFragment } from "../lib/sanitizeHtml";
 
 const CONFIDENCE_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
 
@@ -175,13 +176,13 @@ interface ReportData {
 
 // For HTML/Markdown export of note-block references, look up a better label
 // than the bare id when one is available (e.g. an annotation id → its target;
-// a finding id → its title).
+// a finding id → its title). Null means the Markdown link label is already
+// the right thing to show (ins / word / sign, or a dangling id).
 function resolveRefLabel(
   kind: RefKind,
   value: string,
-  fallback: string,
   d: ReportData,
-): string {
+): string | null {
   if (kind === "annotation") {
     const a = d.annotations.find((x) => x.id === value);
     if (a)
@@ -199,8 +200,7 @@ function resolveRefLabel(
     const n = d.notes.find((x) => x.id === value);
     if (n) return n.title || "(untitled note)";
   }
-  // For ins / word / sign the value itself is already the meaningful label.
-  return fallback || value;
+  return null;
 }
 
 // Metadata one-liner for an inscription, mirroring the detail modal header.
@@ -536,9 +536,14 @@ function sectionHtml(
       );
       // Modules can attach a pre-rendered report representation (HTML
       // captured at save time) — when present, splice it in so the report
-      // shows the actual table / list / view from the saved result.
+      // shows the actual table / list / view from the saved result. The
+      // field restores verbatim from imported backup files, so it crosses
+      // the same trust boundary the in-app Findings panel sanitizes at:
+      // never splice it into the export raw.
       if (f.report?.html)
-        p.push(`<div class="finding-report">${f.report.html}</div>`);
+        p.push(
+          `<div class="finding-report">${sanitizeHtmlFragment(f.report.html)}</div>`,
+        );
       // A few modules attach a `snapshot` data-URL (e.g. the Findspot Map's
       // rendered SVG). Render it inline so the report shows the visual the
       // user saw when they saved the finding.
@@ -613,8 +618,12 @@ function buildHtmlReport(
       const n = d.notes.find((x) => x.id === b.noteId);
       if (n) {
         const body = renderNoteHtml(n.body, {
-          refHtml: ({ kind, value, label }) =>
-            `<span class="note-ref note-ref-${kind}">${esc(resolveRefLabel(kind, value, label, d))}</span>`,
+          refHtml: ({ kind, value, label }) => {
+            // `label` arrives HTML-escaped from renderNoteHtml; resolved
+            // lookups are raw strings and get escaped here.
+            const better = resolveRefLabel(kind, value, d);
+            return `<span class="note-ref note-ref-${kind}">${better === null ? label : esc(better)}</span>`;
+          },
         });
         parts.push(
           `<section>${n.title ? `<h2>${esc(n.title)}</h2>` : ""}${body}</section>`,

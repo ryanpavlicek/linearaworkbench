@@ -90,7 +90,10 @@ function escapeHtml(s: string): string {
 // Inline pass: links (wb: and http), bold, italic, inline code.
 export interface InlineOpts {
   // Caller-supplied renderer for wb: references — returns the HTML for the
-  // chip. Plain http(s) links get rendered as normal <a target=_blank>.
+  // chip. `label` arrives HTML-escaped (like every other text span this
+  // renderer emits), so it is safe to interpolate into the chip markup
+  // directly; `value` is the raw id/transliteration. Plain http(s) links get
+  // rendered as normal <a target=_blank>.
   refHtml: (ref: { kind: RefKind; value: string; label: string }) => string;
 }
 
@@ -107,7 +110,7 @@ function renderInline(text: string, opts: InlineOpts): string {
     const url = m[2];
     const parsed = parseRefUrl(url);
     if (parsed) {
-      html += opts.refHtml({ ...parsed, label });
+      html += opts.refHtml({ ...parsed, label: escapeHtml(label) });
     } else if (/^https?:\/\//.test(url)) {
       html += `<a href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>`;
     } else {

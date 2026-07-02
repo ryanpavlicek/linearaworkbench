@@ -4,6 +4,7 @@ import { languageLabel } from "../data/languages";
 import { useWorkbench, getAllLanguages } from "../store/workbench";
 import { useMultiWords, csvEscape, downloadFile } from "../lib/helpers";
 import { phoneticDistance, wordToPhonetic } from "../lib/algorithms";
+import { phoneticKeyOf } from "../lib/signKeys";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
@@ -44,12 +45,14 @@ export default function SoundShift() {
 
   // Per-sign corpus context for the edit grid: how attested is the sign,
   // and what's its most frequent carrier word — so you know what you're
-  // editing before you edit it.
+  // editing before you edit it. Keyed by the shared sign key ("*" stripped
+  // only), so RA₂ occurrences never inflate RA's count: editing RA affects
+  // exactly the words counted here.
   const signContext = useMemo(() => {
     const m = new Map<string, { count: number; topWord: string }>();
     for (const { word, entry } of words) {
       for (const p of word.split("-")) {
-        const norm = p.replace(/[₂₃₄*]/g, "");
+        const norm = phoneticKeyOf(p);
         const cur = m.get(norm);
         if (!cur) m.set(norm, { count: entry.count, topWord: word });
         else cur.count += entry.count;
@@ -80,8 +83,10 @@ export default function SoundShift() {
   // what editing will affect). With overrides, the words that actually
   // CONTAIN a modified sign — evaluating a rare-sign hypothesis against the
   // global top-20 would show all-zero deltas and look broken. Sign lookup
-  // strips ₂₃₄* exactly the way wordToPhonetic does. A chosen collection
-  // replaces the auto selection outright.
+  // strips only the "*" of unread labels, exactly the way wordToPhonetic
+  // does: subscripted signs are distinct, so editing RA touches RA-bearing
+  // words only, never RA₂-only ones. A chosen collection replaces the auto
+  // selection outright.
   const top = useMemo(() => {
     if (evalSource !== "auto") {
       const coll = wordCollections.find((c) => c.id === evalSource);
@@ -94,12 +99,10 @@ export default function SoundShift() {
       }
     }
     if (modifiedSigns.length === 0) return words.slice(0, 20);
-    const touched = new Set(
-      modifiedSigns.map((s) => s.replace(/[₂₃₄*]/g, "")),
-    );
+    const touched = new Set(modifiedSigns.map(phoneticKeyOf));
     return words
       .filter(({ word }) =>
-        word.split("-").some((p) => touched.has(p.replace(/[₂₃₄*]/g, ""))),
+        word.split("-").some((p) => touched.has(phoneticKeyOf(p))),
       )
       .slice(0, 50);
   }, [words, modifiedSigns, evalSource, wordCollections]);

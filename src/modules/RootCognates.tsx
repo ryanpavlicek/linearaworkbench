@@ -3,7 +3,8 @@ import { csvEscape, downloadFile } from "../lib/helpers";
 import { useScopedMultiWords } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
 import { extractRoot } from "../lib/algorithms";
-import { PHONETIC_MAP } from "../data/phoneticMap";
+import type { PhoneticOverrides } from "../lib/types";
+import { lookupPhonetic } from "../lib/signKeys";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
 import {
@@ -18,15 +19,18 @@ type SortKey = "size" | "total" | "root";
 
 const DISPLAY_CAP = 120;
 
-// The vowel melody of a word under the conventional AB values: the vowel
-// of each sign in order ("SA-RU" → "a-u"). Signs without a Linear B value
-// contribute "?". Within a root family the consonants are identical by
-// construction, so the melody is exactly what distinguishes the members.
-function melodyOf(word: string): string {
+// The vowel melody of a word under the active sign values: the vowel of
+// each sign in order ("SA-RU" → "a-u"). Signs without a value for that
+// exact sign contribute "?" — subscripted signs (RA₂, PU₂, …) are distinct
+// signs, never read via their plain series. Uses the same sign-key rule and
+// overrides as extractRoot, so roots and melodies always agree. Within a
+// root family the consonants are identical by construction, so the melody
+// is exactly what distinguishes the members.
+function melodyOf(word: string, overrides: PhoneticOverrides = {}): string {
   return word
     .split("-")
     .map((s) => {
-      const p = PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")];
+      const p = lookupPhonetic(s, overrides);
       const m = p ? /([aeiou]+)$/.exec(p.toLowerCase()) : null;
       return m ? m[1] : "?";
     })
@@ -113,7 +117,7 @@ export default function RootCognates() {
     const tally = new Map<string, { n: number; examples: string[] }>();
     for (const [r, d] of families) {
       const melodies = [
-        ...new Set(d.words.map((w) => melodyOf(w.word))),
+        ...new Set(d.words.map((w) => melodyOf(w.word, hyp))),
       ].filter((m) => !m.includes("?"));
       for (let i = 0; i < melodies.length; i++) {
         for (let j = i + 1; j < melodies.length; j++) {
@@ -136,7 +140,7 @@ export default function RootCognates() {
       .filter(([, t]) => t.n >= 2)
       .sort((a, b) => b[1].n - a[1].n)
       .slice(0, 14);
-  }, [families]);
+  }, [families, hyp]);
 
   const filterDesc = [
     q && `“${q}”`,
@@ -373,9 +377,9 @@ export default function RootCognates() {
                         marginRight: 8,
                         marginLeft: 2,
                       }}
-                      title={`Vowel melody under the conventional AB values: ${melodyOf(e.word)}`}
+                      title={`Vowel melody under the active sign values: ${melodyOf(e.word, hyp)}`}
                     >
-                      ({melodyOf(e.word)})
+                      ({melodyOf(e.word, hyp)})
                     </span>
                   </span>
                 ))}
@@ -398,7 +402,8 @@ export default function RootCognates() {
             recurring across <em>independent</em> skeleton families. One
             family alternating a-u with a-a means little; a dozen unrelated
             families doing it is systematic — the corpus's ablaut and
-            inflection candidates. Conventional AB values throughout.
+            inflection candidates. Active sign values (including any
+            hypothesis overrides) throughout.
           </div>
           <div style={{ display: "grid", gap: 3 }}>
             {melodyAlternations.map(([k, t]) => (

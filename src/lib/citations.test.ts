@@ -1,6 +1,7 @@
 import { describe, it, expect } from "vitest";
 import {
   buildCitations,
+  buildInscriptionCitation,
   DEFAULT_CITATION_OPTIONS,
   WORKBENCH_VERSION,
   CITATION_STYLE_LABEL,
@@ -103,5 +104,40 @@ describe("buildCitations", () => {
     });
     const today = new Date().toISOString().slice(0, 10);
     expect(out).toContain(today);
+  });
+});
+
+describe("buildInscriptionCitation", () => {
+  it("escapes the permalink's # in the BibTeX note", () => {
+    const out = buildInscriptionCitation(
+      { id: "HT13", site: "Haghia Triada" },
+      "bibtex",
+      "2026-07-01",
+    );
+    expect(out).toContain(
+      "https://linearaworkbench.xyz/\\#/i/HT13, accessed 2026-07-01.",
+    );
+    // No unescaped # anywhere in the entry — it would break LaTeX.
+    expect(out).not.toMatch(/(?<!\\)#/);
+  });
+
+  it("escapes a percent-encoded id in the BibTeX permalink", () => {
+    // encodeURIComponent("HT42+59") === "HT42%2B59" — % starts a BibTeX
+    // comment, so it needs the same escaping as the CEFAEL URL.
+    const out = buildInscriptionCitation({ id: "HT42+59" }, "bibtex", "2026-07-01");
+    expect(out).toContain("\\#/i/HT42\\%2B59");
+    expect(out).not.toMatch(/(?<!\\)%/);
+  });
+
+  it("keeps the raw permalink in the non-BibTeX styles", () => {
+    for (const style of ["apa", "chicago", "mla"] as const) {
+      const out = buildInscriptionCitation(
+        { id: "HT13", site: "Haghia Triada" },
+        style,
+        "2026-07-01",
+      );
+      expect(out).toContain("https://linearaworkbench.xyz/#/i/HT13");
+      expect(out).not.toContain("\\#");
+    }
   });
 });

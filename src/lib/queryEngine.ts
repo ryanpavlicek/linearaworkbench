@@ -4,6 +4,7 @@
 // QueryBuilder.tsx so the component is presentational and this is unit-tested.
 import type { Inscription, WordEntry } from "./types";
 import { wordMatchesSignPattern } from "./signPattern";
+import { phoneticKeyOf } from "./signKeys";
 
 // ---- Field registry ----------------------------------------------------
 
@@ -170,10 +171,12 @@ function wordRowMatch(
       return String(v ?? "").trim() === "" || parts.length <= Number(v);
     case "word-contains-sign": {
       if (!v) return true;
-      const target = String(v).toUpperCase();
-      return parts.some(
-        (p) => p.replace(/[₂₃₄*]/g, "").toUpperCase() === target,
-      );
+      // Both sides share the sign key: only the "*" of unread labels is
+      // stripped (so "*301" and "301" both find *301-bearing words) and the
+      // query folds to the corpus's uppercase convention. Subscripted signs
+      // stay distinct — RA₂ matches only RA₂, never plain RA, and vice versa.
+      const target = phoneticKeyOf(String(v)).toUpperCase();
+      return parts.some((p) => phoneticKeyOf(p).toUpperCase() === target);
     }
     case "word-cooccurs-with":
       return !v || !!cooccurMap.get(word)?.has(String(v));

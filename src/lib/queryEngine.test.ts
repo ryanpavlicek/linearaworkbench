@@ -105,6 +105,25 @@ describe("wordMatches — word-scope predicates", () => {
     expect(wordMatches("KU-RO", [row("word-cooccurs-with", "ZZ")], cooc)).toBe(false);
   });
 
+  it("contains-sign normalizes both sides with the shared sign key", () => {
+    // The unread-label placeholder form matches its attested words whether
+    // or not the query carries the "*" (the word side keeps its "*" too).
+    expect(wordMatches("TE-*301", [row("word-contains-sign", "*301")], cooc)).toBe(true);
+    expect(wordMatches("TE-*301", [row("word-contains-sign", "301")], cooc)).toBe(true);
+    expect(wordMatches("KU-RO", [row("word-contains-sign", "*301")], cooc)).toBe(false);
+    // The query side folds to the corpus's uppercase convention.
+    expect(wordMatches("KU-NE-RO", [row("word-contains-sign", "ne")], cooc)).toBe(true);
+  });
+
+  it("contains-sign keeps subscripted signs distinct", () => {
+    // RA₂ matches only RA₂-bearing words…
+    expect(wordMatches("SA-RA₂", [row("word-contains-sign", "RA₂")], cooc)).toBe(true);
+    expect(wordMatches("KU-RA", [row("word-contains-sign", "RA₂")], cooc)).toBe(false);
+    // …and plain RA does not match RA₂-only words.
+    expect(wordMatches("SA-RA₂", [row("word-contains-sign", "RA")], cooc)).toBe(false);
+    expect(wordMatches("KU-RA", [row("word-contains-sign", "RA")], cooc)).toBe(true);
+  });
+
   it("empty min/max-syllables values are neutral (no-op match), like the sibling predicates", () => {
     // A blank value must not filter — matching word-contains/prefix/suffix.
     // word-max-syllables was the dangerous case: Number("") is 0, so the old

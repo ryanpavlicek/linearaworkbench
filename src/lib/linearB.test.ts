@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
+import { PHONETIC_MAP } from "../data/phoneticMap";
 import {
   buildLbDivergence,
+  LA_VALUE_TO_LB_TRANSLIT,
   linearASignValueCounts,
   parseDamosFrequencies,
   spearmanRho,
@@ -119,6 +121,55 @@ describe("buildLbDivergence", () => {
         },
       ),
     ).toEqual([]);
+  });
+});
+
+describe("the q-/z-series transliteration bridge", () => {
+  const lb = {
+    version: "2",
+    generated: "",
+    cite: "",
+    // DAMOS keys: Linear B transliteration writes qa/qe and za/ze/zo for
+    // the series the phonetic map writes kwa/kwe and dza/dze/dzo.
+    counts: { qa: 30, qe: 20, za: 10, ze: 8, zo: 6 },
+    totalSigns: 1000,
+    wordTokens: 300,
+    docCount: 50,
+  };
+
+  it("joins the labiovelar and affricate series to their DAMOS keys", () => {
+    const la = linearASignValueCounts([
+      { word: "QA-QE", count: 4 },
+      { word: "ZA-ZE-ZO", count: 2 },
+    ]);
+    expect(la.byValue.get("kwa")?.count).toBe(4); // LA-side key stays "kwa"
+    const rows = buildLbDivergence(la, lb);
+    const byValue = Object.fromEntries(rows.map((r) => [r.value, r]));
+    // Each series row now exists and carries the q-/z-keyed DAMOS count.
+    expect(byValue["kwa"]).toMatchObject({ labels: ["QA"], laCount: 4, lbCount: 30 });
+    expect(byValue["kwe"]).toMatchObject({ labels: ["QE"], laCount: 4, lbCount: 20 });
+    expect(byValue["dza"]).toMatchObject({ labels: ["ZA"], laCount: 2, lbCount: 10 });
+    expect(byValue["dze"]).toMatchObject({ labels: ["ZE"], laCount: 2, lbCount: 8 });
+    expect(byValue["dzo"]).toMatchObject({ labels: ["ZO"], laCount: 2, lbCount: 6 });
+    expect(rows).toHaveLength(5);
+    // The bridged count also feeds the LB rate: 30 of 1,000 sign tokens.
+    expect(byValue["kwa"].lbPer1000).toBeCloseTo(30, 10);
+  });
+
+  it("covers exactly the divergent pairs of the two alphabets", () => {
+    // For a shared AB sign the DAMOS transliteration key is its label
+    // lowercased (QA → qa, KU → ku), so the bridge is complete iff mapping
+    // any phonetic value through it lands on the lowercased label.
+    for (const [label, value] of Object.entries(PHONETIC_MAP)) {
+      expect(LA_VALUE_TO_LB_TRANSLIT[value] ?? value, label).toBe(
+        label.toLowerCase(),
+      );
+    }
+    // …and carries nothing the phonetic map can't produce.
+    const values = new Set(Object.values(PHONETIC_MAP));
+    for (const key of Object.keys(LA_VALUE_TO_LB_TRANSLIT)) {
+      expect(values.has(key), key).toBe(true);
+    }
   });
 });
 

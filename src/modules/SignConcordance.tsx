@@ -2,7 +2,7 @@ import { useMemo, useState } from "react";
 import { useScopedCorpus } from "../store/scope";
 import { useWorkbench } from "../store/workbench";
 import { csvEscape, downloadFile, siglaSignListUrl } from "../lib/helpers";
-import { PHONETIC_MAP } from "../data/phoneticMap";
+import { lookupPhonetic } from "../lib/signKeys";
 import { Glyph } from "../components/Glyph";
 import { WordToken } from "../components/WordToken";
 import { SaveFindingButton } from "../components/SaveFindingButton";
@@ -82,7 +82,7 @@ export default function SignConcordance() {
     return signs.filter(([s, d]) => {
       if (u && !s.toUpperCase().includes(u)) return false;
       if (d.count < minCount) return false;
-      if (abOnly && !PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")]) return false;
+      if (abOnly && !lookupPhonetic(s)) return false;
       return true;
     });
   }, [signs, q, minCount, abOnly]);
@@ -127,7 +127,7 @@ export default function SignConcordance() {
     for (const [s, d] of signs) {
       rows.push([
         s,
-        PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")] ?? "",
+        lookupPhonetic(s) ?? "",
         d.count,
         d.words.size,
         d.initial,
@@ -220,7 +220,7 @@ export default function SignConcordance() {
               {
                 label: "Phonetic",
                 render: ([s]) => {
-                  const p = PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")];
+                  const p = lookupPhonetic(s);
                   return p ? `<span style="color:#16a34a;">/${esc(p)}/</span>` : "—";
                 },
               },
@@ -267,7 +267,7 @@ export default function SignConcordance() {
               const pi = t ? (d.initial / t) * 100 : 0;
               const pm = t ? (d.medial / t) * 100 : 0;
               const pf = t ? (d.final / t) * 100 : 0;
-              const phon = PHONETIC_MAP[s.replace(/[₂₃₄*]/g, "")];
+              const phon = lookupPhonetic(s);
               const h = positionEntropy(d);
               const top = [...d.words.entries()]
                 .sort((a, b) => b[1] - a[1])

@@ -24,12 +24,13 @@ const DISMISSED_COLLECTION = "Name candidates (dismissed)";
 type Verdict = "accepted" | "dismissed" | "undecided";
 
 // Words that are structural/function terms, not names — excluded from
-// candidates. These are among the most securely identified Linear A words.
-const FUNCTION_WORDS = new Set([
+// candidates. These are among the most securely identified Linear A words,
+// and every entry is attested in the corpus (KU-RO₂ was dropped along with
+// the marker set: no corpus token carries it).
+export const FUNCTION_WORDS: ReadonlySet<string> = new Set([
   "KU-RO",
   "KI-RO",
   "PO-TO-KU-RO",
-  "KU-RO₂",
   "SA-RA₂", // recurring transactional term
 ]);
 

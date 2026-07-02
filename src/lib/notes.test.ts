@@ -84,4 +84,28 @@ describe("renderNoteHtml", () => {
     expect(html).not.toContain("<script>");
     expect(html).toContain("&lt;script&gt;");
   });
+
+  it("escapes an HTML payload in a wb: link label (stored-XSS regression)", () => {
+    // Consumers interpolate the label straight into chip markup rendered via
+    // dangerouslySetInnerHTML, so the wb: branch must hand it over escaped —
+    // exactly like the http-link and literal-text branches. Pre-fix, this
+    // payload reached the chip renderer raw and produced a live <img onerror>.
+    const html = renderNoteHtml(
+      "[<img src=x onerror=alert(1)>](wb:ins/HT13)",
+      opts,
+    );
+    expect(html).toContain("&lt;img src=x onerror=alert(1)&gt;");
+    expect(html).not.toContain("<img");
+  });
+
+  it("hands the wb: chip renderer an escaped label for ordinary metacharacters", () => {
+    const seen: string[] = [];
+    renderNoteHtml('[a & "b" <c>](wb:word/KU-RO)', {
+      refHtml: (r) => {
+        seen.push(r.label);
+        return r.label;
+      },
+    });
+    expect(seen).toEqual(["a &amp; &quot;b&quot; &lt;c&gt;"]);
+  });
 });

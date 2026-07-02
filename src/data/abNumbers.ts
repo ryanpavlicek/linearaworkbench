@@ -8,8 +8,13 @@
 //
 // AB-shared mappings here are confirmed against the standard Linear B
 // syllabary chart (Ventris & Chadwick 1973; cross-referenced with SigLA's
-// public sign-list page at https://sigla.phis.me/sign-list.html). Uncertain
-// or rare AB numbers are deliberately omitted rather than guessed at.
+// public sign-list page at https://sigla.phis.me/sign-list.html) and pinned
+// by the shipped sign table's Unicode codepoints, whose character names
+// carry the AB numbers (e.g. QA = U+1060C LINEAR A SIGN AB016). Every
+// syllabogram in public/corpus/signs.json with an AB-block codepoint is
+// reachable here (see abNumbers.test.ts); AB numbers whose signs carry
+// starred or logogram labels (*86, *118, GRA, …) are deliberately omitted
+// rather than guessed at.
 //
 // Linear-A-only signs use the trivial mapping A### ↔ *### (since GORILA
 // writes them as "*301" and SigLA writes them as "A301").
@@ -30,6 +35,7 @@ const AB_TO_LABEL: Record<number, string> = {
   13: "ME",
   14: "DO",
   15: "MO",
+  16: "QA",
   17: "ZA",
   20: "ZO",
   21: "QI",
@@ -38,6 +44,7 @@ const AB_TO_LABEL: Record<number, string> = {
   26: "RU",
   27: "RE",
   28: "I",
+  29: "PU2",
   30: "NI",
   31: "SA",
   37: "TI",
@@ -48,16 +55,20 @@ const AB_TO_LABEL: Record<number, string> = {
   44: "KE",
   45: "DE",
   46: "JE",
+  48: "NWA",
   50: "PU",
   51: "DU",
   53: "RI",
   54: "WA",
   55: "NU",
+  56: "PA3",
   57: "JA",
   58: "SU",
   59: "TA",
   60: "RA",
   61: "O",
+  65: "JU",
+  66: "TA2",
   67: "KI",
   69: "TU",
   70: "KO",
@@ -71,6 +82,7 @@ const AB_TO_LABEL: Record<number, string> = {
   79: "ZU",
   80: "MA",
   81: "KU",
+  85: "AU",
 };
 
 /**
