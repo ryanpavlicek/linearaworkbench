@@ -4,13 +4,15 @@ import type { SignData } from "../lib/types";
 
 // Pins the shipped sign table (public/corpus/signs.json) so a drifted rebuild
 // of scripts/build-corpus.mjs fails here instead of shipping silently. The
-// table is derived by corpus alignment over the 236 inscriptions whose
-// transliterated syllabic-sign count matches their glyph-stream sign count,
-// counting only ASSIGNED Linear A codepoints (U+10600-10736, U+10740-10755,
-// U+10760-10767 per Unicode 16.0). Upstream uses the UNASSIGNED U+1076B as a
-// damage/lacuna marker; counting it as a sign once desynced the aligner
-// (109 inscriptions rejected, 15 attested signs missing, a phantom "VS"
-// entry wearing the damage marker itself as its glyph).
+// table is 97 entries: 95 derived by corpus alignment over the 236 inscriptions
+// whose transliterated syllabic-sign count matches their glyph-stream sign
+// count (counting only ASSIGNED Linear A codepoints U+10600-10736,
+// U+10740-10755, U+10760-10767 per Unicode 16.0), plus ZE and ZO, which occur
+// only as standalone single-sign words the hyphenated-word aligner never walks
+// and are added from their attestations (see the ZE/ZO test). Upstream uses the
+// UNASSIGNED U+1076B as a damage/lacuna marker; counting it as a sign once
+// desynced the aligner (109 inscriptions rejected, 15 attested signs missing, a
+// phantom "VS" entry wearing the damage marker itself as its glyph).
 const read = (f: string) =>
   readFileSync(new URL(`../../public/corpus/${f}`, import.meta.url), "utf8");
 
@@ -23,8 +25,8 @@ const isAssignedLinearA = (cp: number) =>
   (cp >= 0x10760 && cp <= 0x10767);
 
 describe("shipped sign table (public/corpus/signs.json)", () => {
-  it("has exactly 95 entries, matching the manifest signCount", () => {
-    expect(signs.length).toBe(95);
+  it("has exactly 97 entries, matching the manifest signCount", () => {
+    expect(signs.length).toBe(97);
     const manifest = JSON.parse(read("manifest.json"));
     expect(manifest.signCount).toBe(signs.length);
   });
@@ -62,6 +64,26 @@ describe("shipped sign table (public/corpus/signs.json)", () => {
     expect(s?.linearAOnly).toBe(true);
   });
 
+  it("carries the standalone-attested ZE and ZO with their AB-chart glyphs", () => {
+    // Both occur only as standalone single-sign words, which the hyphenated-word
+    // aligner never walks. ZE's glyph is unanimous when the standalone
+    // attestations are aligned directly (46/46 -> AB074); ZO's two attestations
+    // are unalignable, so its glyph is the AB-chart identity (AB020) with
+    // confidence 0 to mark it chart-derived rather than alignment-derived.
+    const ze = byLabel.get("ZE");
+    expect(ze?.glyph).toBe(String.fromCodePoint(0x1063c));
+    expect(ze?.phonetic).toBe("dze");
+    expect(ze?.total).toBe(46);
+    expect(ze?.confidence).toBe(1);
+    expect(ze?.sharedWithLinearB).toBe(true);
+    const zo = byLabel.get("ZO");
+    expect(zo?.glyph).toBe(String.fromCodePoint(0x1060e));
+    expect(zo?.phonetic).toBe("dzo");
+    expect(zo?.total).toBe(2);
+    expect(zo?.confidence).toBe(0);
+    expect(zo?.sharedWithLinearB).toBe(true);
+  });
+
   it("carries no entry for the damage marker or codepoint-less *810", () => {
     // "VS" is upstream's transliteration of a damaged/illegible sign position
     // (glyph stream: unassigned U+1076B), not a sign. *810 has no Linear A
@@ -97,7 +119,9 @@ describe("shipped sign table (public/corpus/signs.json)", () => {
   });
 
   it("classifies AB-series signs as shared with Linear B", () => {
-    expect(signs.filter((s) => s.sharedWithLinearB).length).toBe(66);
+    // 68 AB-shared = the 66 alignment-derived + ZE (AB074) and ZO (AB020),
+    // which are added from their standalone attestations (see the ZE/ZO test).
+    expect(signs.filter((s) => s.sharedWithLinearB).length).toBe(68);
     expect(signs.filter((s) => s.linearAOnly).length).toBe(23);
     // AB-series signs without PHONETIC_MAP values were once misclassified as
     // not-shared (the starred ones as Linear-A-only). Their codepoints carry

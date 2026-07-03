@@ -4,6 +4,21 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 1.6.1 — 2026-07-03
+
+### Data
+
+- **The sign table adds ZE and ZO** (97 signs, up from 95). Both z-series signs
+  occur in the corpus only as standalone single-sign words, which the
+  hyphenated-word aligner never walks, so they had been absent from the derived
+  table despite being securely attested (ZE 47×, ZO 2×). `build-corpus.mjs` now
+  adds them from their attestations: ZE's glyph is unanimous when its standalone
+  occurrences are aligned directly (46/46 → AB074), and ZO takes its AB-chart
+  identity (AB020) with `confidence: 0` to mark it chart-derived. Both read as
+  the affricate series (`dze`/`dzo`) and are AB-shared. The corpus parity
+  contract (inscription fields + `paritySha256`) is unchanged. Mirrored in
+  pyaegean 0.19.8.
+
 ## 1.6.0 — 2026-07-02
 
 A correctness pass across the whole workbench, with every fix pinned by a

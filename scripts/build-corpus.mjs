@@ -244,6 +244,44 @@ for (const s of signs) {
   }
 }
 
+// Known addition: ZE and ZO occur in the corpus only as STANDALONE single-sign
+// words (ZE 47x, ZO 2x), which the hyphenated-word walk above never visits, so
+// they cannot enter the table through the alignment pass. Their identities are
+// nonetheless secure. ZE: aligning the standalone attestations directly (in
+// inscriptions whose full unit count matches their glyph stream) gives a
+// unanimous modal glyph, 46 of 46 occurrences -> U+1063C, the chart's AB074 =
+// Linear B ze; total/confidence carry that measurement. ZO: its two standalone
+// attestations sit in streams that cannot be aligned, so its glyph follows the
+// same AB-numbering rule used for classification above (AB020 = Linear B zo ->
+// U+1060E); total is the attestation count and confidence is 0 because the
+// glyph is chart-derived, not alignment-derived. Both are AB-series, so
+// sharedWithLinearB. The duplicate-glyph tripwire below covers both entries.
+signs.push(
+  {
+    label: "ZE",
+    glyph: String.fromCodePoint(0x1063c),
+    codepoint: 0x1063c,
+    phonetic: PHONETIC_MAP.ZE,
+    sharedWithLinearB: true,
+    linearAOnly: false,
+    total: 46,
+    confidence: 1,
+    altGlyphs: [],
+  },
+  {
+    label: "ZO",
+    glyph: String.fromCodePoint(0x1060e),
+    codepoint: 0x1060e,
+    phonetic: PHONETIC_MAP.ZO,
+    sharedWithLinearB: true,
+    linearAOnly: false,
+    total: 2,
+    confidence: 0,
+    altGlyphs: [],
+  },
+);
+signs.sort((a, b) => b.total - a.total);
+
 // Tripwire for the same error class: two labels sharing a modal glyph means
 // the alignment drifted somewhere. Fail the build rather than ship a
 // shadowed sign — this runs before any output is written.

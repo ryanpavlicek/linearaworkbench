@@ -21,7 +21,7 @@ export const CITATION_STYLE_LABEL: Record<CitationStyle, string> = {
 // package.json so the self-citation pins a reproducible release. Bump
 // version + year + date together on a release. Mirrored in CITATION.cff
 // at the repo root (cff `version` + `date-released`) and in package.json.
-export const WORKBENCH_VERSION = "1.6.0";
+export const WORKBENCH_VERSION = "1.6.1";
 const WORKBENCH_RELEASE_YEAR = "2026";
 const WORKBENCH_URL = "https://github.com/ryanpavlicek/linearaworkbench";
 

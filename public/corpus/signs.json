@@ -44,6 +44,17 @@
     "altGlyphs": []
   },
   {
+    "label": "ZE",
+    "glyph": "𐘼",
+    "codepoint": 67132,
+    "phonetic": "dze",
+    "sharedWithLinearB": true,
+    "linearAOnly": false,
+    "total": 46,
+    "confidence": 1,
+    "altGlyphs": []
+  },
+  {
     "label": "TA",
     "glyph": "𐘳",
     "codepoint": 67123,
@@ -734,6 +745,17 @@
     "linearAOnly": false,
     "total": 2,
     "confidence": 1,
+    "altGlyphs": []
+  },
+  {
+    "label": "ZO",
+    "glyph": "𐘎",
+    "codepoint": 67086,
+    "phonetic": "dzo",
+    "sharedWithLinearB": true,
+    "linearAOnly": false,
+    "total": 2,
+    "confidence": 0,
     "altGlyphs": []
   },
   {
