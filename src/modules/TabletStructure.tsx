@@ -56,10 +56,12 @@ const PREVIEW = 24;
 // — one implementation for this module, the exports, and the map overlay,
 // so they can never disagree. A researcher can override it per tablet
 // (tabletCategories in the store).
-const heuristicKey = (ins: Inscription): Key => heuristicCategory(ins);
+const heuristicKey = (ins: Inscription, scriptId: import("../data/scripts").ScriptId): Key =>
+  heuristicCategory(ins, scriptId);
 
 export default function TabletStructure() {
   const inscriptions = useScopedCorpus().inscriptions;
+  const scriptId = useWorkbench((s) => s.scriptId);
   const tabletCategories = useWorkbench((s) => s.tabletCategories);
   const setTabletCategory = useWorkbench((s) => s.setTabletCategory);
   const clearTabletCategory = useWorkbench((s) => s.clearTabletCategory);
@@ -119,7 +121,7 @@ export default function TabletStructure() {
     const heuristicOf = new Map<string, Key>();
     let reclassifiedCount = 0;
     for (const ins of inscriptions) {
-      const hk = heuristicKey(ins);
+      const hk = heuristicKey(ins, scriptId);
       heuristicOf.set(ins.id, hk);
       const override = tabletCategories[ins.id] as Key | undefined;
       const eff = override && buckets[override] ? override : hk;
@@ -127,7 +129,7 @@ export default function TabletStructure() {
       buckets[eff].push(ins);
     }
     return { classified: buckets, heuristicOf, reclassifiedCount };
-  }, [inscriptions, tabletCategories]);
+  }, [inscriptions, tabletCategories, scriptId]);
 
   // Category × site cross-tab over the biggest sites: where does each
   // document type live? Libation texts at the peak sanctuaries vs

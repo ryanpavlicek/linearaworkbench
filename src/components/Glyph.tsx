@@ -9,14 +9,20 @@ interface Props {
   title?: string;
 }
 
-// Renders Linear A glyphs using Noto Sans Linear A. Falls back to a small
-// placeholder if the sign isn't found in the derived sign mapping.
+// Renders Aegean script glyphs using the self-hosted Noto Sans Aegean font
+// stack (Linear A, Linear B, Cypriot Syllabic, Cypro-Minoan). Falls back to a
+// small placeholder if the sign isn't found in the active sign inventory.
 export function Glyph({ sign, glyph, size = 18, title }: Props) {
   const signsByLabel = useWorkbench((s) => s.corpus.signsByLabel);
   let displayGlyph: string | null | undefined = glyph;
   let phon: string | null = null;
   if (!displayGlyph && sign) {
-    const data = signsByLabel.get(normalizeSignLabel(sign));
+    const norm = normalizeSignLabel(sign);
+    const data =
+      signsByLabel.get(norm) ??
+      signsByLabel.get(sign) ??
+      signsByLabel.get(norm.toUpperCase()) ??
+      signsByLabel.get(norm.toLowerCase());
     displayGlyph = data?.glyph;
     phon = data?.phonetic ?? null;
   }

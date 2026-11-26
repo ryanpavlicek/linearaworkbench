@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { useWorkbench } from "../store/workbench";
+import { getScriptProfile } from "../data/scripts";
 import { SettingsPopover } from "./SettingsPopover";
 import { ScopeControl } from "./ScopeControl";
 
@@ -17,8 +18,10 @@ export function TopBar({
   const loaded = useWorkbench((s) => s.loaded);
   const corpus = useWorkbench((s) => s.corpus);
   const corpusSource = useWorkbench((s) => s.corpusSource);
+  const scriptId = useWorkbench((s) => s.scriptId);
   const annotations = useWorkbench((s) => s.annotations);
   const setActive = useWorkbench((s) => s.setActiveModule);
+  const scriptProfile = getScriptProfile(scriptId);
 
   const nWords = useMemo(() => {
     let count = 0;
@@ -35,6 +38,15 @@ export function TopBar({
         <b>{corpus.inscriptions.length}</b> inscriptions · <b>{nWords}</b>{" "}
         words · <b>{corpus.signs.length}</b> signs ·{" "}
         <b>{corpus.siteIndex.size}</b> sites
+        {scriptId !== "lineara" && (
+          <span
+            className="tag tag-accent"
+            style={{ marginLeft: 8, fontSize: 9 }}
+            title={`${scriptProfile.label} (${scriptProfile.status} — ${scriptProfile.language})`}
+          >
+            {scriptProfile.label}
+          </span>
+        )}
         {corpusSource && (
           <span
             className="tag tag-domain"

@@ -26,9 +26,10 @@ import {
   checkBalances,
   formatValue,
   hasValue,
-  TOTAL_MARKERS,
-  GRAND_TOTAL_MARKERS,
+  hasMarker,
+  markersForScript,
 } from "./numerals";
+import type { ScriptId } from "../data/scripts";
 import type { PhoneticOverrides, WordEntry } from "./types";
 
 export const SCHEMA_VERSION = 1;
@@ -43,15 +44,22 @@ export type StructCategory =
   | "list"
   | "text"
   | "other";
-export function heuristicCategory(ins: Inscription): StructCategory {
+export function heuristicCategory(
+  ins: Inscription,
+  scriptId: ScriptId = "lineara",
+): StructCategory {
   const ws = ins.words;
+  const markers = markersForScript(scriptId);
+  const ci = markers.caseInsensitive ?? false;
   // hasValue catches fractions too — a tablet of fraction-only quantities
   // is still an accounting document.
   const hasNums = hasValue(ws);
   const hasTotal = ws.some(
-    (w) => TOTAL_MARKERS.has(w) || GRAND_TOTAL_MARKERS.has(w),
+    (w) =>
+      hasMarker(w, markers.total, ci) || hasMarker(w, markers.grandTotal, ci),
   );
-  const hasLib = ws.some((w) => LIBATION_WORD_SET.has(w));
+  const hasLib =
+    scriptId === "lineara" && ws.some((w) => LIBATION_WORD_SET.has(w));
   const multi = ws.filter((w) => w.includes("-")).length;
   const sep = ws.filter((w) => w === "𐄁").length;
   if (hasTotal || (hasNums && multi > 2)) return "accounting";
@@ -76,10 +84,14 @@ interface BalanceSummary {
     itemCount: number;
   }[];
 }
-function balanceSummary(ins: Inscription): BalanceSummary | undefined {
+function balanceSummary(
+  ins: Inscription,
+  scriptId: ScriptId = "lineara",
+): BalanceSummary | undefined {
   if (!ins.lines.length) return undefined;
-  const lines = parseAccountLines(ins.lines);
-  const checks = checkBalances(lines);
+  const markers = markersForScript(scriptId);
+  const lines = parseAccountLines(ins.lines, markers);
+  const checks = checkBalances(lines, markers);
   if (checks.length === 0)
     return { hasTotal: false, totalsChecked: 0, allBalance: true, checks: [] };
   return {
@@ -106,6 +118,7 @@ interface ExportOptions {
   includeSigns: boolean;
   includeWordFrequencies: boolean;
   hypothesis: PhoneticOverrides;
+  scriptId?: ScriptId;
   // Source-of-truth lookups for the user-state side.
   annotations: Annotation[];
   collections: Collection[];
@@ -156,6 +169,7 @@ export interface CorpusExport {
     toolRepo: string;
     methodologyUrl: string;
     corpusSource: string;
+    script: ScriptId;
     schemaVersion: number;
     scope: CorpusScope;
     scopeSummary: string;
@@ -175,10 +189,16 @@ export function buildInscriptionExport(
   ins: Inscription,
   opts: Pick<
     ExportOptions,
-    "includeUserState" | "annotations" | "collections" | "pins" | "tabletCategoryOverrides"
+    | "includeUserState"
+    | "annotations"
+    | "collections"
+    | "pins"
+    | "tabletCategoryOverrides"
+    | "scriptId"
   >,
 ): InscriptionExport {
-  const heuristic = heuristicCategory(ins);
+  const scriptId: ScriptId = opts.scriptId ?? "lineara";
+  const heuristic = heuristicCategory(ins, scriptId);
   const override = opts.tabletCategoryOverrides[ins.id] as StructCategory | undefined;
   const effective: StructCategory =
     override && ["accounting", "libation", "list", "text", "other"].includes(override)
@@ -208,7 +228,7 @@ export function buildInscriptionExport(
       tabletStructureHeuristic: heuristic,
       tabletStructureCategory: effective,
       tabletStructureOverridden: !!override && override !== heuristic,
-      balance: balanceSummary(ins),
+      balance: balanceSummary(ins, scriptId),
     },
   };
   if (opts.includeUserState) {
@@ -247,11 +267,12 @@ export function buildCorpusExport(
   wordIndex: Map<string, WordEntry>,
   opts: ExportOptions,
 ): CorpusExport {
+  const scriptId: ScriptId = opts.scriptId ?? "lineara";
   const notes: string[] = [
     "Each entry under `inscriptions[]` is a single tablet/document.",
     "`words` is the flat token sequence (line-break markers removed); `lines` preserves the physical line grouping.",
     "`derived.tabletStructureCategory` reflects any researcher override (`tabletStructureOverridden` flags it). `tabletStructureHeuristic` is always the raw rule-based call.",
-    "`derived.balance` is present only when the inscription's `lines` could be parsed for accounting checks (KU-RO / PO-TO-KU-RO totals).",
+    "`derived.balance` is present only when the inscription's `lines` could be parsed for accounting checks (e.g. KU-RO / PO-TO-KU-RO in Linear A or to-so in Linear B).",
     "Sign-to-Unicode mapping is empirical (see methodology). `derived.multiSignWordCount` counts only the syllabic words (containing `-`), excluding numerals, ideograms, separators.",
     "The schema version (`_meta.schemaVersion`) is bumped on any breaking change.",
   ];
@@ -267,7 +288,10 @@ export function buildCorpusExport(
       toolRepo: TOOL_REPO,
       methodologyUrl: METHODOLOGY_URL,
       corpusSource:
-        "mwenge/lineara.xyz, transcribed from GORILA (Godart & Olivier, 1976–1985)",
+        scriptId === "lineara"
+          ? "mwenge/lineara.xyz, transcribed from GORILA (Godart & Olivier, 1976–1985)"
+          : `Custom ${scriptId} corpus`,
+      script: scriptId,
       schemaVersion: SCHEMA_VERSION,
       scope: opts.scope,
       scopeSummary: opts.scopeSummary,

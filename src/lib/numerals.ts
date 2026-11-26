@@ -107,12 +107,64 @@ export function formatValue(v: number): string {
   return v.toFixed(3).replace(/\.?0+$/, "");
 }
 
-// Total-marker recognition. These are among the most secure lexical
-// identifications in Linear A scholarship. KU-RA (ZA20, ARKH2) is read as
-// a variant of KU-RO and closes a list the same way.
+// Total-marker recognition. Linear A uses KU-RO / KU-RA (total), PO-TO-KU-RO
+// (grand total), and KI-RO (deficit/owed). Linear B uses Mycenaean Greek
+// to-so / to-sa / to-so-de (total) and o-pe-ro / o-pe-ro-si (deficit), matched
+// case-insensitively to handle lowercase DAMOS transliterations.
 export const TOTAL_MARKERS = new Set(["KU-RO", "KU-RA"]);
 export const GRAND_TOTAL_MARKERS = new Set(["PO-TO-KU-RO"]);
 export const DEFICIT_MARKERS = new Set(["KI-RO"]);
+
+export interface AccountingMarkers {
+  total: ReadonlySet<string>;
+  grandTotal: ReadonlySet<string>;
+  deficit: ReadonlySet<string>;
+  caseInsensitive?: boolean;
+}
+
+export const LINEAR_A_MARKERS: AccountingMarkers = {
+  total: TOTAL_MARKERS,
+  grandTotal: GRAND_TOTAL_MARKERS,
+  deficit: DEFICIT_MARKERS,
+  caseInsensitive: false,
+};
+
+export const LINEAR_B_MARKERS: AccountingMarkers = {
+  total: new Set(["TO-SO", "TO-SA", "TO-SO-DE"]),
+  grandTotal: new Set<string>(),
+  deficit: new Set(["O-PE-RO", "O-PE-RO-SI"]),
+  caseInsensitive: true,
+};
+
+export const EMPTY_MARKERS: AccountingMarkers = {
+  total: new Set<string>(),
+  grandTotal: new Set<string>(),
+  deficit: new Set<string>(),
+  caseInsensitive: true,
+};
+
+export function hasMarker(
+  term: string,
+  set: ReadonlySet<string>,
+  caseInsensitive = false,
+): boolean {
+  if (set.size === 0) return false;
+  if (set.has(term)) return true;
+  if (!caseInsensitive) return false;
+  const upper = term.toUpperCase();
+  if (set.has(upper)) return true;
+  for (const m of set) {
+    if (m.toUpperCase() === upper) return true;
+  }
+  return false;
+}
+
+export function markersForScript(scriptId: string): AccountingMarkers {
+  const key = scriptId.trim().toLowerCase().replace(/[\s_-]+/g, "");
+  if (key === "linearb" || key === "lb") return LINEAR_B_MARKERS;
+  if (key === "lineara" || key === "la" || key === "") return LINEAR_A_MARKERS;
+  return EMPTY_MARKERS;
+}
 
 export type LineRole = "header" | "item" | "total" | "grand-total" | "deficit";
 
@@ -145,39 +197,47 @@ function classifyTokens(tokens: string[]): {
 }
 
 // Parse a tablet's lines into role-tagged accounting lines.
-export function parseAccountLines(lines: string[][]): AccountLine[] {
+export function parseAccountLines(
+  lines: string[][],
+  markers: AccountingMarkers = LINEAR_A_MARKERS,
+): AccountLine[] {
+  const ci = markers.caseInsensitive ?? false;
   return lines.map((tokens, index) => {
     const value = lineValue(tokens);
     const hasNumber = hasValue(tokens);
     const { terms, ideograms } = classifyTokens(tokens);
     let role: LineRole = "item";
-    if (terms.some((t) => GRAND_TOTAL_MARKERS.has(t))) role = "grand-total";
-    else if (terms.some((t) => TOTAL_MARKERS.has(t))) role = "total";
-    else if (terms.some((t) => DEFICIT_MARKERS.has(t))) role = "deficit";
+    if (terms.some((t) => hasMarker(t, markers.grandTotal, ci)))
+      role = "grand-total";
+    else if (terms.some((t) => hasMarker(t, markers.total, ci))) role = "total";
+    else if (terms.some((t) => hasMarker(t, markers.deficit, ci)))
+      role = "deficit";
     else if (!hasNumber) role = "header";
     return { index, tokens, terms, ideograms, value, hasNumber, role };
   });
 }
 
 export interface BalanceCheck {
-  statedTotal: number; // value on the KU-RO / PO-TO-KU-RO line
+  statedTotal: number; // value on the total / grand-total line
   computedSum: number; // sum of the item lines feeding it
   itemCount: number;
   difference: number; // computed - stated
   balances: boolean;
-  marker: string; // "KU-RO" / "PO-TO-KU-RO"
+  marker: string; // e.g. "KU-RO", "PO-TO-KU-RO", "to-so"
   totalLineIndex: number;
 }
 
-// Verify each total line on a tablet. A KU-RO subtotal is checked against
-// the item lines since the previous total; a PO-TO-KU-RO grand total is
-// checked against the stated KU-RO subtotals that precede it (plus any
-// trailing items that never got their own subtotal) — the standard reading
-// of Linear A accounts. Deficit (KI-RO) and header lines are excluded from
-// the sums. A total with nothing to check against (no preceding items or
-// subtotals — leading totals on damaged tablets) yields no check at all
-// rather than a spurious zero-sum discrepancy.
-export function checkBalances(lines: AccountLine[]): BalanceCheck[] {
+// Verify each total line on a tablet. A subtotal (KU-RO / to-so) is checked
+// against the item lines since the previous total; a grand total (PO-TO-KU-RO)
+// is checked against the stated subtotals that precede it (plus any trailing
+// items that never got their own subtotal). Deficit (KI-RO / o-pe-ro) and
+// header lines are excluded from the sums. A total with nothing to check
+// against yields no check rather than a spurious zero-sum discrepancy.
+export function checkBalances(
+  lines: AccountLine[],
+  markers: AccountingMarkers = LINEAR_A_MARKERS,
+): BalanceCheck[] {
+  const ci = markers.caseInsensitive ?? false;
   const checks: BalanceCheck[] = [];
   let runningItems: AccountLine[] = [];
   let subtotals: number[] = [];
@@ -193,9 +253,12 @@ export function checkBalances(lines: AccountLine[]): BalanceCheck[] {
       itemCount,
       difference,
       balances: Math.abs(difference) < 1e-6,
-      marker: line.terms.find(
-        (t) => TOTAL_MARKERS.has(t) || GRAND_TOTAL_MARKERS.has(t),
-      )!,
+      marker:
+        line.terms.find(
+          (t) =>
+            hasMarker(t, markers.total, ci) ||
+            hasMarker(t, markers.grandTotal, ci),
+        ) ?? "",
       totalLineIndex: line.index,
     });
   };

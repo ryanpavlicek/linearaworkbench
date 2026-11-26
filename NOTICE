@@ -29,6 +29,7 @@ This product includes data and assets from third-party sources:
   d'Athènes and are bundled for academic reference only on the same terms.
 
 * The UI webfonts are self-hosted in public/fonts/ and are all licensed
-  under the SIL Open Font License 1.1: Noto Sans Linear A (Google — renders
-  the Linear A glyphs), Inter (Rasmus Andersson), JetBrains Mono (JetBrains),
-  and Crimson Pro (Jacques Le Bailly).
+  under the SIL Open Font License 1.1: Noto Sans Linear A, Noto Sans Linear B,
+  Noto Sans Cypriot, and Noto Sans Cypro Minoan (Google — Aegean script glyphs),
+  Inter (Rasmus Andersson), JetBrains Mono (JetBrains), and Crimson Pro
+  (Jacques Le Bailly).

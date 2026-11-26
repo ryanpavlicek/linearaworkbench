@@ -63,10 +63,17 @@ export function App() {
     if (!loaded) {
       const base = import.meta.env.BASE_URL || "/";
       // ?corpus=<url> swaps in someone else's inscription JSON for this
-      // session (a pyaegean dump, a colleague's export) — the bundled sign
-      // inventory still applies. No param: the bundled corpus.
-      const custom = new URLSearchParams(window.location.search).get("corpus");
-      if (custom) loadCustomCorpus(custom, `${base}corpus/signs.json`);
+      // session (a pyaegean dump, a colleague's export). Optional ?script= and
+      // ?signs= configure multi-script Linear B / Cypriot / Cypro-Minoan loads.
+      const params = new URLSearchParams(window.location.search);
+      const custom = params.get("corpus");
+      const script = params.get("script");
+      const customSignsUrl = params.get("signs");
+      if (custom)
+        loadCustomCorpus(custom, `${base}corpus/signs.json`, {
+          script,
+          customSignsUrl,
+        });
       else loadCorpus(`${base}corpus/`);
     }
   }, [loaded, loadCorpus, loadCustomCorpus]);
@@ -209,10 +216,13 @@ export function App() {
             <button
               onClick={() => {
                 const base = import.meta.env.BASE_URL || "/";
-                const custom = new URLSearchParams(
-                  window.location.search,
-                ).get("corpus");
-                if (custom) loadCustomCorpus(custom, `${base}corpus/signs.json`);
+                const params = new URLSearchParams(window.location.search);
+                const custom = params.get("corpus");
+                if (custom)
+                  loadCustomCorpus(custom, `${base}corpus/signs.json`, {
+                    script: params.get("script"),
+                    customSignsUrl: params.get("signs"),
+                  });
                 else loadCorpus(`${base}corpus/`);
               }}
             >

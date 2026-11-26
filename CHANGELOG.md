@@ -4,6 +4,30 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 2.1.0 — 2026-11-26
+
+Multi-script support for bring-your-own Aegean corpora (Linear B, Cypriot
+Syllabic, and Cypro-Minoan) alongside the bundled Linear A corpus.
+
+### Multi-script mode
+- **Self-hosted Aegean webfonts** (`public/fonts/`, `scripts/fetch-fonts.mjs`,
+  `src/styles.css`): bundled SIL OFL 1.1 script subsets for `Noto Sans Linear B`,
+  `Noto Sans Cypriot`, and `Noto Sans Cypro Minoan` alongside `Noto Sans Linear A`,
+  enabling offline Unicode glyph rendering across all four Aegean scripts.
+- **Script profiles & accounting** (`src/data/scripts.ts`, `src/lib/numerals.ts`,
+  `src/modules/ArithmeticCheck.tsx`, `src/lib/corpusExport.ts`): added
+  script-aware accounting markers (`to-so` / `to-sa` / `to-so-de` totals and
+  `o-pe-ro` / `o-pe-ro-si` deficits for Linear B, matching `pyaegean`'s
+  `core/numerals.py`), case-insensitive phonetic lookups for non-Linear-A
+  custom corpora (preserving Linear A subscript distinctness `RA₂ != RA`), and
+  `_meta.script` round-tripping in schema-v1 exports.
+- **Custom corpus & sign inventory loading** (`src/lib/customCorpus.ts`,
+  `src/store/workbench.ts`, `src/App.tsx`, `src/components/TopBar.tsx`,
+  `src/components/Glyph.tsx`): `?corpus=` now accepts optional `?script=` and
+  `?signs=` parameters as well as embedded `_meta.script`, `signs`, and
+  `phoneticMap` fields in JSON envelopes, showing an active script badge in the
+  top bar whenever a non-Linear-A corpus is loaded.
+
 ## 2.0.0 — 2026-11-26
 
 A full-stack hardening, accuracy, UX consolidation, offline PWA, and

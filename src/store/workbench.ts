@@ -22,8 +22,17 @@ import type {
   WordEntry,
 } from "../lib/types";
 import { COMPARISON_LANGUAGES } from "../data/languages";
+import {
+  getScriptProfile,
+  parseScriptId,
+  type ScriptId,
+} from "../data/scripts";
 import { KEYS, loadJson, saveJson } from "../lib/persistence";
-import { normalizeCorpusJson } from "../lib/customCorpus";
+import { normalizeCorpusJson, normalizeSignsJson } from "../lib/customCorpus";
+import {
+  resetActivePhoneticMap,
+  setActivePhoneticMap,
+} from "../lib/signKeys";
 import { safeCorpusUrl } from "../lib/urlSafety";
 
 export interface CorpusIndex {
@@ -45,6 +54,10 @@ interface State {
   loaded: boolean;
   loadError: string | null;
   corpus: CorpusIndex;
+  // Active Aegean script for this session ("lineara" for the bundled corpus;
+  // "linearb", "cypriot", "cyprominoan", or "custom" when loaded from a
+  // multi-script custom corpus or ?script= parameter).
+  scriptId: ScriptId;
   // Workbench-wide corpus filter (see CorpusScope). Read by analysis modules
   // through useScopedCorpus(); in-memory only (not persisted across reloads).
   scope: CorpusScope;
@@ -88,8 +101,12 @@ interface State {
     signs: SignData[],
   ) => void;
   // Bring-your-own corpus: fetch one JSON document (array or schema-v1
-  // export), normalize it, and load it against the bundled sign inventory.
-  loadCorpusFromCustomUrl: (url: string, signsUrl: string) => Promise<void>;
+  // export), normalize it, and load it with its script/sign inventory.
+  loadCorpusFromCustomUrl: (
+    url: string,
+    signsUrl: string,
+    opts?: { script?: string | null; customSignsUrl?: string | null },
+  ) => Promise<void>;
   // Same normalization for already-parsed JSON (the local file picker).
   // Throws on unusable input; returns counts for the caller's toast.
   applyCustomCorpus: (
@@ -276,10 +293,51 @@ const DEFAULT_SETTINGS: DisplaySettings = {
   theme: "dark",
 };
 
+function derivePhoneticMap(
+  signs: SignData[],
+  explicit?: Record<string, string>,
+): Record<string, string> | null {
+  const out: Record<string, string> = {};
+  let count = 0;
+  for (const s of signs) {
+    if (s.phonetic) {
+      out[s.label] = s.phonetic;
+      count++;
+    }
+  }
+  if (explicit) {
+    for (const [k, v] of Object.entries(explicit)) {
+      out[k] = v;
+      count++;
+    }
+  }
+  return count > 0 ? out : null;
+}
+
+function syncScriptEnvironment(
+  scriptId: ScriptId,
+  signs: SignData[],
+  explicitPhoneticMap?: Record<string, string>,
+): void {
+  if (typeof document !== "undefined") {
+    document.documentElement.dataset.script = scriptId;
+  }
+  const profile = getScriptProfile(scriptId);
+  if (scriptId === "lineara" && !explicitPhoneticMap) {
+    resetActivePhoneticMap();
+    return;
+  }
+  const derived = derivePhoneticMap(signs, explicitPhoneticMap);
+  setActivePhoneticMap(derived, {
+    caseInsensitive: profile.caseInsensitivePhonetic,
+  });
+}
+
 export const useWorkbench = create<State>((set, get) => ({
   loaded: false,
   loadError: null,
   corpus: emptyCorpus(),
+  scriptId: "lineara",
   scope: { ...EMPTY_SCOPE },
   hypothesis: {},
   overrideEvidence: {},
@@ -326,33 +384,50 @@ export const useWorkbench = create<State>((set, get) => ({
   },
 
   loadCorpusFromInscriptions(data, signs) {
+    syncScriptEnvironment("lineara", signs);
     set({
       corpus: buildIndex(data, signs),
+      scriptId: "lineara",
       loaded: true,
       loadError: null,
       corpusSource: null,
     });
   },
 
-  async loadCorpusFromCustomUrl(url, signsUrl) {
+  async loadCorpusFromCustomUrl(url, signsUrl, opts) {
     try {
       const check = safeCorpusUrl(url);
       if (!check.ok) throw new Error(check.error);
+      let resolvedSignsUrl = signsUrl;
+      if (opts?.customSignsUrl) {
+        const signsCheck = safeCorpusUrl(opts.customSignsUrl);
+        if (!signsCheck.ok) throw new Error(signsCheck.error);
+        resolvedSignsUrl = signsCheck.url;
+      }
       const [insRes, signRes] = await Promise.all([
         fetch(check.url),
-        fetch(signsUrl),
+        fetch(resolvedSignsUrl),
       ]);
       if (!insRes.ok)
         throw new Error(`custom corpus fetch failed (HTTP ${insRes.status})`);
       if (!signRes.ok)
         throw new Error(`sign inventory fetch failed (HTTP ${signRes.status})`);
-      const [raw, signs] = await Promise.all([
+      const [raw, rawSigns] = await Promise.all([
         insRes.json() as Promise<unknown>,
-        signRes.json() as Promise<SignData[]>,
+        signRes.json() as Promise<unknown>,
       ]);
-      const { inscriptions } = normalizeCorpusJson(raw);
+      const normalized = normalizeCorpusJson(raw);
+      const fetchedSigns = normalizeSignsJson(rawSigns);
+      const finalSigns =
+        normalized.signs && normalized.signs.length > 0
+          ? normalized.signs
+          : fetchedSigns;
+      const scriptId: ScriptId =
+        parseScriptId(opts?.script) ?? normalized.scriptId ?? "lineara";
+      syncScriptEnvironment(scriptId, finalSigns, normalized.phoneticMap);
       set({
-        corpus: buildIndex(inscriptions, signs),
+        corpus: buildIndex(normalized.inscriptions, finalSigns),
+        scriptId,
         loaded: true,
         loadError: null,
         corpusSource: check.url,
@@ -365,17 +440,26 @@ export const useWorkbench = create<State>((set, get) => ({
   },
 
   applyCustomCorpus(raw, label) {
-    const { inscriptions, skipped } = normalizeCorpusJson(raw);
-    set((s) => ({
-      corpus: buildIndex(inscriptions, s.corpus.signs),
-      loaded: true,
-      loadError: null,
-      corpusSource: label,
-      // The old corpus's open detail/scope would dangle against new ids.
-      detail: null,
-      scope: { ...EMPTY_SCOPE },
-    }));
-    return { loaded: inscriptions.length, skipped };
+    const normalized = normalizeCorpusJson(raw);
+    set((s) => {
+      const finalSigns =
+        normalized.signs && normalized.signs.length > 0
+          ? normalized.signs
+          : s.corpus.signs;
+      const scriptId: ScriptId = normalized.scriptId ?? "lineara";
+      syncScriptEnvironment(scriptId, finalSigns, normalized.phoneticMap);
+      return {
+        corpus: buildIndex(normalized.inscriptions, finalSigns),
+        scriptId,
+        loaded: true,
+        loadError: null,
+        corpusSource: label,
+        // The old corpus's open detail/scope would dangle against new ids.
+        detail: null,
+        scope: { ...EMPTY_SCOPE },
+      };
+    });
+    return { loaded: normalized.inscriptions.length, skipped: normalized.skipped };
   },
 
   setScope: (patch) => set((s) => ({ scope: { ...s.scope, ...patch } })),

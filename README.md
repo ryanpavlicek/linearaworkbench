@@ -223,11 +223,16 @@ of the bundled corpus — for the length of a browser session:
 Both accept either a plain array of inscription records or a workbench
 corpus export (the schema-v1 object Data Export and the data API produce).
 Only `id` plus some text (`words`, `lines`, or `transcription`) are
-required per record; missing metadata gets sensible defaults. That makes
-round trips easy: export a scope-filtered corpus here and reload it later,
-or build one in Python with pyaegean's `to_workbench()` and point the
-workbench at it. The top bar shows a "custom corpus" tag while one is
-active; reloading without the parameter restores the bundled corpus.
+required per record; missing metadata gets sensible defaults. Multi-script
+sessions are supported for **Linear B**, **Cypriot Syllabic**, and
+**Cypro-Minoan**: pass `?script=linearb&signs=<url>` alongside `?corpus=`,
+include `_meta.script` / `signs` / `phoneticMap` in the JSON export, or launch
+directly via `aegean workbench --corpus <id-or-path>`. Self-hosted Noto Sans
+fonts render Linear A, Linear B, Cypriot, and Cypro-Minoan glyphs offline, and
+Linear B sessions automatically switch accounting verification to `to-so` /
+`o-pe-ro`. The top bar shows the active script and a "custom corpus" tag while
+one is loaded; reloading without the parameter restores the bundled Linear A
+corpus.
 
 ## Keyboard
 

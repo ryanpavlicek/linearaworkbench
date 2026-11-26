@@ -19,6 +19,7 @@ import {
   type AccountLine,
   type BalanceCheck,
 } from "../lib/numerals";
+import { getScriptProfile } from "../data/scripts";
 import type { Inscription } from "../lib/types";
 
 type Filter = "all" | "balanced" | "discrepant" | "reconciled";
@@ -32,25 +33,26 @@ interface TabletResult {
   anyDiscrepant: boolean;
   hasTotal: boolean;
   maxAbsDelta: number;
-  // KI-RO reconciliation notes: human-readable statements of which sums
-  // a deficit line explains on this tablet (empty when none).
+  // Deficit reconciliation notes (KI-RO in Linear A, O-PE-RO in Linear B):
+  // human-readable statements of which sums a deficit line explains on this
+  // tablet (empty when none).
   reconciliations: string[];
 }
 
-// Does a KI-RO line explain this tablet's arithmetic? Four checkable
-// patterns, all flowing from the literature's reading of KI-RO as
-// "deficit / owed":
-//   1. A total that looks "off" is off by exactly one KI-RO amount —
-//      the items list what was expected, KU-RO what arrived, KI-RO the
+// Does a deficit line (KI-RO in Linear A, o-pe-ro in Linear B) explain this
+// tablet's arithmetic? Four checkable patterns:
+//   1. A total that looks "off" is off by exactly one deficit amount —
+//      the items list what was expected, total what arrived, deficit the
 //      shortfall (or the mirror image).
-//   2. KU-RO + KI-RO equals a LATER stated total on the same tablet —
+//   2. Total + deficit equals a LATER stated total on the same tablet —
 //      delivered + outstanding restated as the full obligation.
-//   3. The per-entry KI-RO amounts sum to the final KI-RO line — the
+//   3. The per-entry deficit amounts sum to the final deficit line — the
 //      deficit ledger itself balances (the HT 123 pattern).
-//   4. A total's gap equals the COMBINED per-entry KI-RO amounts.
+//   4. A total's gap equals the COMBINED per-entry deficit amounts.
 function findReconciliations(
   lines: AccountLine[],
   checks: BalanceCheck[],
+  deficitLabel = "KI-RO",
 ): string[] {
   const deficits = lines.filter((l) => l.role === "deficit" && l.hasNumber);
   if (deficits.length === 0) return [];
@@ -63,7 +65,7 @@ function findReconciliations(
         d.value > 0
       ) {
         out.push(
-          `${c.marker} is off by exactly the KI-RO amount (${formatValue(d.value)}) — items, total, and deficit reconcile`,
+          `${c.marker} is off by exactly the ${deficitLabel} amount (${formatValue(d.value)}) — items, total, and deficit reconcile`,
         );
       }
     }
@@ -79,14 +81,14 @@ function findReconciliations(
           d.value > 0
         ) {
           out.push(
-            `${totals[i].tokens.find((t) => t.includes("-")) ?? "total"} (${formatValue(totals[i].value)}) + KI-RO (${formatValue(d.value)}) = the later total ${formatValue(totals[j].value)}`,
+            `${totals[i].tokens.find((t) => t.includes("-")) ?? "total"} (${formatValue(totals[i].value)}) + ${deficitLabel} (${formatValue(d.value)}) = the later total ${formatValue(totals[j].value)}`,
           );
         }
       }
     }
   }
-  // The deficit ledger balances against itself: earlier per-entry KI-RO
-  // amounts sum to the final KI-RO line.
+  // The deficit ledger balances against itself: earlier per-entry deficit
+  // amounts sum to the final deficit line.
   if (deficits.length >= 3) {
     const last = deficits[deficits.length - 1];
     const sumPrior = deficits
@@ -94,7 +96,7 @@ function findReconciliations(
       .reduce((s, d) => s + d.value, 0);
     if (sumPrior > 0 && Math.abs(sumPrior - last.value) < EPS) {
       out.push(
-        `the ${deficits.length - 1} per-entry KI-RO amounts sum to the final KI-RO (${formatValue(last.value)}) — the deficit ledger balances`,
+        `the ${deficits.length - 1} per-entry ${deficitLabel} amounts sum to the final ${deficitLabel} (${formatValue(last.value)}) — the deficit ledger balances`,
       );
     }
   }
@@ -108,7 +110,7 @@ function findReconciliations(
         Math.abs(Math.abs(c.difference) - sumAll) < EPS
       ) {
         out.push(
-          `${c.marker} is off by exactly the combined KI-RO amounts (${formatValue(sumAll)})`,
+          `${c.marker} is off by exactly the combined ${deficitLabel} amounts (${formatValue(sumAll)})`,
         );
       }
     }
@@ -118,6 +120,8 @@ function findReconciliations(
 
 export default function ArithmeticCheck() {
   const inscriptions = useScopedCorpus().inscriptions;
+  const scriptId = useWorkbench((s) => s.scriptId);
+  const scriptProfile = getScriptProfile(scriptId);
   const createCollectionWithItems = useWorkbench(
     (s) => s.createCollectionWithItems,
   );
@@ -127,12 +131,13 @@ export default function ArithmeticCheck() {
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const results = useMemo<TabletResult[]>(() => {
+    const markers = scriptProfile.accountingMarkers;
     const out: TabletResult[] = [];
     for (const ins of inscriptions) {
       if (!ins.lines.length) continue;
-      const lines = parseAccountLines(ins.lines);
-      const checks = checkBalances(lines);
-      if (checks.length === 0) continue; // no KU-RO / PO-TO-KU-RO total line
+      const lines = parseAccountLines(ins.lines, markers);
+      const checks = checkBalances(lines, markers);
+      if (checks.length === 0) continue; // no total line for active script
       const anyDiscrepant = checks.some((c) => !c.balances);
       out.push({
         ins,
@@ -141,14 +146,18 @@ export default function ArithmeticCheck() {
         anyDiscrepant,
         hasTotal: true,
         maxAbsDelta: Math.max(...checks.map((c) => Math.abs(c.difference))),
-        reconciliations: findReconciliations(lines, checks),
+        reconciliations: findReconciliations(
+          lines,
+          checks,
+          scriptProfile.deficitLabel,
+        ),
       });
     }
     // Balanced first within each, but surface discrepant tablets near the
     // top since those are the interesting ones for a researcher.
     out.sort((a, b) => Number(b.anyDiscrepant) - Number(a.anyDiscrepant));
     return out;
-  }, [inscriptions]);
+  }, [inscriptions, scriptProfile]);
 
   const filtered = useMemo(() => {
     if (filter === "balanced") return results.filter((r) => !r.anyDiscrepant);
@@ -260,8 +269,9 @@ export default function ArithmeticCheck() {
         ]);
       }
     }
+    const prefix = scriptId === "lineara" ? "linear_a" : scriptId;
     downloadFile(
-      "linear_a_accounting.csv",
+      `${prefix}_accounting.csv`,
       rows.map((row) => row.map(csvEscape).join(",")).join("\n"),
     );
   }
@@ -272,26 +282,31 @@ export default function ArithmeticCheck() {
       <div className="callout">
         <h4>Quantitative total verification</h4>
         <p>
-          Linear A accounting tablets list entries (a term or name, sometimes
-          a commodity ideogram, and a quantity) and frequently close with{" "}
-          <code>KU-RO</code> ("total") or <code>PO-TO-KU-RO</code> ("grand
-          total"). This module parses the decimal numerals and metrological
-          fractions (½, ¾, ¹⁄₁₆ …), sums each tablet's line items, and checks
-          the result against the stated total — flagging where they balance
-          and where they don't. <code>KI-RO</code> ("deficit / owed") lines
-          are shown but excluded from the sum.
+          {scriptProfile.label} accounting tablets list entries (a term or name,
+          sometimes a commodity ideogram, and a quantity) and frequently close
+          with <code>{scriptProfile.totalLabel}</code> ("total")
+          {scriptProfile.grandTotalLabel ? (
+            <>
+              {" "}
+              or <code>{scriptProfile.grandTotalLabel}</code> ("grand total")
+            </>
+          ) : null}
+          . This module parses the decimal numerals and metrological fractions
+          (½, ¾, ¹⁄₁₆ …), sums each tablet's line items, and checks the result
+          against the stated total — flagging where they balance and where they
+          don't. <code>{scriptProfile.deficitLabel}</code> ("deficit / owed")
+          lines are shown but excluded from the sum.
         </p>
         <p style={{ marginTop: 6, fontSize: 12 }}>
-          Discrepancies are genuinely interesting: some reflect scribal
-          error, some damaged readings, some unresolved questions about the
-          fraction system. Section boundaries are heuristic (reset at each
-          total). The <b>KI-RO reconciliation</b> check then asks whether a
-          deficit line arithmetically explains the account (a gap equal to
-          the KI-RO amount; KU-RO + KI-RO restated as a later total; the
-          per-entry deficits summing to the final KI-RO). A zero here is a
-          result, not a bug — on tablets like HT 123 the deficit column is
-          damaged in the source transcription, so the sums can't be
-          completed automatically.
+          Discrepancies are genuinely interesting: some reflect scribal error,
+          some damaged readings, some unresolved questions about the fraction
+          system. Section boundaries are heuristic (reset at each total). The{" "}
+          <b>{scriptProfile.deficitLabel} reconciliation</b> check then asks
+          whether a deficit line arithmetically explains the account (a gap
+          equal to the {scriptProfile.deficitLabel} amount;{" "}
+          {scriptProfile.totalLabel} + {scriptProfile.deficitLabel} restated as
+          a later total; the per-entry deficits summing to the final{" "}
+          {scriptProfile.deficitLabel}).
         </p>
       </div>
 
@@ -323,12 +338,12 @@ export default function ArithmeticCheck() {
         </div>
         <div
           className="stat-box"
-          title="Tablets where a KI-RO (deficit) line arithmetically explains the account — a seemingly off total is off by exactly the KI-RO amount, or KU-RO + KI-RO equals a later total"
+          title={`Tablets where a ${scriptProfile.deficitLabel} (deficit) line arithmetically explains the account — a seemingly off total is off by exactly the deficit amount, or ${scriptProfile.totalLabel} + ${scriptProfile.deficitLabel} equals a later total`}
         >
           <span className="val" style={{ color: "var(--cy)" }}>
             {stats.reconciled}
           </span>
-          <span className="lbl">KI-RO reconciled</span>
+          <span className="lbl">{scriptProfile.deficitLabel} reconciled</span>
         </div>
       </div>
 
@@ -339,7 +354,7 @@ export default function ArithmeticCheck() {
               ["all", "All"],
               ["discrepant", "Discrepant only"],
               ["balanced", "Balanced only"],
-              ["reconciled", "KI-RO reconciled"],
+              ["reconciled", `${scriptProfile.deficitLabel} reconciled`],
             ] as const
           ).map(([k, lbl]) => (
             <button

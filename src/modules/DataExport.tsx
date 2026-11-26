@@ -257,6 +257,7 @@ export default function DataExport() {
   }
 
   // ── Full corpus JSON (structured export for downstream pipelines) ─────────
+  const scriptId = useWorkbench((s) => s.scriptId);
   function fullCorpusJson() {
     const data = buildCorpusExport(
       scoped.inscriptions,
@@ -269,6 +270,7 @@ export default function DataExport() {
         includeSigns,
         includeWordFrequencies: includeWordFreq,
         hypothesis: hyp,
+        scriptId,
         annotations,
         collections,
         pins,
@@ -278,8 +280,9 @@ export default function DataExport() {
     const scopeTag = isScopeActive(scope)
       ? "_" + scopeSummary(scope).replace(/[^A-Za-z0-9]+/g, "_").slice(0, 40)
       : "";
+    const prefix = scriptId === "lineara" ? "linear_a" : scriptId;
     downloadFile(
-      `linear_a_corpus${scopeTag}.json`,
+      `${prefix}_corpus${scopeTag}.json`,
       JSON.stringify(data, null, 2),
       "application/json",
     );

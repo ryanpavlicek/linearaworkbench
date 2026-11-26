@@ -17,7 +17,7 @@ const outDir = resolve(__dirname, "..", "public", "fonts");
 mkdirSync(outDir, { recursive: true });
 
 const CSS_URL =
-  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Noto+Sans+Linear+A&display=swap";
+  "https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;600&family=Crimson+Pro:ital,wght@0,300;0,400;0,600;1,400&family=Noto+Sans+Linear+A&family=Noto+Sans+Linear+B&family=Noto+Sans+Cypriot&family=Noto+Sans+Cypro+Minoan&display=swap";
 
 // A modern UA so Google serves woff2 with unicode-range splits.
 const UA =
@@ -25,9 +25,25 @@ const UA =
 
 // Keep the subsets the UI can actually show: Latin for the interface,
 // latin-ext for romanized comparison forms with diacritics, greek for the
-// commentary corpus, and the Linear A block itself. Everything else
+// commentary corpus, and the Aegean script blocks themselves. Everything else
 // (cyrillic, vietnamese, …) is dead weight.
-const KEEP_SUBSETS = new Set(["latin", "latin-ext", "greek", "linear-a"]);
+const KEEP_SUBSETS = new Set([
+  "latin",
+  "latin-ext",
+  "greek",
+  "linear-a",
+  "linear-b",
+  "cypriot",
+  "cypro-minoan",
+]);
+
+// Extra Aegean glyph fonts only need their script block — UI Latin text uses
+// Inter, JetBrains Mono, and Crimson Pro.
+const SCRIPT_ONLY_SUBSETS = new Map([
+  ["Noto Sans Linear B", "linear-b"],
+  ["Noto Sans Cypriot", "cypriot"],
+  ["Noto Sans Cypro Minoan", "cypro-minoan"],
+]);
 
 const res = await fetch(CSS_URL, { headers: { "User-Agent": UA } });
 if (!res.ok) {
@@ -53,6 +69,8 @@ for (const [, subset, block] of blocks) {
   const style = block.match(/font-style:\s*(\w+)/)?.[1] ?? "normal";
   const weight = block.match(/font-weight:\s*(\d+)/)?.[1] ?? "400";
   if (!url || !family) continue;
+  const onlySubset = SCRIPT_ONLY_SUBSETS.get(family);
+  if (onlySubset && subset !== onlySubset) continue;
   const slug = family.toLowerCase().replace(/\s+/g, "-");
   const file = `${slug}-${subset}-${weight}${style === "italic" ? "-italic" : ""}.woff2`;
   if (!seen.has(file)) {

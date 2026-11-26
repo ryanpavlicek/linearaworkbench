@@ -1,4 +1,4 @@
-import { PHONETIC_MAP } from "../data/phoneticMap";
+import { lookupPhonetic } from "./signKeys";
 import type { PhoneticOverrides } from "./types";
 
 // ─── Phonetic class scheme (researcher-configurable) ─────────────────────
@@ -145,15 +145,9 @@ export function wordToPhonetic(
   word: string,
   overrides?: PhoneticOverrides,
 ): string {
-  const hasOverrides =
-    overrides !== undefined && Object.keys(overrides).length > 0;
-  const map = hasOverrides ? { ...PHONETIC_MAP, ...overrides } : PHONETIC_MAP;
   return word
     .split("-")
-    .map((s) => {
-      const cleaned = s.replace(/\*/g, "");
-      return map[cleaned] ?? s.toLowerCase();
-    })
+    .map((s) => lookupPhonetic(s, overrides) ?? s.toLowerCase())
     .join("");
 }
 

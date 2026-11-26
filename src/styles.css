@@ -40,7 +40,8 @@
   --serif: "Crimson Pro", Georgia, serif;
   --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui,
     sans-serif;
-  --glyph: "Noto Sans Linear A", "Aegean", "Segoe UI Historic", serif;
+  --glyph: "Noto Sans Linear A", "Noto Sans Linear B", "Noto Sans Cypriot",
+    "Noto Sans Cypro Minoan", "Aegean", "Segoe UI Historic", serif;
 
   /* Map (Findspot) — sea/land tints. Overridden in light theme. */
   --map-water: #0e1420;
