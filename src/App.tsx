@@ -14,6 +14,7 @@ import { MODULE_COMPONENTS } from "./modules/registry";
 import { loadJson, saveJson } from "./lib/persistence";
 import { WORKBENCH_VERSION } from "./lib/citations";
 import { parsePermalink } from "./lib/permalink";
+import { isLocalStateEnabled, pushLocalState } from "./lib/localBridge";
 
 // ?embed=1#/i/<id> renders a chromeless single-tablet card for iframes.
 // Resolved once at boot — an embed never becomes the full app or vice versa.
@@ -33,10 +34,15 @@ export function App() {
   const closeDetail = useWorkbench((s) => s.closeDetail);
   const undoLast = useWorkbench((s) => s.undoLast);
   const settings = useWorkbench((s) => s.settings);
-  // Apply the chosen theme by setting data-theme on <html>, which the CSS
-  // theme overrides key off. Defaults to dark.
+  // Apply the chosen theme by setting data-theme on <html> and keeping the
+  // PWA <meta name="theme-color"> synchronized. Defaults to dark.
   useEffect(() => {
-    document.documentElement.dataset.theme = settings.theme ?? "dark";
+    const theme = settings.theme ?? "dark";
+    document.documentElement.dataset.theme = theme;
+    const meta = document.querySelector<HTMLMetaElement>(
+      'meta[name="theme-color"]',
+    );
+    if (meta) meta.content = theme === "light" ? "#f7f8fa" : "#11151c";
   }, [settings.theme]);
   // Honor the toggle literally: if the rail is set visible, reserve its
   // grid column. The PinRail component renders a hint when there are no
@@ -72,6 +78,23 @@ export function App() {
     return initUrlSync();
   }, []);
 
+  // Optional loopback workspace persistence (`aegean workbench --state`).
+  // Debounces writes to `/api/local/backup` whenever user research state changes.
+  useEffect(() => {
+    if (EMBED_ID || !isLocalStateEnabled()) return;
+    let timer: ReturnType<typeof setTimeout> | null = null;
+    const unsub = useWorkbench.subscribe(() => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => {
+        void pushLocalState();
+      }, 600);
+    });
+    return () => {
+      unsub();
+      if (timer) clearTimeout(timer);
+    };
+  }, []);
+
   // One-shot what's-new note when the version changes underneath a
   // returning user. A fresh install stays quiet — it lands on the Home
   // page — so the toast only fires when a previous version was seen.
@@ -97,7 +120,18 @@ export function App() {
         (target.tagName === "INPUT" ||
           target.tagName === "TEXTAREA" ||
           target.tagName === "SELECT");
-      if (e.key === "Escape") closeDetail();
+      if (e.key === "Escape" && !e.defaultPrevented) {
+        if (paletteOpen) {
+          setPaletteOpen(false);
+          return;
+        }
+        if (mobileNavOpen) {
+          setMobileNavOpen(false);
+          return;
+        }
+        closeDetail();
+        return;
+      }
       // Command palette — works from anywhere, including inputs (the chord
       // doesn't conflict with text editing).
       if ((e.ctrlKey || e.metaKey) && e.key === "k") {
@@ -127,14 +161,14 @@ export function App() {
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
-  }, [setActive, closeDetail, undoLast]);
+  }, [setActive, closeDetail, undoLast, paletteOpen, mobileNavOpen]);
 
   // Chromeless embed: just the card once the corpus is in.
   if (EMBED_ID) {
     return loaded ? (
       <EmbedCard id={EMBED_ID} />
     ) : (
-      <div className="loader">
+      <div className="loader" role="status" aria-label="Loading inscription">
         <div className="loader-spinner" />
       </div>
     );
@@ -155,7 +189,11 @@ export function App() {
 
   return (
     <div className={appClass}>
-      <TopBar onToggleMobileNav={() => setMobileNavOpen((o) => !o)} />
+      <TopBar
+        onToggleMobileNav={() => setMobileNavOpen((o) => !o)}
+        mobileNavOpen={mobileNavOpen}
+        onOpenPalette={() => setPaletteOpen(true)}
+      />
       <Sidebar />
       <div
         className="mobile-nav-backdrop"

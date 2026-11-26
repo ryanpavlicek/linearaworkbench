@@ -180,18 +180,21 @@ export default function ScribeNetwork() {
     setRenderVersion((v) => v + 1);
   }, [profiles, edges]);
 
-  // Physics simulation
+  // Physics simulation — halts once kinetic energy settles (and respects
+  // prefers-reduced-motion via synchronous layout without RAF animation).
   useEffect(() => {
     let raf = 0;
     let running = true;
     let tick = 0;
-    function step() {
+    const reduced =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function tickPhysics(): number {
       const nodes = nodesRef.current;
       const physEdges = edgesRef.current;
-      if (!nodes.length) {
-        raf = requestAnimationFrame(step);
-        return;
-      }
+      if (!nodes.length) return 0;
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
           const dx = nodes[j].x - nodes[i].x;
@@ -222,6 +225,7 @@ export default function ScribeNetwork() {
         b.vx -= fx;
         b.vy -= fy;
       }
+      let energy = 0;
       for (const n of nodes) {
         if (n.fixed) continue;
         n.vx -= n.x * CENTER;
@@ -230,10 +234,31 @@ export default function ScribeNetwork() {
         n.vy *= DAMPING;
         n.x += n.vx;
         n.y += n.vy;
+        energy += n.vx * n.vx + n.vy * n.vy;
       }
+      return energy;
+    }
+
+    if (!nodesRef.current.length) return;
+    if (reduced) {
+      for (let k = 0; k < 180; k++) {
+        if (tickPhysics() < 1e-4) break;
+      }
+      renderToDOM();
+      return;
+    }
+
+    function step() {
+      if (!running || !nodesRef.current.length) return;
+      const energy = tickPhysics();
       tick++;
       if (tick % 2 === 0) renderToDOM();
-      if (running) raf = requestAnimationFrame(step);
+      const anyFixed = nodesRef.current.some((n) => n.fixed);
+      if (anyFixed || tick < 30 || energy > 1e-4) {
+        raf = requestAnimationFrame(step);
+      } else {
+        renderToDOM();
+      }
     }
     raf = requestAnimationFrame(step);
     return () => {

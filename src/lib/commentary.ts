@@ -74,10 +74,16 @@ let cachedIndex: Promise<CommentaryIndex> | null = null;
 /** Load and cache the commentary search index. Subsequent calls hit the cache. */
 export function loadCommentaryIndex(): Promise<CommentaryIndex> {
   if (!cachedIndex) {
-    cachedIndex = fetch(COMMENTARY_INDEX_URL).then((r) => {
-      if (!r.ok) throw new Error(`commentary-index.json fetch failed: ${r.status}`);
-      return r.json() as Promise<CommentaryIndex>;
-    });
+    cachedIndex = fetch(COMMENTARY_INDEX_URL)
+      .then((r) => {
+        if (!r.ok)
+          throw new Error(`commentary-index.json fetch failed: ${r.status}`);
+        return r.json() as Promise<CommentaryIndex>;
+      })
+      .catch((err) => {
+        cachedIndex = null;
+        throw err;
+      });
   }
   return cachedIndex;
 }

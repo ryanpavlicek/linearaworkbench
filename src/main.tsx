@@ -1,13 +1,19 @@
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
-import { App } from "./App";
+import { hydrateLocalState } from "./lib/localBridge";
 import "./styles.css";
 
-createRoot(document.getElementById("root")!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-);
+async function boot() {
+  await hydrateLocalState();
+  const { App } = await import("./App");
+  createRoot(document.getElementById("root")!).render(
+    <StrictMode>
+      <App />
+    </StrictMode>,
+  );
+}
+
+void boot();
 
 // Offline support (production only): the service worker caches the app
 // shell, corpus JSON, and fonts after the first visit. Dev stays uncached.

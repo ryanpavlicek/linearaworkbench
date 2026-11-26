@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Generates the PWA/favicon icons: the Linear A sign A (AB08, U+10613) in
+// Generates the PWA/favicon icons: the Linear A sign A (AB08, U+10607) in
 // the app's accent blue on a dark rounded square, rendered with the
 // self-hosted Noto Sans Linear A font via headless Chromium (Playwright —
 // already a devDependency for the e2e suite). Run once and commit the
@@ -32,7 +32,7 @@ const browser = await chromium.launch();
 const page = await browser.newPage();
 await page.setContent(html);
 await page.evaluate(() =>
-  document.fonts.load("400px 'Noto Sans Linear A'", "\u{10613}"),
+  document.fonts.load("400px 'Noto Sans Linear A'", "\u{10607}"),
 );
 
 const SIZES = [
@@ -59,7 +59,7 @@ for (const [name, size] of SIZES) {
     x.font = `${Math.round(s * 0.62)}px 'Noto Sans Linear A'`;
     x.textAlign = "center";
     x.textBaseline = "middle";
-    x.fillText("\u{10613}", s / 2, s * 0.54);
+    x.fillText("\u{10607}", s / 2, s * 0.54);
     return c.toDataURL("image/png").split(",")[1];
   }, size);
   writeFileSync(resolve(outDir, name), Buffer.from(b64, "base64"));

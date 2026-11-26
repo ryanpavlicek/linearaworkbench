@@ -37,33 +37,32 @@ export async function svgToPngDataUrl(
     const xml = new XMLSerializer().serializeToString(clone);
     const blob = new Blob([xml], { type: "image/svg+xml;charset=utf-8" });
     const url = URL.createObjectURL(blob);
+    try {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error("svg image load failed"));
+        img.src = url;
+      });
 
-    const img = new Image();
-    img.crossOrigin = "anonymous";
-    await new Promise<void>((resolve, reject) => {
-      img.onload = () => resolve();
-      img.onerror = () => reject(new Error("svg image load failed"));
-      img.src = url;
-    });
-
-    const canvas = document.createElement("canvas");
-    // 2× scale for crisp print/HD output without ballooning size too much.
-    const scale = 2;
-    canvas.width = w * scale;
-    canvas.height = h * scale;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
+      const canvas = document.createElement("canvas");
+      // 2× scale for crisp print/HD output without ballooning size too much.
+      const scale = 2;
+      canvas.width = w * scale;
+      canvas.height = h * scale;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) return null;
+      if (opts.background) {
+        ctx.fillStyle = opts.background;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+      }
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
+      ctx.drawImage(img, 0, 0, w, h);
+      return canvas.toDataURL("image/png");
+    } finally {
       URL.revokeObjectURL(url);
-      return null;
     }
-    if (opts.background) {
-      ctx.fillStyle = opts.background;
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
-    }
-    ctx.setTransform(scale, 0, 0, scale, 0, 0);
-    ctx.drawImage(img, 0, 0, w, h);
-    URL.revokeObjectURL(url);
-    return canvas.toDataURL("image/png");
   } catch {
     return null;
   }

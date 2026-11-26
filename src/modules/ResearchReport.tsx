@@ -25,8 +25,10 @@ import {
   type CitationStyle,
 } from "../lib/citations";
 import { sanitizeHtmlFragment } from "../lib/sanitizeHtml";
+import { safeDataImageUri, safeReportImageSrc } from "../lib/urlSafety";
 
 const CONFIDENCE_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 };
+const SAFE_CONFIDENCE = new Set(["high", "medium", "low"]);
 
 type Section =
   | "annotations"
@@ -432,10 +434,12 @@ function sectionHtml(
     p.push(
       "<table><thead><tr><th>Target</th><th>Kind</th><th>Proposed meaning</th><th>Confidence</th><th>Notes</th></tr></thead><tbody>",
     );
-    for (const a of byConf)
+    for (const a of byConf) {
+      const conf = SAFE_CONFIDENCE.has(a.confidence) ? a.confidence : "low";
       p.push(
-        `<tr><td><code>${esc(a.target.value)}</code></td><td>${esc(a.target.kind)}</td><td>${esc(a.proposedMeaning)}</td><td><span class="conf conf-${a.confidence}">${a.confidence}</span></td><td>${esc(a.notes)}</td></tr>`,
+        `<tr><td><code>${esc(a.target.value)}</code></td><td>${esc(a.target.kind)}</td><td>${esc(a.proposedMeaning)}</td><td><span class="conf conf-${conf}">${esc(conf)}</span></td><td>${esc(a.notes)}</td></tr>`,
       );
+    }
     p.push("</tbody></table>");
   } else if (section === "hypotheses" && d.hypotheses.length) {
     p.push("<h2>Sound-shift hypotheses</h2>");
@@ -491,15 +495,17 @@ function sectionHtml(
         );
         if (im && (im.facsimile || im.photo)) {
           const thumbs: string[] = [];
-          if (im.facsimile)
+          const safeFac = safeReportImageSrc(im.facsimile);
+          const safePho = safeReportImageSrc(im.photo);
+          if (safeFac)
             thumbs.push(
-              `<img class="ins-thumb" src="${im.facsimile}" alt="${esc(ins.id)} facsimile" />`,
+              `<img class="ins-thumb" src="${esc(safeFac)}" alt="${esc(ins.id)} facsimile" />`,
             );
-          if (im.photo)
+          if (safePho)
             thumbs.push(
-              `<img class="ins-thumb" src="${im.photo}" alt="${esc(ins.id)} photograph" />`,
+              `<img class="ins-thumb" src="${esc(safePho)}" alt="${esc(ins.id)} photograph" />`,
             );
-          p.push(`<div class="ins-thumbs">${thumbs.join("")}</div>`);
+          if (thumbs.length) p.push(`<div class="ins-thumbs">${thumbs.join("")}</div>`);
         }
         if (ins.glyphs)
           p.push(`<div class="glyphs">${esc(ins.glyphs)}</div>`);
@@ -519,15 +525,9 @@ function sectionHtml(
       // The interactive report script filters findings by reading `data-search`
       // — keep it cheap to grep over by stuffing the title, module, summary,
       // and notes (lowercased) into the attribute.
-      const searchHay = [
-        f.title,
-        f.moduleLabel,
-        f.summary,
-        f.notes ?? "",
-      ]
-        .join(" ")
-        .toLowerCase()
-        .replace(/"/g, "&quot;");
+      const searchHay = esc(
+        [f.title, f.moduleLabel, f.summary, f.notes ?? ""].join(" ").toLowerCase(),
+      );
       p.push(`<div class="finding" data-search="${searchHay}">`);
       p.push(
         `<h3>${esc(f.title)}</h3>`,
@@ -545,12 +545,14 @@ function sectionHtml(
           `<div class="finding-report">${sanitizeHtmlFragment(f.report.html)}</div>`,
         );
       // A few modules attach a `snapshot` data-URL (e.g. the Findspot Map's
-      // rendered SVG). Render it inline so the report shows the visual the
-      // user saw when they saved the finding.
-      const snap = (f.payload as { snapshot?: string } | undefined)?.snapshot;
-      if (snap && typeof snap === "string" && snap.startsWith("data:image"))
+      // rendered SVG). Validate strictly as a raster base64 data URI before
+      // splicing into exported HTML.
+      const snap = safeDataImageUri(
+        (f.payload as { snapshot?: unknown } | undefined)?.snapshot,
+      );
+      if (snap)
         p.push(
-          `<figure class="finding-snap"><img src="${snap}" alt="${esc(f.title)} snapshot" /></figure>`,
+          `<figure class="finding-snap"><img src="${esc(snap)}" alt="${esc(f.title)} snapshot" /></figure>`,
         );
       if (f.notes) p.push(`<blockquote>${esc(f.notes)}</blockquote>`);
       p.push("</div>");
@@ -572,10 +574,12 @@ function sectionHtml(
 
 function imageBlockHtml(im: ReportImage): string {
   const imgs: string[] = [];
-  if ((im.show === "facsimile" || im.show === "both") && im.facsimile)
-    imgs.push(`<img src="${im.facsimile}" alt="${esc(im.id)} facsimile" />`);
-  if ((im.show === "photo" || im.show === "both") && im.photo)
-    imgs.push(`<img src="${im.photo}" alt="${esc(im.id)} photograph" />`);
+  const safeFac = safeReportImageSrc(im.facsimile);
+  const safePho = safeReportImageSrc(im.photo);
+  if ((im.show === "facsimile" || im.show === "both") && safeFac)
+    imgs.push(`<img src="${esc(safeFac)}" alt="${esc(im.id)} facsimile" />`);
+  if ((im.show === "photo" || im.show === "both") && safePho)
+    imgs.push(`<img src="${esc(safePho)}" alt="${esc(im.id)} photograph" />`);
   if (!imgs.length) return "";
   return `<figure class="plate"><div class="plate-imgs">${imgs.join("")}</div><figcaption><b>${esc(im.caption || im.id)}</b> <span class="dim">${esc(im.id)}${im.context ? " · " + esc(im.context) : ""}</span></figcaption></figure>`;
 }
@@ -617,14 +621,16 @@ function buildHtmlReport(
     } else if (b.kind === "note") {
       const n = d.notes.find((x) => x.id === b.noteId);
       if (n) {
-        const body = renderNoteHtml(n.body, {
-          refHtml: ({ kind, value, label }) => {
-            // `label` arrives HTML-escaped from renderNoteHtml; resolved
-            // lookups are raw strings and get escaped here.
-            const better = resolveRefLabel(kind, value, d);
-            return `<span class="note-ref note-ref-${kind}">${better === null ? label : esc(better)}</span>`;
-          },
-        });
+        const body = sanitizeHtmlFragment(
+          renderNoteHtml(n.body, {
+            refHtml: ({ kind, value, label }) => {
+              // `label` arrives HTML-escaped from renderNoteHtml; resolved
+              // lookups are raw strings and get escaped here.
+              const better = resolveRefLabel(kind, value, d);
+              return `<span class="note-ref note-ref-${esc(kind)}">${better === null ? label : esc(better)}</span>`;
+            },
+          }),
+        );
         parts.push(
           `<section>${n.title ? `<h2>${esc(n.title)}</h2>` : ""}${body}</section>`,
         );
@@ -742,11 +748,9 @@ function buildHtmlReport(
     .filter-empty { text-align: center; color: var(--dim); padding: 24px; font-style: italic; }
     @media print { .report-toolbar, .report-toc { display: none; } .report-main { max-width: none; padding: 0; } h2 { break-after: avoid; } .plate, tr, section, .ins-sheet, .finding { break-inside: avoid; } section.collapsed > *:not(h2) { display: revert !important; } }
   `;
-  // Embed the Linear A font if we fetched it; otherwise fall back to the CDN
-  // link so the glyphs still render when the file is opened online.
-  const fontHead = fontFace
-    ? `<style>${fontFace}</style>`
-    : '<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Sans+Linear+A&display=swap">';
+  // Embed the self-hosted Linear A font when fetched; never reach out to
+  // external CDNs at runtime or from exported reports.
+  const fontHead = fontFace ? `<style>${fontFace}</style>` : "";
   // Interactive layer — works fully offline, no dependencies. Adds: section
   // anchors + sticky TOC, collapsible sections, finding filter input, click-
   // to-sort table headers, click-to-highlight word/sign cross-references,
@@ -899,19 +903,13 @@ function buildHtmlReport(
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>${esc(cfg.title || "Linear A — Research Notes")}</title>${fontHead}<style>${css}</style></head><body>${toolbar}${main}<script>${script}</script></body></html>`;
 }
 
-// Fetch the Noto Sans Linear A web font and return an @font-face rule with the
-// woff2 base64-embedded, so the exported HTML renders the glyphs offline. Null
-// if it can't be fetched (offline) — the export then falls back to a CDN link.
+// Fetch the self-hosted Noto Sans Linear A woff2 and return an @font-face rule
+// with base64-embedded data so exported HTML renders glyphs offline without
+// contacting any external font CDN.
 async function linearAFontFace(): Promise<string | null> {
   try {
-    const cssRes = await fetch(
-      "https://fonts.googleapis.com/css2?family=Noto+Sans+Linear+A",
-    );
-    if (!cssRes.ok) return null;
-    const css = await cssRes.text();
-    const m = css.match(/src:\s*url\(([^)]+\.woff2)\)/);
-    if (!m) return null;
-    const fontRes = await fetch(m[1]);
+    const base = import.meta.env.BASE_URL || "/";
+    const fontRes = await fetch(`${base}fonts/noto-sans-linear-a-linear-a-400.woff2`);
     if (!fontRes.ok) return null;
     const blob = await fontRes.blob();
     const dataUrl = await new Promise<string | null>((resolve) => {
@@ -921,7 +919,7 @@ async function linearAFontFace(): Promise<string | null> {
       r.onerror = () => resolve(null);
       r.readAsDataURL(blob);
     });
-    if (!dataUrl) return null;
+    if (!dataUrl || !dataUrl.startsWith("data:")) return null;
     return `@font-face { font-family: 'Noto Sans Linear A'; font-style: normal; font-weight: 400; font-display: swap; src: url(${dataUrl}) format('woff2'); }`;
   } catch {
     return null;

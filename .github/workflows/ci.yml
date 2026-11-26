@@ -10,9 +10,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   build:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 
@@ -28,7 +33,7 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Lint (react-hooks invariants)
+      - name: Lint
         run: npm run lint
 
       - name: Test (with coverage gate)
@@ -46,6 +51,7 @@ jobs:
 
   e2e:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@v6
 

@@ -831,13 +831,12 @@ function CommodityCA({
         )}
       </h4>
       <div className="sub" style={{ marginBottom: 8 }}>
-        One picture of the whole {rowMode === "site" ? "find-site" : rowMode}{" "}
-        × commodity table: rows (blue) and commodity logograms (amber)
-        share a plane, and a row lies in the direction of the commodities
-        it records more than the corpus average. Distance from the center
-        is deviation from the average profile — points near the origin are
-        unremarkable. Rows too thin to place honestly are dropped, with
-        the cutoff stated under the plot.
+        Correspondence analysis of the{" "}
+        {rowMode === "site" ? "find-site" : rowMode} × commodity table: rows
+        (blue) and commodity logograms (amber) share a plane, with each row
+        oriented toward the commodities it records above the corpus average.
+        Points near the origin match the average profile; sparse rows below the
+        minimum token cutoff stated under the plot are excluded.
       </div>
       <div className="toolbar">
         <label

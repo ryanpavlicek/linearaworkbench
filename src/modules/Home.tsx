@@ -30,20 +30,20 @@ export default function Home() {
 
       <div className="col2" style={{ marginBottom: 14 }}>
         <HomeCard
-          title="50 analysis modules"
-          text="Frequency, morphology, co-occurrence (table + network graph), sign concordance, wildcard sign-pattern search, geography, scribal analysis, full-text Younger commentary browse, and more — grouped in the left sidebar, related views tabbed together. A Methodology page under Help explains the math behind every analysis."
+          title="34 focused workspaces (59 views)"
+          text="Frequency, morphology & paradigms, co-occurrence (table + network graph), signs & graphotactics, accounting & metrology, chronology, geography, scribal analysis, full-text Younger commentary browse, and more — grouped in the left sidebar with related views tabbed together. See Methodology under Help for the formulas behind every analysis."
         />
         <HomeCard
           title="Learn the script"
-          text="New to Linear A? The Learn group walks you through a real tablet token by token (Guided Reader), drills the syllabary with flashcards (Sign Trainer), lets you balance a real account like a scribe (Scribe School), and writes your name in signs (Write in Linear A)."
+          text="New to Linear A? The Learn group walks through a tablet token by token (Guided Reader), drills the syllabary with flashcards (Sign Trainer), lets you balance a real account (Scribe School), and transliterates names into signs (Write in Linear A)."
         />
         <HomeCard
           title="Your research notebook"
-          text="Attach proposed meanings, confidence levels, and notes to any word or inscription. Bookmark items into collections, save findings with their result tables, and compile everything into an interactive report."
+          text="Attach proposed meanings, confidence levels, and notes to any word or inscription. Organize items into collections, save findings with their result tables, and compile everything into an offline HTML or Markdown report."
         />
         <HomeCard
-          title="Builder + power tools"
-          text="Compound query builder, side-by-side inscription comparison, sound-shift hypotheses with saved snapshots, cross-language alignment matrix, a static data API, and pyaegean round-trips for Python work."
+          title="Power tools & pyaegean"
+          text="Compound query builder, side-by-side inscription comparison, sound-shift hypotheses with saved snapshots, cross-language alignment matrix, a static JSON API, and direct round-trips with pyaegean in Python and the CLI."
         />
       </div>
 
@@ -60,7 +60,7 @@ export default function Home() {
               showInscription("HT13");
             }}
           >
-            Does this tablet's arithmetic balance?
+            Does this tablet&apos;s arithmetic balance?
           </button>
           <button
             className="btn btn-outline btn-sm"
@@ -84,7 +84,7 @@ export default function Home() {
             className="btn btn-outline btn-sm"
             onClick={() => setActive("constellation")}
           >
-            See the whole corpus in one sky
+            Explore corpus vocabulary CA
           </button>
         </div>
       </div>
@@ -105,7 +105,7 @@ export default function Home() {
         >
           ?
         </kbd>{" "}
-        any time for the full How to Use guide,{" "}
+        any time for How to Use,{" "}
         <kbd
           style={{
             font: "500 11px var(--mono)",
@@ -132,12 +132,12 @@ export default function Home() {
         style={{ marginBottom: 14, fontSize: 12, color: "var(--text-dim)" }}
       >
         <b style={{ color: "var(--text)" }}>Offline &amp; self-hosting:</b>{" "}
-        Want to run the workbench offline, host your own copy, or fork it? It's
-        open source —{" "}
-        <a href={TOOL_REPO} target="_blank" rel="noreferrer">
+        Run the workbench locally via <code>aegean workbench</code> or host your
+        own copy from{" "}
+        <a href={TOOL_REPO} target="_blank" rel="noopener noreferrer">
           github.com/ryanpavlicek/linearaworkbench
         </a>
-        , with setup instructions in the README.
+        .
       </div>
 
       <div
@@ -153,23 +153,20 @@ export default function Home() {
         <b style={{ color: "var(--ac)", fontFamily: "var(--sans)" }}>
           Corpus credit:
         </b>{" "}
-        The inscription data is sourced from{" "}
+        Inscription data is sourced from{" "}
         <a
           href="https://github.com/mwenge/lineara.xyz"
           target="_blank"
-          rel="noreferrer"
+          rel="noopener noreferrer"
         >
           mwenge/lineara.xyz
-        </a>{" "}
-        (a wonderful visual exploration tool in its own right), which
-        transcribed it from the <b>GORILA</b> volumes by Godart & Olivier.
-        If you want a tablet-image-first browsing experience, visit{" "}
-        <a href="https://lineara.xyz" target="_blank" rel="noreferrer">
+        </a>
+        , transcribed from the <b>GORILA</b> volumes by Godart &amp; Olivier.
+        For an image-first tablet browser, see{" "}
+        <a href="https://lineara.xyz" target="_blank" rel="noopener noreferrer">
           lineara.xyz
-        </a>{" "}
-        — they integrate John Younger's scholarly commentary and a Crete
-        map. This workbench is a complementary computational-research tool
-        built on the same data.
+        </a>
+        .
       </div>
     </div>
   );

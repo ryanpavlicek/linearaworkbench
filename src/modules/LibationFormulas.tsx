@@ -171,10 +171,11 @@ export default function LibationFormulas() {
       <div className="callout">
         <h4>Peak-sanctuary recitation</h4>
         <p>
-          Libation tables show recurring formulaic text. Key candidates:{" "}
-          <code>A-TA-I-*301-WA-JA</code> (dedicatory?),{" "}
-          <code>JA-SA-SA-RA-ME</code> (deity/epithet?),{" "}
-          <code>A-DI-KI-TE-TE-DU</code> (ritual verb?).
+          Libation tables show recurring formulaic sequences. Key attested
+          forms: <code>A-TA-I-*301-WA-JA</code> (dedicatory?),{" "}
+          <code>JA-SA-SA-RA-ME</code> (deity/epithet?), and the{" "}
+          <code>A-DI-KI-TE</code> / <code>JA-DI-KI-TE-TE-DU-PU₂-RE</code>{" "}
+          family (toponym/sanctuary epithet?).
         </p>
       </div>
       <div className="stat-grid">

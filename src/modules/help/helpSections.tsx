@@ -27,8 +27,9 @@ export const SECTIONS: Section[] = [
         <P>
           This workbench is a working environment for studying the Linear A
           corpus — the undeciphered Bronze Age script used on Crete and
-          neighboring islands from roughly 1800 to 1450 BCE. About 1,700
-          inscriptions survive, almost entirely on clay tablets, sealings, and
+          neighboring islands from roughly 1800 to 1450 BCE. Roughly 1,400–1,500
+          documents survive (1,721 tagged entries in the bundled GORILA-derived
+          transcription), almost entirely on clay tablets, sealings, and
           libation tables. We can read individual <em>sounds</em> (because
           most of the signs are shared with the later, deciphered Linear B
           syllabary), but we don't know the language those sounds spell.
@@ -64,16 +65,18 @@ export const SECTIONS: Section[] = [
         <H3>Top bar</H3>
         <P>
           Shows corpus stats, your annotation count (a clickable chip if you
-          have any), a <Btn>⚙ Display</Btn> settings popover, and a link to
-          the upstream corpus source.
+          have any), a <Btn>⌘K Search</Btn> command-palette button, a{" "}
+          <Btn>⚙ Display</Btn> settings popover, and a link to the upstream
+          corpus source.
         </P>
         <H3>Sidebar (left)</H3>
         <P>
-          Lists every module, grouped by category — <b>Research</b> (your
-          workspace, including Corpus Search and Corpus Browser) at the top,
-          then Vocabulary, Signs &amp; structure, Accounts &amp; content,
-          Hypothesis testing, Distribution, <b>Learn</b> (the guided and
-          practice modules), Programmatic, and Help. Above each module's content
+          Lists every workspace, with a quick filter input at the top and
+          grouped by category — <b>Start</b> (Home, Corpus Search, Corpus
+          Browser, Guided Reader), <b>Research</b> (My Research, Query Builder,
+          Data Export, and more), Vocabulary, Signs &amp; structure, Accounts
+          &amp; content, Hypothesis testing, Distribution, <b>Learn</b>,
+          Programmatic, and Help. Above each module's content
           you'll see a small <b>Descriptive</b> (green) or <b>Exploratory</b>{" "}
           (amber) badge — descriptive modules report direct counts and
           structural observations from the corpus; exploratory modules
@@ -905,8 +908,8 @@ export const SECTIONS: Section[] = [
           values vastly overstate significance because of the
           multiple-comparison problem; the <b>Bonferroni</b> checkbox
           multiplies each p by the number of tests to control the
-          family-wise error rate. Leave it on for almost any honest
-          analysis.
+          family-wise error rate. Leave it on whenever screening large numbers
+          of pairs at once.
         </P>
         <H3>sig only</H3>
         <P>
@@ -1191,18 +1194,20 @@ export const SECTIONS: Section[] = [
           }}
         >
           <li>
-            <b>AB-shared</b> — signs with Linear B equivalents (47 of the 84
-            sign types here, ~56%). These carry Linear B's phonetic values as
-            a working hypothesis.
+            <b>AB-shared</b> — signs with Linear B equivalents (68 of the 97
+            sign types here, ~70%; 50 carry conventional Linear B phonetic
+            values and 18 — such as subscript variants and AB ideograms — do
+            not).
           </li>
           <li>
             <b>Linear A only</b> — signs marked with <code>*</code> in
-            GORILA (e.g. <code>*301</code>). Unique to Linear A; phonetic
-            value unknown.
+            GORILA (23 signs, e.g. <code>*301</code>). Unique to Linear A;
+            phonetic value unknown.
           </li>
           <li>
-            <b>Unknown</b> — sign variants without an assigned phonetic
-            value (e.g. subscript variants like <code>RA2</code>).
+            <b>Composites &amp; unvalued variants</b> — ligatures (6 forms) and
+            subscripted signs without an assigned phonetic value (e.g.{" "}
+            <code>RA₂</code>).
           </li>
         </ul>
         <Note>
@@ -1324,23 +1329,19 @@ export const SECTIONS: Section[] = [
           (click again to reverse). Score sorts by best-first by default;
           word / language / meaning / domain / phonetic sort alphabetically.
         </P>
-        <H3>Read this before trusting a match</H3>
+        <H3>Interpreting matches</H3>
         <P>
-          The module's intro callout carries a load-bearing caveat that's
-          worth re-reading: Linear A is undeciphered, sign phonetic values
-          follow the Linear B convention (a working assumption, not a fact),
-          and the bundled wordlists are short editorial samples without
-          specialist peer review. Treat ranked matches as exploratory leads
-          against a noisy null model. The{" "}
+          Linear A is undeciphered, sign phonetic values follow the Linear B
+          convention as a working assumption, and the bundled wordlists are
+          short editorial samples without specialist peer review (you can add
+          your own via the <ModuleLink to="wlm">Wordlist Manager</ModuleLink>).
+          Treat ranked matches as exploratory leads rather than etymological
+          proof. See the{" "}
           <ModuleLink to="methodology" intent={{ focus: "cross-linguistic-distance" }}>
             Methodology page
           </ModuleLink>{" "}
-          has the full math and limitations.
+          for the distance formula and limitations.
         </P>
-        <Note>
-          Wordlists are short and editorial. Custom wordlists can be added
-          via the <ModuleLink to="wlm">Wordlist Manager</ModuleLink>.
-        </Note>
       </>
     ),
   },
@@ -1639,18 +1640,17 @@ export const SECTIONS: Section[] = [
     body: (
       <>
         <P>
-          <ModuleLink to="constellation">Constellation</ModuleLink> plots
-          every substantial text in one sky: correspondence analysis of
-          the inscription × top-vocabulary table, so documents drift
-          toward the words they use — libation texts, the big ledgers,
-          and site idioms form visible asterisms. Color is find-site,
-          size is word count; hover identifies, click opens the tablet.
+          <ModuleLink to="constellation">Constellation</ModuleLink> maps
+          substantial inscriptions using correspondence analysis of the
+          inscription × top-vocabulary table, so documents drift toward the
+          words they use — libation texts, large ledgers, and site idioms form
+          visible clusters. Color is find-site, size is word count; hover
+          identifies, click opens the tablet.
         </P>
         <Note>
-          Only documents with 3+ word tokens that share top vocabulary
-          can be placed honestly — the counts of what's excluded (most
-          nodules and roundels) are stated in the header, and the axes'
-          inertia share tells you how much structure the picture carries.
+          Only documents with 3+ word tokens sharing top vocabulary are
+          plotted; the header states how many short documents (mostly nodules
+          and roundels) are excluded and the axes' inertia share.
         </Note>
       </>
     ),
@@ -1684,13 +1684,13 @@ export const SECTIONS: Section[] = [
       <>
         <P>
           <ModuleLink to="write">Write in Linear A</ModuleLink> renders
-          any name or word in Linear A signs — and teaches by what it has
-          to change. The syllabary writes open CV syllables, so the
+          any name or word in Linear A signs — and shows what the script's
+          structure requires. The syllabary writes open CV syllables, so the
           adapter applies the conventions Mycenaean scribes used for
           Greek (echo vowels in clusters, dropped final consonants, r for
-          l, p for b) and lists every liberty it took. Values without a
-          sign show as honest gaps, and the footer reminds you these are
-          the conventional sound values, not Minoan certainty.
+          l, p for b) and lists every change made. Syllables without a
+          sign show as blank placeholders, using the conventional Linear B
+          sound values.
         </P>
       </>
     ),
@@ -2918,10 +2918,10 @@ export const SECTIONS: Section[] = [
           for the report.
         </P>
         <P>
-          The point is leverage: you annotate one word at a time, and the
-          lexicon assembles the dictionary-in-progress for free. It's also
-          the quickest audit of your own evidence — a "high confidence"
-          entry with one attestation and no evidence links stands out.
+          As you annotate words one at a time, the lexicon builds a working
+          glossary automatically and makes it easy to audit your evidence — a
+          high-confidence entry with one attestation and no linked tablets
+          stands out immediately.
         </P>
       </>
     ),
@@ -3131,21 +3131,21 @@ export const SECTIONS: Section[] = [
       <>
         <H3>What's bundled in the app</H3>
         <P>
-          The corpus itself (1,721 tagged entries spanning roughly 1,400–
-          1,500 documents — see <ModuleLink to="methodology">Methodology</ModuleLink>{" "}
-          for the count distinction — 84 unique syllabic signs, all
-          metadata) ships with the workbench as static JSON.
+          The corpus itself (1,721 tagged entries spanning roughly 1,400–1,500
+          documents — see <ModuleLink to="methodology">Methodology</ModuleLink>{" "}
+          for the count distinction — 97 aligned signs, all metadata) ships
+          with the workbench as static JSON.
         </P>
         <P>
           Commentary HTML, facsimile images, and GORILA PDFs are resolved
-          through a configurable <code>ASSET_BASE</code> path. By default
-          this points at <code>public/upstream/</code> — drop the{" "}
+          through configurable <code>VITE_ASSET_BASE</code> and{" "}
+          <code>VITE_COMMENTARY_BASE</code> environment variables. By default
+          these point at <code>public/upstream/</code> — drop the{" "}
           <code>commentary/</code>, <code>images/</code>, and{" "}
           <code>papers/</code> folders from mwenge/lineara.xyz there (or run{" "}
           <code>npm run assets:fetch</code>) for a fully offline experience.
           If the folder is empty, images and commentary will show as broken
-          until you populate it or point <code>ASSET_BASE</code> at the
-          upstream CDN.
+          until you populate it or point those variables at the upstream CDN.
         </P>
         <H3>What's saved in your browser</H3>
         <ul

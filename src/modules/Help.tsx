@@ -107,8 +107,8 @@ export default function Help() {
     <div className="panel" style={{ maxWidth: 1600 }}>
       <h2>How to Use</h2>
       <p className="panel-desc">
-        Comprehensive guide to every feature in the workbench. Use the
-        sidebar to jump to a section, or search by keyword.
+        Reference guide to every module and workflow in the workbench. Jump from
+        the sidebar or filter by keyword.
       </p>
 
       <div

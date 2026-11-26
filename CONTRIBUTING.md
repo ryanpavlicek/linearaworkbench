@@ -1,8 +1,8 @@
 # Contributing
 
-Thanks for taking an interest. Linear A is an undeciphered script — every
-honest improvement to this workbench is welcome, especially around the
-parts where domain expertise meets software craft.
+Thanks for taking an interest. Linear A is an undeciphered script, and
+contributions are especially welcome where Aegean epigraphy or comparative
+linguistics meets software engineering.
 
 ## Quickstart
 
@@ -28,9 +28,9 @@ npm run assets:fetch    # ~10–20 min, ~500 MB
 - Plain CSS with design tokens defined in [`src/styles.css`](src/styles.css).
   No Tailwind, no styled-components.
 - One module per analysis panel in `src/modules/`. Lazy-loaded.
-- Keep dependencies minimal — React, Zustand, and fflate (ZIP export) are
-  the entire runtime stack, with Vite for the build, and I intend to keep
-  it that way.
+- Keep dependencies minimal: React, Zustand, DOMPurify (HTML sanitization),
+  and fflate (ZIP export) are the entire runtime stack, with Vite for the
+  build.
 
 ## Where contributions are most welcome
 

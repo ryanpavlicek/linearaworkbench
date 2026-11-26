@@ -117,7 +117,7 @@ export default function GuidedReader() {
             title: `${tok} — ${isGrand ? "the grand total" : isDeficit ? "a deficit marker" : "the total"}`,
             body: isDeficit
               ? `${tok} ("KI-RO") marks what is owed or missing — one of the very few words read with confidence, from how it behaves in the arithmetic.`
-              : `${tok} introduces a sum. The entries so far add to ${itemSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}; the number after this word is the scribe's own total — ${lineSum > 0 ? `this line carries ${lineSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "check the next token"}. The match (or mismatch) is how KU-RO was deciphered as "total" — arithmetic, not language.`,
+              : `${tok} introduces a sum. Preceding entries add to ${itemSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}; ${lineSum > 0 ? `this line states ${lineSum.toLocaleString(undefined, { maximumFractionDigits: 2 })}` : "check the next token"}. Matching item sums against stated totals is how KU-RO was identified as "total".`,
           });
           continue;
         }
@@ -127,7 +127,7 @@ export default function GuidedReader() {
             lineIdx: li,
             tokenIdx: idx,
             title: `${tok} — a commodity logogram`,
-            body: `One sign standing for a thing being counted: ${COMMODITIES[com]?.gloss ?? com}${tok.includes("+") ? ". The + marks a ligature — a modifier sign fused onto the base logogram, probably a variety or grade" : ""}. Logograms are read by what they depict and how they're counted, not by sound.`,
+            body: `One sign standing for a commodity: ${COMMODITIES[com]?.gloss ?? com}${tok.includes("+") ? ". The + marks a ligature (a modifier sign fused onto the base logogram, likely indicating a variety or grade)" : ""}. Logograms are identified by visual form and accounting context rather than sound.`,
           });
           continue;
         }
@@ -205,11 +205,9 @@ export default function GuidedReader() {
       <div className="callout">
         <h4>Read a real tablet, token by token</h4>
         <p>
-          No prior knowledge needed. Pick a document and step through it:
-          every word, logogram, and numeral explained from the corpus's own
-          data — including the addition check that deciphered KU-RO. The
-          script is undeciphered; what you'll learn is exactly what{" "}
-          <em>can</em> be read, and how.
+          Pick a document and step through every word, logogram, and numeral
+          using the corpus&apos;s own data, including the running sum check that
+          identifies <code>KU-RO</code> as &ldquo;total&rdquo;.
         </p>
       </div>
 

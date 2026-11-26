@@ -1,7 +1,8 @@
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { isScopeActive, scopeSummary, useScopedCorpus } from "../store/scope";
 import { csvEscape, downloadFile, siglaSignListUrl } from "../lib/helpers";
+import { safeCorpusUrl } from "../lib/urlSafety";
 import { resolveSignAlias } from "../data/abNumbers";
 import { Glyph } from "../components/Glyph";
 import { WordToken } from "../components/WordToken";
@@ -165,21 +166,18 @@ export default function SignInventory() {
           derived from corpus alignment, not external lookup tables.
         </p>
         <p style={{ marginTop: 8, fontSize: 13 }}>
-          <b>For per-scribe sign-shape variants</b>, use the <b>↗ SigLA</b>{" "}
-          button on each row.{" "}
+          <b>Paleography:</b> This table shows idealized Unicode glyphs. For
+          per-scribe sign drawings (<em>ductus</em>), use the <b>↗ SigLA</b>{" "}
+          link on each row (
           <a
             href="https://sigla.phis.me/"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             style={{ color: "var(--ac)" }}
           >
-            SigLA
-          </a>{" "}
-          is the canonical paleographic database — it shows you how each scribe
-          actually drew the sign on the tablets. The workbench uses
-          idealized Unicode glyphs here for legibility; SigLA owns the
-          per-hand <em>ductus</em> analysis. The two views are
-          complementary, not redundant.
+            sigla.phis.me
+          </a>
+          ).
         </p>
       </div>
       {scopeOn && (
@@ -485,6 +483,53 @@ function LinearBComparison() {
   });
   const [err, setErr] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  // Allow `aegean workbench --damos` (or any same-origin / HTTPS ?damos= URL)
+  // to supply damos-corpus.json directly without a manual download step.
+  useEffect(() => {
+    if (lb) return;
+    const raw = new URLSearchParams(window.location.search).get("damos");
+    if (!raw) return;
+    const check = safeCorpusUrl(raw);
+    if (!check.ok) return;
+    let cancelled = false;
+    setBusy(true);
+    setErr(null);
+    fetch(check.url)
+      .then((r) => {
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        return r.json();
+      })
+      .then((payload: Parameters<typeof parseDamosFrequencies>[0]) => {
+        if (cancelled) return;
+        if (!payload || !Array.isArray(payload.documents)) {
+          throw new Error(
+            "that file has no documents array — expected pyaegean's damos-corpus.json",
+          );
+        }
+        const f = parseDamosFrequencies(payload);
+        if (f.totalSigns < 1000) {
+          throw new Error(
+            "parsed, but almost no sign tokens came out — is this the right dataset?",
+          );
+        }
+        setLb(f);
+        try {
+          localStorage.setItem(LB_CACHE_KEY, JSON.stringify(f));
+        } catch {
+          // storage quota — in-memory copy still works this session
+        }
+      })
+      .catch((e) => {
+        if (!cancelled) setErr(e instanceof Error ? e.message : String(e));
+      })
+      .finally(() => {
+        if (!cancelled) setBusy(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [lb]);
 
   const la = useMemo(() => {
     const words: { word: string; count: number }[] = [];

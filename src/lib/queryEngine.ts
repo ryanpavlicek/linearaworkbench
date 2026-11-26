@@ -90,15 +90,23 @@ export function defaultValue(field: FieldId): unknown {
 
 // ---- Evaluation --------------------------------------------------------
 
-// Combine a scope's rows left-to-right: result starts at the first row's test,
-// then each subsequent row joins with its connector (default AND). An empty
-// scope is vacuously true. `negate` flips an individual row's test.
+function isNeutralRow(f: FilterRow): boolean {
+  const def = FIELDS[f.field];
+  if (def.kind === "boolean") return false;
+  return String(f.value ?? "").trim() === "";
+}
+
+// Combine a scope's rows left-to-right: result starts at the first active
+// row's test, then each subsequent active row joins with its connector
+// (default AND). Empty-valued non-boolean rows are neutral (ignored before
+// negation) so typing a blank negated row doesn't zero out results.
 function combineRows(
   rows: FilterRow[],
   test: (f: FilterRow) => boolean,
 ): boolean {
   let acc: boolean | null = null;
   for (const f of rows) {
+    if (isNeutralRow(f)) continue;
     let m = test(f);
     if (f.negate) m = !m;
     if (acc === null) acc = m;

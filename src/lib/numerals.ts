@@ -203,26 +203,30 @@ export function checkBalances(lines: AccountLine[]): BalanceCheck[] {
     if (line.role === "item" && line.hasNumber) {
       runningItems.push(line);
     } else if (line.role === "total") {
-      if (runningItems.length > 0) {
-        push(
-          line,
-          runningItems.reduce((s, l) => s + l.value, 0),
-          runningItems.length,
-        );
+      if (line.hasNumber) {
+        if (runningItems.length > 0) {
+          push(
+            line,
+            runningItems.reduce((s, l) => s + l.value, 0),
+            runningItems.length,
+          );
+        }
+        // The stated subtotal feeds any later grand total regardless of
+        // whether it was checkable itself.
+        subtotals.push(line.value);
       }
-      // The stated subtotal feeds any later grand total regardless of
-      // whether it was checkable itself.
-      subtotals.push(line.value);
       runningItems = [];
     } else if (line.role === "grand-total") {
-      const parts = subtotals.length + runningItems.length;
-      if (parts > 0) {
-        push(
-          line,
-          subtotals.reduce((s, v) => s + v, 0) +
-            runningItems.reduce((s, l) => s + l.value, 0),
-          parts,
-        );
+      if (line.hasNumber) {
+        const parts = subtotals.length + runningItems.length;
+        if (parts > 0) {
+          push(
+            line,
+            subtotals.reduce((s, v) => s + v, 0) +
+              runningItems.reduce((s, l) => s + l.value, 0),
+            parts,
+          );
+        }
       }
       subtotals = [];
       runningItems = [];

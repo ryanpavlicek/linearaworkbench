@@ -93,8 +93,13 @@ export function initUrlSync(): () => void {
   let unsubLoaded: (() => void) | null = null;
 
   const initial = () => {
-    if (window.location.hash) {
-      applyHash(window.location.hash);
+    const rawHash = window.location.hash;
+    if (rawHash) {
+      if (!parsePermalink(rawHash)) {
+        // Non-permalink hash (e.g. a Methodology heading anchor): preserve it.
+        return;
+      }
+      applyHash(rawHash);
     }
     // Reflect the (possibly just-applied) state so copying the address bar
     // works from the first paint, without adding a history entry.

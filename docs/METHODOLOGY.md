@@ -113,11 +113,12 @@ Sign labels with subscript digits (`RA₂`, `PA₃`) are normalized to ASCII
 transliteration tokens. The lookup helper in
 [`src/lib/helpers.ts`](../src/lib/helpers.ts) handles the normalization.
 
-The final dataset (`public/corpus/signs.json`) contains 95 unique signs
-attested in cleanly-aligned inscriptions: 66 AB-shared (shape-shared with
-Linear B by Unicode's AB-series naming; 18 of them, such as `RA₂` and the
-AB-numbered ideograms, carry no standard phonetic value), 23 Linear A-only,
-and 6 composite/ligature forms. AB-shared membership follows the sign's
+The final dataset (`public/corpus/signs.json`) contains 97 unique signs:
+68 AB-shared (shape-shared with Linear B by Unicode's AB-series naming —
+50 with conventional phonetic values and 18 without, such as `RA₂` and
+AB-numbered ideograms; `ZE` and `ZO` are recovered from their standalone
+attestations and AB chart identity), 23 Linear A-only, and 6
+composite/ligature forms. AB-shared membership follows the sign's
 codepoint name in the Unicode chart, not whether a phonetic value is known.
 
 **Caveat**: only inscriptions with perfect alignment contribute to the
@@ -186,9 +187,10 @@ Before comparison, reference forms are stripped of pure-notation marks that
 have no segmental value on the Linear A side: the reconstruction asterisk
 (`*`), PIE laryngeal subscripts (`₁₂₃`), the labialization/aspiration
 modifier letters (`ʷ ʰ`), and the combining syllabic ring (`U+0325`, as in
-`r̥`). So PIE `*ǵʰésr̥` is compared as `ǵésr`. This mirrors the asterisk /
-subscript stripping already applied to the Linear A side in
-`wordToPhonetic`.
+`r̥`). So PIE `*ǵʰésr̥` is compared as `ǵésr`. (On the Linear A side,
+`wordToPhonetic` preserves GORILA subscripted signs like `RA₂` and `PA₃`
+distinct from plain `RA`/`PA` rather than collapsing them to unattested
+plain-series readings.)
 
 None of this is based on a trained model or attested sound correspondences
 for Linear A specifically; it is a heuristic.
@@ -611,32 +613,34 @@ of structural types:
 
 | Token | Type | Meaning |
 |-------|------|---------|
-| `W` | word | Multi-sign syllabic word |
-| `N` | number | Aegean numeral |
-| `T` | total | The word `KU-RO` (proposed total marker) |
-| `I` | ideogram | Known commodity ideogram (`OLE`, `GRA`, `VIN`, `FIC`, `AES`, `AUR`, `ARG`) |
+| `W` | word | Syllabic word (other than markers, numerals, or ideograms) |
+| `N` | number | Aegean numeral or fraction (`isValueToken`) |
+| `T` | total | Total or grand-total marker (`KU-RO`, `KU-RA`, `PO-TO-KU-RO`) |
+| `D` | deficit | Deficit marker (`KI-RO`) |
+| `I` | ideogram | Any commodity logogram or undeciphered logogram from the catalog |
 | `S` | separator | The Linear A separator `𐄁` |
 
-It then extracts all contiguous sub-sequences of length 2–6 with at
-least 3 attestations, filtering out pure-`W` patterns (uninformative).
-Surfaces formulaic templates without committing to specific words.
+It then extracts all contiguous sub-sequences of length 2–6 (default
+minimum count 3, adjustable down to 2) so recurring administrative
+templates surface without committing to specific lexical items.
 
 ## Tablet structure classification
 
 The Tablet Structure module assigns each inscription to one of five
-heuristic categories:
+heuristic categories (implemented in `heuristicCategory` in
+[`src/lib/corpusExport.ts`](../src/lib/corpusExport.ts)):
 
 | Category | Trigger |
 |---|---|
-| **Accounting** | Contains `KU-RO`, OR contains numerals AND more than 2 multi-sign words |
-| **Libation** | Contains any of `{A-TA-I-*301-WA-JA, JA-SA-SA-RA-ME, A-DI-KI-TE-TE-DU}` (well-known libation-formula words) |
+| **Accounting** | Contains a total marker (`KU-RO`, `KU-RA`, `PO-TO-KU-RO`), OR contains numerals/fractions AND more than 2 multi-sign words |
+| **Libation** | Contains any of the 14 recognized libation-formula words in [`src/data/libation.ts`](../src/data/libation.ts) (e.g. `A-TA-I-*301-WA-JA`, `JA-SA-SA-RA-ME`, `A-DI-KI-TE`, `A-DI-KI-TE-TE`, `JA-DI-KI-TE-TE-DU-PU₂-RE`, `U-NA-KA-NA-SI`, `I-PI-NA-MA`) |
 | **Lists** | More than 3 separator marks (`𐄁`) and no numerals |
 | **Text / Other** | More than 4 multi-sign words and no numerals (and not libation) |
 | **Unclassified** | Anything else (typically short or ambiguous) |
 
 These are pragmatic heuristics, not a trained classifier. Edge cases:
 inscriptions with both accounting and libation features get classified as
-accounting (KU-RO is checked first). Misclassifications are expected.
+accounting (total markers and numerals are checked first). Misclassifications are expected.
 
 ## Accounting & metrology (total verification)
 
@@ -648,22 +652,25 @@ the upstream transcription already renders Linear A decimal numerals as
 ordinary integers (`197`) and the metrological fractions as Unicode
 built-up fractions — superscript numerator + U+2044 fraction slash +
 subscript denominator, e.g. `³⁄₄`. `parseValue` handles integers,
-built-up fractions (mapping super/subscript digit ranges), and a fallback
+built-up fractions (mapping super/subscript digit ranges), ASCII
+fractions (`13/20`), approximate readings (`≈ ¹⁄₆`), and a fallback
 table of precomposed vulgar fractions (½ ¼ ¾ …). A line's quantity is the
 sum of its numeric tokens, so an integer followed by a fraction token
 (`5`, `³⁄₄`) naturally combines to 5.75.
 
-**Line roles**: each physical line of the tablet (from the new `lines`
+**Line roles**: each physical line of the tablet (from the `lines`
 field in the corpus) is tagged as `header` (no number), `item`,
-`total` (contains `KU-RO`), `grand-total` (`PO-TO-KU-RO`), or `deficit`
-(`KI-RO`). These markers are among the most secure lexical
+`total` (contains `KU-RO` or `KU-RA`), `grand-total` (`PO-TO-KU-RO`), or
+`deficit` (`KI-RO`). These markers are among the most secure lexical
 identifications in Linear A scholarship.
 
 **Balance check**: walking the lines top to bottom, item-line values
-accumulate into a running sum; when a total line is reached, the running
-sum is compared against the total's stated value and the running sum
-resets. Deficit (`KI-RO`) and header lines are excluded. A tablet
-"balances" when computed sum equals stated total within 1e-6.
+accumulate into a running sum; when a total line carrying a readable
+numeral is reached, the running sum is compared against the total's stated
+value and the running sum resets (damaged total lines with no readable
+numeral reset the section without emitting a spurious zero comparison).
+Deficit (`KI-RO`) and header lines are excluded. A tablet "balances" when
+computed sum equals stated total within 1e-6.
 
 **Caveats**: section boundaries are heuristic (reset at each total), so
 tablets with interleaved sub-totals, multi-column layouts, or damaged
@@ -693,9 +700,9 @@ multi-sign words:
   hapax and dis legomena counts (bias-corrected form when F₂ = 0), with
   Chao's (1987) variance and the standard log-normal 95% interval. This
   estimates how many word types the *whole* vocabulary had, given how many
-  rare types the sample contains. It is a **lower bound**, and with ~60% of
-  types attested once the unseen mass is large — read it as "at least",
-  never as "about".
+  rare types the sample contains. It is a **lower bound**, and with 83.9%
+  of multi-sign word types (835 of 995) attested once, the unseen mass is
+  large — read it as "at least", not "about".
 - **Zipf rank–frequency curve**: words ranked by descending frequency on
   log₁₀–log₁₀ axes, with a dashed ideal-Zipf reference (frequency ∝
   1/rank). A **Zipf–Mandelbrot** model p(r) ∝ 1/(r+β)^s, normalized over
@@ -794,18 +801,17 @@ correction, the conditional entropy remains an underestimate — most of
 the sign-pair space is unattested in a corpus this size.
 
 A 95% interval is shown for **H(sign) only**, from a seeded **bootstrap**
-(200 multinomial resamples of the token counts). Two honesty notes. First,
+(200 multinomial resamples of the token counts). Two caveats apply. First,
 the resampling treats tokens as independent draws while real tokens repeat
 in whole words, so even that interval is optimistic. Second, the
-conditional entropy deliberately gets **no interval**: with the large
+conditional entropy deliberately omits an interval: with the large
 majority of attested sign pairs occurring exactly once, every resample
-drops a big share of the categories, which biases every resampled estimate
-well below the point estimate — the percentile interval doesn't even
-contain the value it's supposed to bracket. Reporting it would be
-precision theater. (The principled fix is a Bayesian estimator such as
-NSB, which is out of scope for a client-side workbench.) Use these numbers
-comparatively — between scopes, sites, or against another script — rather
-than as absolute constants of "the Minoan language".
+drops a substantial share of the categories, biasing every resampled
+estimate below the point estimate so the percentile interval does not
+bracket the point estimate at all. (A Bayesian estimator such as NSB would
+address this, and is out of scope for a client-side workbench.) Use these
+numbers comparatively — between scopes, sites, or against another script —
+rather than as absolute constants of "the Minoan language".
 
 **Implementation**: [`SignTransitions.tsx`](../src/modules/SignTransitions.tsx),
 [`lexstats.ts`](../src/lib/lexstats.ts) (entropy estimators, unit-tested).
@@ -825,7 +831,7 @@ every count (including the continuation-type tally when it was a
 transition's sole carrier) before its probability is computed. Without
 this, a hapax built from one-off transitions validates itself and scores
 as ordinary; with it, the word is scored against what the *rest* of the
-corpus writes — which is the question being asked.
+corpus writes.
 
 The model trains and scores **lexical words only**: hyphen-joined
 logogram chains, ligature compounds (`+`), bracketed damage, commodity
@@ -833,12 +839,12 @@ heads, and the GORILA *400+ vessel/fraction series are filtered out
 (`isLexicalWord`), because such tokens are trivially "improbable" and
 would bury the linguistically interesting candidates.
 
-Reading the list honestly: high surprisal flags a sign *sequence* the
-corpus doesn't otherwise produce. That is consistent with a loanword or
+Interpretation: high surprisal flags a sign *sequence* the corpus rarely
+or never produces elsewhere. That is consistent with a loanword or
 foreign name, but equally with a scribal error, a damaged or uncertain
-reading inherited from the source transcription, or simply a rare but
-native combination — the model cannot tell these apart, and it knows
-nothing of phonetic values or meaning. Treat it as a reading list, not a
+reading inherited from the source transcription, or a rare native
+combination — the model cannot distinguish these, and uses neither
+phonetic values nor meaning. Treat it as a reading list, not a
 classifier.
 
 **Implementation**: [`surprisal.ts`](../src/lib/surprisal.ts)
@@ -857,9 +863,10 @@ Database of Mycenaean at Oslo*, *Procedia - Social and Behavioral Sciences*
 corpus), via the `damos-corpus.json` dataset
 published with pyaegean (~5,900 documents). DAMOS is licensed **CC
 BY-NC-SA 4.0**, so the workbench never bundles it: the researcher
-downloads the file and loads it locally, and only the ~50-value
-aggregate (sign counts and totals, under a kilobyte) is cached in the
-browser. Cite DAMOS in published work.
+downloads the file and loads it locally (or passes `--damos` via
+`aegean workbench`), and only the ~50-value aggregate (sign counts and
+totals, under a kilobyte) is cached in the browser. Cite DAMOS in
+published work.
 
 **Counting.** Both sides count sign tokens inside multi-sign WORD tokens
 only — logograms, numerals, ligatures, and single-sign tokens are
@@ -873,19 +880,17 @@ significance statistic is attached — with ~4.5k tokens against ~45k,
 nearly every difference is formally "significant"; the effect size is
 the information.
 
-**The caveat that matters.** Signs are matched by their conventional
-phonetic value, i.e. by the graphic identification of AB signs between
-the scripts — which is precisely the hypothesis frequency divergence
-probes. A strongly divergent sign is therefore ambiguous between "same
-sign, different language behind it" and "the value assignment is wrong
-for Linear A"; the table cannot distinguish these. Divergence is also
-expected from corpus differences alone: scale (~10×), period, sites, and
-administrative genre all differ. Read the table as a ranked agenda of
-signs whose Linear A behavior is least like their Linear B namesakes —
-several of the strongest divergences (o, to, ko over-used in Linear B)
-transparently reflect Greek function words and Greek toponyms, which is
-reassuring: the method finds real linguistic signal where the answer is
-known.
+**Interpretation.** Signs are matched by their conventional phonetic
+value, i.e. by the graphic identification of AB signs between the scripts
+— which is also what frequency divergence probes. A strongly divergent
+sign is therefore ambiguous between "same sign, different language behind
+it" and "the value assignment differs for Linear A"; the table cannot
+distinguish the two. Divergence also reflects corpus differences alone:
+scale (~10×), period, sites, and administrative genre all differ. Read the
+table as a ranked list of signs whose Linear A behavior differs most from
+their Linear B counterparts — several of the strongest divergences (o, to,
+ko over-used in Linear B) transparently reflect Greek function words and
+Greek toponyms.
 
 **Implementation**: [`linearB.ts`](../src/lib/linearB.ts) (parser, join,
 Spearman — unit-tested), card in
@@ -894,9 +899,8 @@ Spearman — unit-tested), card in
 ## Multivariate exploration (CA, dendrograms, communities)
 
 Three structure-finding tools share
-[`multivariate.ts`](../src/lib/multivariate.ts) (unit-tested) and a
-common honesty rule: each display carries the number that says how much
-to trust it.
+[`multivariate.ts`](../src/lib/multivariate.ts) (unit-tested) and report
+explicit diagnostics alongside each display:
 
 - **Correspondence analysis** (Commodity Catalog): classic CA of the
   site/hand/period × commodity contingency table — SVD of the

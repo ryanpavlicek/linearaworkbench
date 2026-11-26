@@ -1,23 +1,35 @@
+import { useMemo } from "react";
 import { useWorkbench } from "../store/workbench";
 import { SettingsPopover } from "./SettingsPopover";
 import { ScopeControl } from "./ScopeControl";
 
 interface TopBarProps {
   onToggleMobileNav?: () => void;
+  mobileNavOpen?: boolean;
+  onOpenPalette?: () => void;
 }
 
-export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
+export function TopBar({
+  onToggleMobileNav,
+  mobileNavOpen = false,
+  onOpenPalette,
+}: TopBarProps = {}) {
   const loaded = useWorkbench((s) => s.loaded);
   const corpus = useWorkbench((s) => s.corpus);
   const corpusSource = useWorkbench((s) => s.corpusSource);
   const annotations = useWorkbench((s) => s.annotations);
   const setActive = useWorkbench((s) => s.setActiveModule);
 
+  const nWords = useMemo(() => {
+    let count = 0;
+    for (const w of corpus.wordIndex.keys()) {
+      if (w.includes("-")) count++;
+    }
+    return count;
+  }, [corpus.wordIndex]);
+
   let meta = <>Loading…</>;
   if (loaded) {
-    const nWords = [...corpus.wordIndex.keys()].filter((w) =>
-      w.includes("-"),
-    ).length;
     meta = (
       <>
         <b>{corpus.inscriptions.length}</b> inscriptions · <b>{nWords}</b>{" "}
@@ -27,7 +39,7 @@ export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
           <span
             className="tag tag-domain"
             style={{ marginLeft: 8, fontSize: 9 }}
-            title={`This session is browsing a custom corpus (${corpusSource}), not the bundled one. Reload without ?corpus= to go back.`}
+            title={`Browsing a custom corpus (${corpusSource}). Reload without ?corpus= to return to the bundled corpus.`}
           >
             custom corpus
           </span>
@@ -39,9 +51,11 @@ export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
   return (
     <header className="topbar">
       <button
+        type="button"
         className="mobile-nav-toggle"
         onClick={onToggleMobileNav}
-        aria-label="Open module menu"
+        aria-label="Toggle module menu"
+        aria-expanded={mobileNavOpen}
         title="Open module menu"
       >
         ☰
@@ -49,9 +63,21 @@ export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
       <h1>Linear A Research Workbench</h1>
       <div className="meta">{meta}</div>
       <div className="actions">
+        {onOpenPalette && (
+          <button
+            type="button"
+            className="btn btn-sm btn-outline"
+            onClick={onOpenPalette}
+            title="Open command palette (Ctrl+K)"
+            aria-label="Open command palette"
+          >
+            ⌕ Search <span className="dim" style={{ marginLeft: 4, fontSize: 10 }}>⌘K</span>
+          </button>
+        )}
         {loaded && <ScopeControl />}
         {annotations.length > 0 && (
           <button
+            type="button"
             className="btn btn-sm btn-outline"
             onClick={() => setActive("annot")}
             title="Open Annotations module"
@@ -70,6 +96,7 @@ export function TopBar({ onToggleMobileNav }: TopBarProps = {}) {
           </button>
         )}
         <button
+          type="button"
           className="btn btn-sm btn-outline"
           onClick={() => setActive("help")}
           title="How to use this workbench (?)"

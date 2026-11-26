@@ -143,9 +143,11 @@ function subCost(
 // exact sign.
 export function wordToPhonetic(
   word: string,
-  overrides: PhoneticOverrides = {},
+  overrides?: PhoneticOverrides,
 ): string {
-  const map = { ...PHONETIC_MAP, ...overrides };
+  const hasOverrides =
+    overrides !== undefined && Object.keys(overrides).length > 0;
+  const map = hasOverrides ? { ...PHONETIC_MAP, ...overrides } : PHONETIC_MAP;
   return word
     .split("-")
     .map((s) => {
@@ -192,32 +194,76 @@ export function extractRoot(word: string, overrides?: PhoneticOverrides): string
   return wordToPhonetic(word, overrides).replace(VOWEL_STRIP_RE, "");
 }
 
-// Digits plus everything a corpus numeral token can be built from: the
-// superscript/subscript pieces and the U+2044 fraction slash of built-up
-// fractions ("¹⁄₂"), the ⅟ fraction-numerator form, the ≈ approximation
-// mark, and the 𐄁 separator dot.
-const TOKEN_DIGITS = /^[0-9¹²³⁴⁵⁶⁷⁸⁹⁰⅟⁄₁₂₃₄₅₆₇₈₉₀≈𐄁]+$/;
-export const isNumeralToken = (w: string) => TOKEN_DIGITS.test(w);
+// Digits plus everything a corpus numeral token can be built from: ASCII
+// digits, vulgar fractions, built-up fractions ("¹⁄₂", "≈ ¹⁄₆"), and ASCII
+// fractions ("13/20"). Rejects bare "≈" and bare separator dot "𐄁".
+const VULGAR_OR_DIGIT = /[0-9¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞¹²³⁴⁵⁶⁷⁸⁹⁰⅟]/;
+const TOKEN_DIGITS =
+  /^(?:≈\s*)?[0-9¼½¾⅐⅑⅒⅓⅔⅕⅖⅗⅘⅙⅚⅛⅜⅝⅞¹²³⁴⁵⁶⁷⁸⁹⁰⅟⁄/₁₂₃₄₅₆₇₈₉₀]+$/;
+export const isNumeralToken = (w: string): boolean => {
+  const trimmed = w.trim();
+  return TOKEN_DIGITS.test(trimmed) && VULGAR_OR_DIGIT.test(trimmed);
+};
 
 // ─── Statistical helpers ────────────────────────────────────────────────
-// Polynomial approximation of erf accurate to ~1.5×10⁻⁷ (Abramowitz &
-// Stegun 7.1.26). Used to compute chi-squared p-values.
-function erf(x: number): number {
-  const sign = x < 0 ? -1 : 1;
-  const ax = Math.abs(x);
+// Abramowitz & Stegun 7.1.26 polynomial approximation for erfc(x) computed
+// directly from the tail poly(t) * exp(-x²) for x >= 0, avoiding the
+// 1 - (1 - tail) catastrophic cancellation that previously underflowed to 0
+// at chi² >= 75.
+function erfcTail(ax: number): number {
   const t = 1.0 / (1.0 + 0.3275911 * ax);
-  const y =
-    1.0 -
-    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t -
-      0.284496736) *
+  return (
+    ((((1.061405429 * t - 1.453152027) * t + 1.421413741) * t - 0.284496736) *
       t +
       0.254829592) *
-      t *
-      Math.exp(-ax * ax);
-  return sign * y;
+    t *
+    Math.exp(-ax * ax)
+  );
 }
 
-const erfc = (x: number) => 1 - erf(x);
+const erfc = (x: number): number =>
+  x >= 0 ? erfcTail(x) : 2 - erfcTail(-x);
+
+/**
+ * Benjamini–Hochberg FDR-adjusted q-values (preserving input order).
+ * Returns values clamped to [0, 1].
+ */
+export function benjaminiHochberg(pValues: readonly number[]): number[] {
+  const n = pValues.length;
+  if (n === 0) return [];
+  const order = Array.from({ length: n }, (_, i) => i).sort(
+    (a, b) => pValues[a] - pValues[b],
+  );
+  const q = new Array<number>(n).fill(1);
+  let runningMin = 1;
+  for (let rank = n; rank >= 1; rank--) {
+    const idx = order[rank - 1];
+    const adj = Math.min(1, (pValues[idx] * n) / rank);
+    runningMin = Math.min(runningMin, adj);
+    q[idx] = Math.max(0, runningMin);
+  }
+  return q;
+}
+
+/**
+ * Holm–Bonferroni step-down FWER-adjusted p-values (preserving input order).
+ */
+export function holmBonferroni(pValues: readonly number[]): number[] {
+  const n = pValues.length;
+  if (n === 0) return [];
+  const order = Array.from({ length: n }, (_, i) => i).sort(
+    (a, b) => pValues[a] - pValues[b],
+  );
+  const adj = new Array<number>(n).fill(1);
+  let runningMax = 0;
+  for (let k = 0; k < n; k++) {
+    const idx = order[k];
+    const val = Math.min(1, pValues[idx] * (n - k));
+    runningMax = Math.max(runningMax, val);
+    adj[idx] = Math.max(0, runningMax);
+  }
+  return adj;
+}
 
 // Log of the gamma function (Lanczos approximation). For log-factorial,
 // use lgamma(n + 1).
@@ -749,12 +795,13 @@ export function alignPhonetic(
   const out: AlignCell[] = [];
   let i = n;
   let j = m;
+  const EPS = 1e-9;
   while (i > 0 || j > 0) {
     if (i > 0 && j > 0) {
       const ai = a[i - 1];
       const bj = b[j - 1];
       const cost = subCost(ai, bj, w, cl);
-      if (d[i][j] === d[i - 1][j - 1] + cost) {
+      if (Math.abs(d[i][j] - (d[i - 1][j - 1] + cost)) <= EPS) {
         const op: AlignOp =
           ai === bj
             ? "match"
@@ -769,7 +816,7 @@ export function alignPhonetic(
         continue;
       }
     }
-    if (i > 0 && d[i][j] === d[i - 1][j] + w.indel) {
+    if (i > 0 && (j === 0 || Math.abs(d[i][j] - (d[i - 1][j] + w.indel)) <= EPS)) {
       out.unshift({ a: a[i - 1], b: "", op: "del" });
       i--;
       continue;

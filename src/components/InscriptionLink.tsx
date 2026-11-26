@@ -5,9 +5,13 @@ export function InscriptionLink({ id }: { id: string }) {
   const showInscription = useWorkbench((s) => s.showInscription);
   const hoverEnabled = useWorkbench((s) => s.settings.hoverPreviews);
   const link = (
-    <span className="word-link" onClick={() => showInscription(id)}>
+    <button
+      type="button"
+      className="word-link"
+      onClick={() => showInscription(id)}
+    >
       {id}
-    </span>
+    </button>
   );
   return hoverEnabled ? (
     <HoverPreview kind="inscription" value={id}>

@@ -18,15 +18,15 @@ title: Linear A Research Workbench
 abstract: >-
   A browser-based computational research environment for the Linear A
   corpus — the undeciphered Bronze Age Minoan script (ca. 1800–1450 BCE).
-  Includes 50 interactive modules covering cross-linguistic phonetic
-  alignment, sign concordances, scribal paleography links, accounting
-  verification, lexical and graphotactic statistics, hypothesis testing,
-  and publication-ready report export.
+  Includes 59 interactive views organized across 34 workspaces covering
+  cross-linguistic phonetic alignment, sign concordances, scribal paleography
+  links, accounting verification, lexical and graphotactic statistics,
+  hypothesis testing, and publication-ready report export.
 authors:
   - family-names: Pavlicek
     given-names: Ryan
-version: 1.6.1
-date-released: 2026-07-03
+version: 2.0.0
+date-released: 2026-11-26
 url: "https://github.com/ryanpavlicek/linearaworkbench"
 repository-code: "https://github.com/ryanpavlicek/linearaworkbench"
 license: Apache-2.0

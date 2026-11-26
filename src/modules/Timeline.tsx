@@ -112,17 +112,16 @@ export default function Timeline() {
     <div className="panel" style={{ maxWidth: 1100 }}>
       <h2>Timeline</h2>
       <div className="callout">
-        <h4>When the corpus was written — as far as deposits can say</h4>
+        <h4>Chronology by ceramic phase</h4>
         <p>
-          Each band is a ceramic phase; band height scales with how many
-          inscriptions date to it (log scale — LM IB would otherwise erase
-          everything else). Two honesty notes: dating is by the{" "}
-          <em>deposit</em> an object was found in, not the act of writing;
-          and the absolute years are the conventional chronology — the LM
-          IA debate (the Thera eruption) can shift the Neopalatial dates by
-          decades. {byPeriod.undated} inscriptions (~
+          Band height scales logarithmically with inscription count per ceramic
+          phase so LM IB does not dwarf smaller phases. Dates reflect the
+          archaeological <em>deposit</em> rather than the moment of writing,
+          using the conventional chronology; the Thera/LM IA debate shifts
+          Neopalatial absolute dates by several decades. {byPeriod.undated}{" "}
+          undated inscriptions (~
           {Math.round((100 * byPeriod.undated) / Math.max(1, scoped.inscriptions.length))}
-          %) have no dated context and aren't on the strip.
+          %) are excluded.
         </p>
       </div>
 

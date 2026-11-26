@@ -8,9 +8,11 @@
 // Format is intentionally simple JSON so it can be inspected, hand-edited,
 // or migrated by anything that reads JSON.
 
-const PREFIX = "linear-a-workbench:";
+import { PREFIX } from "./persistence";
+
 const BACKUP_VERSION = 1;
 export const BACKUP_KIND = "linear-a-workbench-backup";
+const FORBIDDEN_KEYS = new Set(["__proto__", "prototype", "constructor"]);
 
 export interface BackupFile {
   kind: typeof BACKUP_KIND;
@@ -25,25 +27,14 @@ export interface BackupFile {
 
 /** Snapshot every prefixed key into a versioned backup object. */
 export function buildBackup(): BackupFile {
-  const data: Record<string, unknown> = {};
+  const data = Object.create(null) as Record<string, unknown>;
   for (let i = 0; i < localStorage.length; i++) {
     const fullKey = localStorage.key(i);
     if (!fullKey || !fullKey.startsWith(PREFIX)) continue;
     const key = fullKey.slice(PREFIX.length);
+    if (!key || FORBIDDEN_KEYS.has(key)) continue;
     const raw = localStorage.getItem(fullKey);
     if (raw === null) continue;
-    // Lift the value into a real JSON value (so the file is human-readable,
-    // not strings-of-JSON-inside-JSON) ONLY when doing so round-trips exactly:
-    // the value must be a non-string that re-serializes to the identical raw
-    // bytes. Otherwise keep the raw string verbatim. This guards two lossy
-    // cases that would otherwise contradict the faithful-round-trip contract:
-    //   - a bare string that happens to be valid JSON (e.g. raw `"hi"` with
-    //     literal quotes, or `42`-as-a-string) would parse to a value that
-    //     applyBackup cannot tell apart from a bare string;
-    //   - non-canonical JSON text (e.g. `[1, 2]`, `1.0`, `1e3`) would be
-    //     silently re-formatted on restore.
-    // applyBackup inverts this exactly: non-strings via JSON.stringify, strings
-    // written verbatim.
     let value: unknown = raw;
     try {
       const parsed: unknown = JSON.parse(raw);
@@ -73,55 +64,90 @@ export interface RestoreReport {
 export type RestoreMode = "merge" | "replace";
 
 /**
- * Validate that an arbitrary parsed object looks like a backup file. We're
- * permissive about `version` (any number ≤ current is allowed) so older
- * exports can still be restored after the format evolves.
+ * Validate that an arbitrary parsed object looks like a backup file. Any
+ * positive integer version ≤ current is accepted so older exports restore
+ * cleanly after the format evolves.
  */
 export function isBackupFile(x: unknown): x is BackupFile {
-  if (!x || typeof x !== "object") return false;
+  if (!x || typeof x !== "object" || Array.isArray(x)) return false;
   const o = x as Partial<BackupFile>;
   return (
     o.kind === BACKUP_KIND &&
     typeof o.version === "number" &&
+    Number.isInteger(o.version) &&
+    o.version >= 1 &&
     o.version <= BACKUP_VERSION &&
     !!o.data &&
-    typeof o.data === "object"
+    typeof o.data === "object" &&
+    !Array.isArray(o.data)
   );
 }
 
 /**
- * Apply a backup to localStorage. In `replace` mode, every existing prefixed
- * key is wiped first (so the restore is a true round-trip). In `merge` mode,
- * only the keys present in the backup are overwritten.
+ * Apply a backup to localStorage. In `replace` mode, existing prefixed keys
+ * are snapshotted in memory first so a mid-restore QuotaExceededError rolls
+ * back cleanly instead of leaving user data wiped. In `merge` mode, only the
+ * keys present in the backup are overwritten.
  */
 export function applyBackup(
   file: BackupFile,
   mode: RestoreMode,
 ): RestoreReport {
+  const previous = new Map<string, string>();
   let cleared = 0;
   if (mode === "replace") {
-    const toRemove: string[] = [];
     for (let i = 0; i < localStorage.length; i++) {
       const fullKey = localStorage.key(i);
-      if (fullKey && fullKey.startsWith(PREFIX)) toRemove.push(fullKey);
+      if (fullKey && fullKey.startsWith(PREFIX)) {
+        const val = localStorage.getItem(fullKey);
+        if (val !== null) previous.set(fullKey, val);
+      }
     }
-    for (const k of toRemove) localStorage.removeItem(k);
-    cleared = toRemove.length;
+    for (const k of previous.keys()) localStorage.removeItem(k);
+    cleared = previous.size;
   }
-  let applied = 0;
+
+  // Stage serialized pairs first so invalid/unserializable values are skipped
+  // cleanly before mutating storage.
+  const staged: [string, string][] = [];
   let skipped = 0;
   for (const [key, value] of Object.entries(file.data)) {
-    if (typeof key !== "string" || !key) {
+    if (typeof key !== "string" || !key || FORBIDDEN_KEYS.has(key)) {
       skipped++;
       continue;
     }
     try {
-      localStorage.setItem(
-        PREFIX + key,
-        typeof value === "string" ? value : JSON.stringify(value),
-      );
+      const encoded = typeof value === "string" ? value : JSON.stringify(value);
+      if (typeof encoded !== "string") {
+        skipped++;
+        continue;
+      }
+      staged.push([PREFIX + key, encoded]);
+    } catch {
+      skipped++;
+    }
+  }
+
+  let applied = 0;
+  const written: string[] = [];
+  for (const [fullKey, encoded] of staged) {
+    try {
+      localStorage.setItem(fullKey, encoded);
+      written.push(fullKey);
       applied++;
     } catch {
+      if (mode === "replace") {
+        // Roll back partial replace so pre-existing researcher data is not lost.
+        for (const k of written) localStorage.removeItem(k);
+        for (const [k, v] of previous) {
+          try {
+            localStorage.setItem(k, v);
+          } catch {
+            // best effort
+          }
+        }
+        return { applied: 0, skipped: staged.length + skipped, cleared: 0 };
+      }
       skipped++;
     }
   }
@@ -130,14 +156,7 @@ export function applyBackup(
 
 /**
  * Factory reset: remove every workbench-namespaced localStorage key, wiping
- * all researcher-generated state and preferences back to a clean install —
- * annotations, collections, findings, saved hypotheses, queries, pins, tablet
- * reclassifications, notes, report/sidebar layout, display settings, and the
- * remembered active module. Returns the number of keys removed. The caller
- * should reload afterwards so the store re-hydrates from the clean slate.
- *
- * Note: keys NOT under the workbench prefix (e.g. the folder-sync pairing)
- * are left untouched, so a reset doesn't unpair a connected backup folder.
+ * all researcher-generated state and preferences back to a clean install.
  */
 export function clearAllWorkbenchData(): number {
   const toRemove: string[] = [];
@@ -159,17 +178,25 @@ export function summarizeBackup(file: BackupFile): {
   const d = file.data as Record<string, unknown>;
   const len = (k: string) => {
     const v = d[k];
-    return Array.isArray(v) ? v.length : v && typeof v === "object" ? Object.keys(v as object).length : v ? 1 : 0;
+    return Array.isArray(v)
+      ? v.length
+      : v && typeof v === "object"
+        ? Object.keys(v as object).length
+        : v
+          ? 1
+          : 0;
   };
   return {
     keys: Object.keys(d).length,
     bytes: json.length,
     highlights: [
       { label: "annotations", count: len("annotations") },
+      { label: "notes", count: len("notes") },
       { label: "collections", count: len("collections") },
       { label: "findings", count: len("findings") },
       { label: "saved hypotheses", count: len("saved-hypotheses") },
       { label: "saved queries", count: len("saved-queries") },
+      { label: "custom wordlists", count: len("custom-languages") },
       { label: "pinned items", count: len("pins") },
       { label: "reclassified tablets", count: len("tablet-categories") },
     ].filter((h) => h.count > 0),

@@ -45,27 +45,43 @@ function matches(
   return true;
 }
 
+let cachedScoped: {
+  corpus: CorpusIndex;
+  key: string;
+  collectionRef: unknown;
+  result: CorpusIndex;
+} | null = null;
+
 /**
  * The corpus index the analysis modules should read. Identical to the full
- * `corpus` when no scope is active; otherwise a freshly built index over the
- * inscriptions that pass the scope. The signary (`signs`) is always the full
- * corpus signary — its attestation counts are precomputed over the whole
- * alignment and aren't re-derived per scope.
+ * `corpus` when no scope is active; otherwise a derived index shared across
+ * all mounted consumers for the current `(corpus, scope, activeCollection)`.
  */
 export function useScopedCorpus(): CorpusIndex {
   const corpus = useWorkbench((s) => s.corpus);
   const scope = useWorkbench((s) => s.scope);
-  const collections = useWorkbench((s) => s.collections);
+  const activeCollection = useWorkbench((s) =>
+    s.scope.collectionId !== null
+      ? (s.collections.find((c) => c.id === s.scope.collectionId) ?? null)
+      : null,
+  );
 
   const key = scopeKey(scope);
 
   return useMemo(() => {
     if (!isScopeActive(scope)) return corpus;
+    if (
+      cachedScoped &&
+      cachedScoped.corpus === corpus &&
+      cachedScoped.key === key &&
+      cachedScoped.collectionRef === activeCollection
+    ) {
+      return cachedScoped.result;
+    }
     let collectionIds: Set<string> | null = null;
     if (scope.collectionId !== null) {
-      const c = collections.find((c) => c.id === scope.collectionId);
       collectionIds = new Set(
-        (c?.items ?? [])
+        (activeCollection?.items ?? [])
           .filter((it) => it.kind === "inscription")
           .map((it) => it.value),
       );
@@ -73,11 +89,13 @@ export function useScopedCorpus(): CorpusIndex {
     const filtered = corpus.inscriptions.filter((ins) =>
       matches(ins, scope, collectionIds),
     );
-    return buildIndex(filtered, corpus.signs);
-    // `key` captures every scope field; `collections` matters only when a
-    // collection is scoped.
+    const result = buildIndex(filtered, corpus.signs);
+    cachedScoped = { corpus, key, collectionRef: activeCollection, result };
+    return result;
+    // `key` captures every scope field; `activeCollection` captures only the
+    // scoped collection's items (unrelated collection edits do not invalidate).
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [corpus, key, collections]);
+  }, [corpus, key, activeCollection]);
 }
 
 /** Multi-sign words within the active scope, sorted by count desc. */

@@ -39,7 +39,7 @@ test("backup → reset → restore round-trips a research note", async ({
   ).toBeVisible();
 
   // ── Download a backup via the real download path ───────────────────────
-  await page.getByRole("button", { name: /^data export$/i }).click();
+  await page.getByRole("button", { name: /^data export/i }).click();
   const downloadPromise = page.waitForEvent("download");
   await page.getByRole("button", { name: /download backup/i }).click();
   const download = await downloadPromise;
@@ -74,7 +74,7 @@ test("backup → reset → restore round-trips a research note", async ({
   await expect(page.getByText(/no notes yet/i)).toBeVisible();
 
   // ── Restore from the downloaded file ───────────────────────────────────
-  await page.getByRole("button", { name: /^data export$/i }).click();
+  await page.getByRole("button", { name: /^data export/i }).click();
   const chooserPromise = page.waitForEvent("filechooser");
   await page.getByRole("button", { name: /restore from file/i }).click();
   const chooser = await chooserPromise;

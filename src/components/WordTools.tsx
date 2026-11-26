@@ -81,10 +81,9 @@ export function WordTools({ target, suggestions = [] }: Props) {
     setMeaning(existing?.proposedMeaning ?? "");
     setConfidence(existing?.confidence ?? "medium");
     setNotes(existing?.notes ?? "");
-    // Re-sync only when the annotation target changes; depending on the
-    // subfields would clobber in-progress edits after a save.
+    // Re-sync whenever the target or its annotation record changes.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existing?.id]);
+  }, [existing?.id, target.kind, target.value]);
 
   function commit(silent = false) {
     const d = draft.current;

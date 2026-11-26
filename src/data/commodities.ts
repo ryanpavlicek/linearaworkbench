@@ -74,7 +74,9 @@ export function isLexicalWord(word: string): boolean {
   const parts = word.split("-");
   let starred = 0;
   for (const p of parts) {
-    if (commodityHead(p)) return false;
+    // NI functions as both a standalone commodity logogram ("figs") and a core
+    // syllabogram inside hyphenated words (KU-NI-SU, WA-DU-NI-MI, PA₃-NI-NA).
+    if (p !== "NI" && commodityHead(p)) return false;
     const m = /^\*(\d+)/.exec(p);
     if (m) {
       if (+m[1] >= 400) return false;

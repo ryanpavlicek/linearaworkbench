@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { safeHref } from "./urlSafety";
 
 // Tiny markdown renderer for the bundled METHODOLOGY.md. Covers the subset the
 // doc actually uses: headings (##/###), paragraphs, fenced code blocks, tables
@@ -116,7 +117,17 @@ function renderInline(text: string, opts: Opts, keyBase: string): ReactNode[] {
     if (m) {
       flush();
       const [, label, rawUrl] = m;
-      const href = opts.rewriteLink ? opts.rewriteLink(rawUrl) : rawUrl;
+      const rewritten = opts.rewriteLink ? opts.rewriteLink(rawUrl) : rawUrl;
+      const href = safeHref(rewritten);
+      if (!href) {
+        out.push(
+          <span key={`${keyBase}-a${key++}`}>
+            {renderInline(label, opts, `${keyBase}-a${key}`)}
+          </span>,
+        );
+        i += m[0].length;
+        continue;
+      }
       const isAnchor = href.startsWith("#");
       const isExternal = /^https?:\/\//.test(href);
       out.push(
@@ -124,7 +135,7 @@ function renderInline(text: string, opts: Opts, keyBase: string): ReactNode[] {
           key={`${keyBase}-a${key++}`}
           href={href}
           target={isExternal ? "_blank" : undefined}
-          rel={isExternal ? "noreferrer" : undefined}
+          rel={isExternal ? "noopener noreferrer" : undefined}
           onClick={
             isAnchor
               ? (e) => {

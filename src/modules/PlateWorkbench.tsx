@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useWorkbench } from "../store/workbench";
 import { useScopedCorpus } from "../store/scope";
 import { upstreamAsset, siglaUrl } from "../lib/helpers";
+import { safeHref } from "../lib/urlSafety";
 import { GORILA_CEFAEL_URL } from "../lib/citations";
 import { Glyph } from "../components/Glyph";
 
@@ -188,14 +189,23 @@ export default function PlateWorkbench() {
               )}
               <div className="dim" style={{ fontSize: 10, marginTop: 6 }}>
                 {ins.imageRights || "© École Française d'Athènes"}
-                {ins.imageRightsURL && (
-                  <>
-                    {" · "}
-                    <a href={ins.imageRightsURL} target="_blank" rel="noreferrer">
-                      rights
-                    </a>
-                  </>
-                )}
+                {(() => {
+                  const rightsHref = ins.imageRightsURL
+                    ? safeHref(upstreamAsset(ins.imageRightsURL))
+                    : null;
+                  return rightsHref ? (
+                    <>
+                      {" · "}
+                      <a
+                        href={rightsHref}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        rights
+                      </a>
+                    </>
+                  ) : null;
+                })()}
               </div>
             </>
           ) : (

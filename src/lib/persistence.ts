@@ -1,23 +1,27 @@
 // Lightweight namespaced localStorage helpers. All researcher-generated
 // content (annotations, saved queries) goes through here.
 
-const PREFIX = "linear-a-workbench:";
+export const PREFIX = "linear-a-workbench:";
 
 export function loadJson<T>(key: string, fallback: T): T {
   try {
     const raw = localStorage.getItem(PREFIX + key);
     if (!raw) return fallback;
-    return JSON.parse(raw) as T;
+    const parsed = JSON.parse(raw) as T;
+    if (parsed === null && fallback !== null) return fallback;
+    return parsed;
   } catch {
     return fallback;
   }
 }
 
-export function saveJson<T>(key: string, value: T): void {
+export function saveJson<T>(key: string, value: T): boolean {
   try {
     localStorage.setItem(PREFIX + key, JSON.stringify(value));
+    return true;
   } catch (err) {
     console.warn("localStorage save failed:", err);
+    return false;
   }
 }
 

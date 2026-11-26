@@ -33,7 +33,8 @@ export const PLEIADES_IDS: Record<string, number> = {
   Samothrace: 501596,
   Mycenae: 570491,
   Tiryns: 570740,
-  Pylos: 570640,
+  // Nestor's Palace at Epano Englianos (Bronze Age Pylos), not Classical Koryphasion (570640).
+  Pylos: 156116232,
   Miletos: 599799,
   Troy: 550595,
   Cyprus: 707498,

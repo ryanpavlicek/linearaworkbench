@@ -11,7 +11,15 @@ describe("linkifyTabletRefs", () => {
 
   it("links spaced and unspaced references that resolve to corpus ids", () => {
     expect(linkifyTabletRefs("<p>see HT 13 and HT13</p>", resolve)).toBe(
-      '<p>see <a class="word-link" data-ins="HT13" title="Open HT13 in the corpus">HT 13</a> and <a class="word-link" data-ins="HT13" title="Open HT13 in the corpus">HT13</a></p>',
+      '<p>see <a class="word-link" href="#/i/HT13" data-ins="HT13" title="Open HT13 in the corpus">HT 13</a> and <a class="word-link" href="#/i/HT13" data-ins="HT13" title="Open HT13 in the corpus">HT13</a></p>',
+    );
+  });
+
+  it("never nests anchors inside existing <a> tags", () => {
+    const html = '<p><a href="https://example.org">see HT 13</a> and HT 13</p>';
+    const out = linkifyTabletRefs(html, resolve);
+    expect(out).toBe(
+      '<p><a href="https://example.org">see HT 13</a> and <a class="word-link" href="#/i/HT13" data-ins="HT13" title="Open HT13 in the corpus">HT 13</a></p>',
     );
   });
 
@@ -46,6 +54,15 @@ describe("highlightHtml", () => {
     );
     expect(highlightHtml("<p>Libation and LIBATION</p>", "libation")).toBe(
       "<p><mark>Libation</mark> and <mark>LIBATION</mark></p>",
+    );
+  });
+
+  it("never corrupts HTML entities when searching entity names", () => {
+    expect(highlightHtml("<p>A &amp; B&nbsp;amp</p>", "amp")).toBe(
+      "<p>A &amp; B&nbsp;<mark>amp</mark></p>",
+    );
+    expect(highlightHtml("<p>foo&nbsp;bar</p>", "nbsp")).toBe(
+      "<p>foo&nbsp;bar</p>",
     );
   });
 

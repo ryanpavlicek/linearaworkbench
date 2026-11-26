@@ -252,45 +252,61 @@ export interface ZipfMandelbrotFit {
   logZ: number; // ln of the normalizer Σ (r+β)^(−s), for drawing the curve
 }
 
-function zmLogLik(freqs: readonly number[], s: number, beta: number): number {
+function zmLogLikCached(
+  totalFreq: number,
+  sumFreqLog: number,
+  logRB: Float64Array,
+  s: number,
+): number {
   let z = 0;
-  for (let r = 1; r <= freqs.length; r++) z += Math.pow(r + beta, -s);
-  const logZ = Math.log(z);
-  let ll = 0;
-  for (let r = 1; r <= freqs.length; r++) {
-    ll += freqs[r - 1] * (-s * Math.log(r + beta) - logZ);
-  }
-  return ll;
+  for (let i = 0; i < logRB.length; i++) z += Math.exp(-s * logRB[i]);
+  return -s * sumFreqLog - totalFreq * Math.log(z);
 }
 
 export function fitZipfMandelbrotMLE(
   freqs: readonly number[],
 ): ZipfMandelbrotFit | null {
-  if (freqs.length < 5) return null;
+  const len = freqs.length;
+  if (len < 5) return null;
+  let totalFreq = 0;
+  for (let i = 0; i < len; i++) totalFreq += freqs[i];
+  const logRB = new Float64Array(len);
   let best = { s: 1, beta: 0, ll: -Infinity };
-  const evaluate = (s: number, beta: number) => {
-    const ll = zmLogLik(freqs, s, beta);
-    if (ll > best.ll) best = { s, beta, ll };
+
+  const evalBeta = (beta: number, sMin: number, sMax: number, sStep: number) => {
+    let sumFreqLog = 0;
+    for (let i = 0; i < len; i++) {
+      const l = Math.log(i + 1 + beta);
+      logRB[i] = l;
+      sumFreqLog += freqs[i] * l;
+    }
+    for (let s = sMin; s <= sMax; s += sStep) {
+      const sClamped = Math.max(0.01, s);
+      const ll = zmLogLikCached(totalFreq, sumFreqLog, logRB, sClamped);
+      if (ll > best.ll) best = { s: sClamped, beta, ll };
+    }
   };
+
   // Coarse grid, then two refinement passes around the running optimum.
-  for (let s = 0.2; s <= 3.0001; s += 0.1)
-    for (let beta = 0; beta <= 15.0001; beta += 0.5) evaluate(s, beta);
+  for (let beta = 0; beta <= 15.0001; beta += 0.5) {
+    evalBeta(beta, 0.2, 3.0001, 0.1);
+  }
   for (let pass = 0; pass < 2; pass++) {
     const sStep = pass === 0 ? 0.02 : 0.004;
     const bStep = pass === 0 ? 0.1 : 0.02;
     const { s: s0, beta: b0 } = best;
-    for (let s = s0 - 5 * sStep; s <= s0 + 5 * sStep; s += sStep)
-      for (
-        let beta = Math.max(0, b0 - 5 * bStep);
-        beta <= b0 + 5 * bStep;
-        beta += bStep
-      )
-        evaluate(Math.max(0.01, s), beta);
+    for (
+      let beta = Math.max(0, b0 - 5 * bStep);
+      beta <= b0 + 5 * bStep;
+      beta += bStep
+    ) {
+      evalBeta(beta, s0 - 5 * sStep, s0 + 5 * sStep, sStep);
+    }
   }
 
   const { s, beta } = best;
   let z = 0;
-  for (let r = 1; r <= freqs.length; r++) z += Math.pow(r + beta, -s);
+  for (let r = 1; r <= len; r++) z += Math.pow(r + beta, -s);
   const logZ = Math.log(z);
 
   // KS over cumulative token shares.

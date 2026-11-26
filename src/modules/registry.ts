@@ -2,9 +2,10 @@ import { lazy, type ComponentType } from "react";
 import type { ModuleDef, ModuleId } from "../lib/types";
 
 // Sidebar groups, ordered by workflow with the researcher's own workspace
-// first. The Research group keeps a curated order (workspace → corpus entry
-// points → data utilities); every other group lists its modules
-// alphabetically by name.
+// first. Related views are consolidated into tabbed workspaces (34 sidebar
+// entries across 9 groups); every legacy sub-view id stays routable via
+// MODULE_ALIASES and MODULE_COMPONENTS so existing permalinks, Help links,
+// and Command Palette searches land on the exact tab.
 export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
   {
     group: "Start",
@@ -20,23 +21,13 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
   },
   {
     group: "Research",
-    // Curated order (the researcher's own workspace first, then the corpus
-    // entry points, then the data utilities) — not alphabetical, by request.
     items: [
-      // My Research merges the annotation notebook, collections, the findings
-      // tracker, and the research report into one hub (tabs).
       {
         id: "annot",
         name: "My Research",
         group: "Research",
         keywords:
-          "annotations notebook collections research report findings export notes",
-      },
-      {
-        id: "lexicon",
-        name: "My Lexicon",
-        group: "Research",
-        keywords: "lexicon glossary meanings annotations dictionary vocabulary",
+          "annotations notebook lexicon glossary meanings dictionary collections research report findings export notes",
       },
       { id: "query", name: "Query Builder", group: "Research" },
       {
@@ -48,9 +39,10 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
       },
       {
         id: "browse",
-        name: "Corpus Browser",
+        name: "Corpus Explorer",
         group: "Research",
-        keywords: "browse tablets paginate walk by glyph sign index imagery",
+        keywords:
+          "browse tablets paginate walk by glyph sign index imagery plates facsimile photographs gorila autopsy viewer",
       },
       {
         id: "health",
@@ -61,19 +53,11 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
       },
       { id: "search", name: "Corpus Search", group: "Research" },
       {
-        id: "plates",
-        name: "Plate Workbench",
-        group: "Research",
-        keywords:
-          "plates facsimile images photographs gorila side by side compare drawing autopsy viewer",
-      },
-      { id: "wlm", name: "Wordlist Manager", group: "Research" },
-      {
         id: "export",
-        name: "Data Export",
+        name: "Data Export & Python",
         group: "Research",
         keywords:
-          "export csv json data backup restore wipe reset cache lost recover transfer",
+          "export csv json data backup restore wipe reset cache recover transfer python pyaegean pip code api jupyter pandas notebook cli mcp",
       },
     ],
   },
@@ -89,11 +73,15 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
       },
       { id: "kwic", name: "Concordance (KWIC)", group: "Vocabulary", category: "descriptive" },
       { id: "lexstats", name: "Lexical Statistics", group: "Vocabulary", category: "descriptive" },
-      { id: "minpairs", name: "Minimal Pairs", group: "Vocabulary", category: "descriptive" },
-      { id: "morph", name: "Morphology", group: "Vocabulary", category: "exploratory" },
+      {
+        id: "morph",
+        name: "Morphology & Paradigms",
+        group: "Vocabulary",
+        keywords:
+          "morphology affixes prefix suffix stem families kober paradigm minimal pairs substitution root cognates consonant skeleton",
+        category: "exploratory",
+      },
       { id: "ngram", name: "N-grams", group: "Vocabulary", category: "descriptive" },
-      { id: "roots", name: "Root Cognates", group: "Vocabulary", category: "exploratory" },
-      { id: "stems", name: "Stem Families", group: "Vocabulary", category: "exploratory" },
       { id: "freq", name: "Word Frequency", group: "Vocabulary", category: "descriptive" },
     ],
   },
@@ -103,16 +91,14 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
       { id: "compare", name: "Compare Inscriptions", group: "Signs & structure", category: "descriptive" },
       { id: "pos", name: "Positional Grammar", group: "Signs & structure", category: "descriptive" },
       { id: "seqpat", name: "Sequence Patterns", group: "Signs & structure", category: "descriptive" },
-      { id: "signs", name: "Sign Concordance", group: "Signs & structure", category: "descriptive" },
-      { id: "signref", name: "Sign Inventory", group: "Signs & structure", category: "descriptive" },
       {
-        id: "signpat",
-        name: "Sign Patterns",
+        id: "signref",
+        name: "Signs & Graphotactics",
         group: "Signs & structure",
+        keywords:
+          "sign inventory concordance linear b ab shared transitions bigram surprisal pattern wildcard glob graphotactic search",
         category: "descriptive",
-        keywords: "sign pattern wildcard glob graphotactic search prefix suffix middle",
       },
-      { id: "signtrans", name: "Sign Transitions", group: "Signs & structure", category: "descriptive" },
       { id: "similarity", name: "Similarity", group: "Signs & structure", category: "descriptive" },
     ],
   },
@@ -120,44 +106,38 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
     group: "Accounts & content",
     items: [
       {
-        id: "dossiers",
-        name: "Account Dossiers",
+        id: "arith",
+        name: "Accounting & Metrology",
         group: "Accounts & content",
-        category: "exploratory",
         keywords:
-          "dossier account holder name entries quantities commodities ledger follow person prosopography",
+          "accounting balance kuro total metrology fractions klasmatogram numerals units measures denominators dossiers account holder prosopography",
+        category: "descriptive",
       },
-      { id: "arith", name: "Accounting & Metrology", group: "Accounts & content", category: "descriptive" },
       { id: "commodities", name: "Commodity Catalog", group: "Accounts & content", category: "descriptive" },
       {
-        id: "doctypes",
-        name: "Document Types",
+        id: "struct",
+        name: "Document Typology",
         group: "Accounts & content",
-        category: "descriptive",
         keywords:
-          "document types support tablet roundel nodule sealing vessel libation bar physical object typology function",
+          "tablet structure document types support tablet roundel nodule sealing vessel libation bar typology classification",
+        category: "descriptive",
       },
       { id: "lib", name: "Libation Formulas", group: "Accounts & content", category: "descriptive" },
-      {
-        id: "metrology",
-        name: "Metrology Lab",
-        group: "Accounts & content",
-        category: "descriptive",
-        keywords:
-          "metrology fractions klasmatogram numerals units measures denominators quantities counted measured",
-      },
       { id: "sem", name: "Semantic Classifier", group: "Accounts & content", category: "exploratory" },
-      { id: "struct", name: "Tablet Structure", group: "Accounts & content", category: "descriptive" },
     ],
   },
   {
     group: "Hypothesis testing",
     items: [
-      { id: "comp", name: "Cross-Linguistic", group: "Hypothesis testing", category: "exploratory" },
+      {
+        id: "comp",
+        name: "Cross-Linguistic",
+        group: "Hypothesis testing",
+        keywords:
+          "cross linguistic comparator wordlist manager custom wordlists akkadian hittite luwian hurrian ugaritic mycenaean egyptian",
+        category: "exploratory",
+      },
       { id: "onomastics", name: "Name Candidates", group: "Hypothesis testing", category: "exploratory" },
-      // Sound Shift now folds the live editor + the saved-hypothesis workspace
-      // into one tabbed module; `hypws` is kept routable via the alias map so
-      // deep-links / Help references still land on the Workspace tab.
       {
         id: "hyp",
         name: "Sound Shift",
@@ -172,15 +152,21 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
     group: "Distribution",
     items: [
       {
+        id: "timeline",
+        name: "Chronology",
+        group: "Distribution",
+        keywords:
+          "timeline chronology diachronic periods MM LM protopalatial neopalatial dates ceramic phases keyness",
+        category: "descriptive",
+      },
+      {
         id: "constellation",
         name: "Constellation",
         group: "Distribution",
-        category: "exploratory",
         keywords:
-          "constellation map embedding correspondence analysis all tablets scatter overview starfield",
+          "constellation map embedding correspondence analysis all tablets scatter overview",
+        category: "exploratory",
       },
-      { id: "diachronic", name: "Diachronic (MM/LM)", group: "Distribution", category: "descriptive" },
-      // Geography merges the findspot map + site-distribution stats (tabs).
       {
         id: "map",
         name: "Geography",
@@ -188,21 +174,12 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         keywords: "findspot map site distribution geographic jaccard overlay",
         category: "descriptive",
       },
-      // Scribes merges the per-scribe comparison + scribal network (tabs).
       {
         id: "scribes",
         name: "Scribes",
         group: "Distribution",
         keywords: "scribe comparison scribal network hand site baseline",
         category: "descriptive",
-      },
-      {
-        id: "timeline",
-        name: "Timeline",
-        group: "Distribution",
-        category: "descriptive",
-        keywords:
-          "timeline chronology periods MM LM protopalatial neopalatial dates ceramic phases history",
       },
     ],
   },
@@ -221,7 +198,7 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         name: "Scribe School",
         group: "Learn",
         keywords:
-          "scribe school practice exercise balance kuro total compute numerals fractions compose ledger sandbox game quiz",
+          "scribe school practice exercise balance kuro total compute numerals fractions compose ledger sandbox quiz",
       },
       {
         id: "trainer",
@@ -235,19 +212,7 @@ export const MODULE_GROUPS: { group: string; items: ModuleDef[] }[] = [
         name: "Write in Linear A",
         group: "Learn",
         keywords:
-          "write your name linear a glyphs syllables transliterate convert render fun",
-      },
-    ],
-  },
-  {
-    group: "Programmatic",
-    items: [
-      {
-        id: "pyaegean",
-        name: "Python Toolkit",
-        group: "Programmatic",
-        keywords:
-          "python pyaegean pip code api jupyter pandas notebook programmatic snippets data round-trip",
+          "write your name linear a glyphs syllables transliterate convert render",
       },
     ],
   },
@@ -270,82 +235,102 @@ export const ALL_MODULES: ModuleDef[] = MODULE_GROUPS.flatMap((g) => g.items);
 
 // Secondary ids that resolve to a consolidated module's primary sidebar entry.
 // Used to keep the sidebar highlight correct when a deep-link / pivot routes to
-// a sub-view by its old id (e.g. "collections" → the "My Research" entry).
+// a sub-view by its legacy id (e.g. "metrology" → "Accounting & Metrology").
 export const MODULE_ALIASES: Partial<Record<ModuleId, ModuleId>> = {
   network: "cooc",
   geo: "map",
   scribenet: "scribes",
   collections: "annot",
   report: "annot",
+  lexicon: "annot",
   hypws: "hyp",
+  metrology: "arith",
+  dossiers: "arith",
+  signs: "signref",
+  signtrans: "signref",
+  signpat: "signref",
+  diachronic: "timeline",
+  stems: "morph",
+  minpairs: "morph",
+  roots: "morph",
+  doctypes: "struct",
+  plates: "browse",
+  wlm: "comp",
+  pyaegean: "export",
 };
 
-// Consolidated modules: several ids resolve to one tabbed wrapper. The
-// "secondary" ids (network, geo, scribenet, collections, report) are kept
-// routable so existing deep-links / "Open in" pivots / Help links still work;
-// the wrapper reads the active id to open on the right tab.
+// Consolidated tabbed workspaces. Every legacy ModuleId remains routable so
+// existing permalinks, Help links, and pivots open directly on the right tab.
+const AccountingTabs = lazy(() => import("./AccountingTabs"));
+const ChronologyTabs = lazy(() => import("./ChronologyTabs"));
 const CooccurrenceTabs = lazy(() => import("./CooccurrenceTabs"));
+const CorpusExplorerTabs = lazy(() => import("./CorpusExplorerTabs"));
+const CrossLinguisticTabs = lazy(() => import("./CrossLinguisticTabs"));
+const DocumentTypologyTabs = lazy(() => import("./DocumentTypologyTabs"));
+const ExportTabs = lazy(() => import("./ExportTabs"));
 const Geography = lazy(() => import("./Geography"));
-const Scribes = lazy(() => import("./Scribes"));
+const MorphologyTabs = lazy(() => import("./MorphologyTabs"));
 const ResearchHub = lazy(() => import("./ResearchHub"));
+const Scribes = lazy(() => import("./Scribes"));
+const SignsTabs = lazy(() => import("./SignsTabs"));
 const SoundShiftTabs = lazy(() => import("./SoundShiftTabs"));
 
 export const MODULE_COMPONENTS: Record<ModuleId, ComponentType> = {
   home: lazy(() => import("./Home")),
   search: lazy(() => import("./CorpusSearch")),
-  browse: lazy(() => import("./CorpusBrowser")),
+  browse: CorpusExplorerTabs,
+  plates: CorpusExplorerTabs,
   freq: lazy(() => import("./WordFrequency")),
-  morph: lazy(() => import("./Morphology")),
+  morph: MorphologyTabs,
+  stems: MorphologyTabs,
+  minpairs: MorphologyTabs,
+  roots: MorphologyTabs,
   cooc: CooccurrenceTabs,
+  network: CooccurrenceTabs,
   ngram: lazy(() => import("./Ngrams")),
-  arith: lazy(() => import("./ArithmeticCheck")),
-  signs: lazy(() => import("./SignConcordance")),
-  signref: lazy(() => import("./SignInventory")),
-  comp: lazy(() => import("./CrossLinguistic")),
+  arith: AccountingTabs,
+  metrology: AccountingTabs,
+  dossiers: AccountingTabs,
+  signref: SignsTabs,
+  signs: SignsTabs,
+  signtrans: SignsTabs,
+  signpat: SignsTabs,
+  comp: CrossLinguisticTabs,
+  wlm: CrossLinguisticTabs,
   hyp: SoundShiftTabs,
+  hypws: SoundShiftTabs,
   sem: lazy(() => import("./SemanticClassifier")),
   pos: lazy(() => import("./PositionalGrammar")),
-  struct: lazy(() => import("./TabletStructure")),
+  struct: DocumentTypologyTabs,
+  doctypes: DocumentTypologyTabs,
   lib: lazy(() => import("./LibationFormulas")),
-  roots: lazy(() => import("./RootCognates")),
   seqpat: lazy(() => import("./SequencePatterns")),
   geo: Geography,
-  hypws: SoundShiftTabs,
-  export: lazy(() => import("./DataExport")),
-  wlm: lazy(() => import("./WordlistManager")),
+  map: Geography,
+  export: ExportTabs,
+  pyaegean: ExportTabs,
   annot: ResearchHub,
-  lexicon: lazy(() => import("./MyLexicon")),
+  lexicon: ResearchHub,
+  collections: ResearchHub,
+  report: ResearchHub,
   query: lazy(() => import("./QueryBuilder")),
   compare: lazy(() => import("./CompareInscriptions")),
-  network: CooccurrenceTabs,
-  collections: ResearchHub,
   similarity: lazy(() => import("./Similarity")),
-  map: Geography,
   kwic: lazy(() => import("./Concordance")),
-  stems: lazy(() => import("./StemFamilies")),
   scribes: Scribes,
   scribenet: Scribes,
   commodities: lazy(() => import("./Commodities")),
-  signtrans: lazy(() => import("./SignTransitions")),
-  minpairs: lazy(() => import("./MinimalPairs")),
   lexstats: lazy(() => import("./LexicalStats")),
-  diachronic: lazy(() => import("./Diachronic")),
+  timeline: ChronologyTabs,
+  diachronic: ChronologyTabs,
   onomastics: lazy(() => import("./Onomastics")),
-  report: ResearchHub,
   methodology: lazy(() => import("./Methodology")),
-  signpat: lazy(() => import("./SignPatterns")),
   commentary: lazy(() => import("./CommentaryBrowser")),
-  pyaegean: lazy(() => import("./PythonToolkit")),
   health: lazy(() => import("./CorpusHealth")),
-  doctypes: lazy(() => import("./DocumentTypes")),
-  dossiers: lazy(() => import("./AccountDossiers")),
-  metrology: lazy(() => import("./MetrologyLab")),
-  timeline: lazy(() => import("./Timeline")),
   reader: lazy(() => import("./GuidedReader")),
   school: lazy(() => import("./ScribeSchool")),
   write: lazy(() => import("./WriteLinearA")),
   trainer: lazy(() => import("./SignTrainer")),
   constellation: lazy(() => import("./Constellation")),
-  plates: lazy(() => import("./PlateWorkbench")),
   help: lazy(() => import("./Help")),
 };

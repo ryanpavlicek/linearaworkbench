@@ -48,9 +48,19 @@ function powerIterate(
       for (let i = 0; i < m; i++) vec[i] -= dot * u[i];
     }
   };
+  const normalize = (vec: number[]): number => {
+    let norm = 0;
+    for (let i = 0; i < m; i++) norm += vec[i] * vec[i];
+    norm = Math.sqrt(norm);
+    if (norm < 1e-12) return 0;
+    for (let i = 0; i < m; i++) vec[i] /= norm;
+    return norm;
+  };
+  orthogonalize(v);
+  if (normalize(v) === 0) return null;
+
   let value = 0;
-  for (let iter = 0; iter < 300; iter++) {
-    orthogonalize(v);
+  for (let iter = 0; iter < 500; iter++) {
     const next = new Array<number>(m).fill(0);
     for (let i = 0; i < m; i++) {
       const row = ata[i];
@@ -58,13 +68,17 @@ function powerIterate(
       for (let j = 0; j < m; j++) s += row[j] * v[j];
       next[i] = s;
     }
-    let norm = 0;
-    for (let i = 0; i < m; i++) norm += next[i] * next[i];
-    norm = Math.sqrt(norm);
-    if (norm < 1e-12) return null; // nothing left in this subspace
-    for (let i = 0; i < m; i++) next[i] /= norm;
+    orthogonalize(next);
+    const norm = normalize(next);
+    if (norm === 0) return null; // nothing left in this subspace
+    let diff = 0;
+    for (let i = 0; i < m; i++) {
+      const d = next[i] - v[i];
+      diff += d * d;
+    }
     value = norm;
     v = next;
+    if (diff < 1e-20) break;
   }
   return { value, vector: v };
 }
@@ -165,8 +179,7 @@ export function correspondenceAnalysis(
 // Distance = cosine distance between count vectors. The tree is built by
 // average linkage; support for each internal node is the share of
 // bootstrap replicates (resampling FEATURES — word types — with
-// replacement, the standard move when the features carry the signal)
-// whose tree contains exactly the same member set.
+// replacement) whose tree contains exactly the same member set.
 
 export interface DendroMerge {
   /** indices into the original items (or earlier merges, offset by n) */
@@ -186,74 +199,129 @@ export interface DendroResult {
   order: string[];
 }
 
-function cosineDistance(
-  a: ReadonlyMap<string, number>,
-  b: ReadonlyMap<string, number>,
-  features: readonly string[],
-): number {
-  let dot = 0;
-  let na = 0;
-  let nb = 0;
-  for (const f of features) {
-    const x = a.get(f) ?? 0;
-    const y = b.get(f) ?? 0;
-    dot += x * y;
-    na += x * x;
-    nb += y * y;
-  }
-  if (na === 0 || nb === 0) return 1;
-  return 1 - dot / Math.sqrt(na * nb);
-}
-
-function upgmaMerges(
-  items: readonly { label: string; counts: ReadonlyMap<string, number> }[],
-  features: readonly string[],
+function upgmaMergesDense(
+  n: number,
+  mat: Float64Array, // n × f dense count matrix (row-major)
+  fCount: number,
+  weights: Int32Array | null, // null = uniform 1 per feature; else bootstrap multiplicity
 ): { merges: { a: number; b: number; height: number; members: number[] }[] } {
-  const n = items.length;
-  // active cluster id → member item indices; ids 0..n-1 are leaves,
-  // merge k creates id n+k.
-  const members = new Map<number, number[]>();
-  for (let i = 0; i < n; i++) members.set(i, [i]);
-  const dist = new Map<string, number>();
-  const key = (x: number, y: number) => (x < y ? `${x}|${y}` : `${y}|${x}`);
-  const ids: number[] = [];
-  for (let i = 0; i < n; i++) ids.push(i);
-  for (let i = 0; i < n; i++)
-    for (let j = i + 1; j < n; j++)
-      dist.set(key(i, j), cosineDistance(items[i].counts, items[j].counts, features));
+  const stride = 2 * n;
+  const dist = new Float64Array(stride * stride);
+  const norms = new Float64Array(n);
+  if (weights === null) {
+    for (let i = 0; i < n; i++) {
+      const off = i * fCount;
+      let s = 0;
+      for (let f = 0; f < fCount; f++) {
+        const x = mat[off + f];
+        s += x * x;
+      }
+      norms[i] = Math.sqrt(s);
+    }
+    for (let i = 0; i < n; i++) {
+      const offI = i * fCount;
+      const ni = norms[i];
+      for (let j = i + 1; j < n; j++) {
+        const nj = norms[j];
+        let d = 1;
+        if (ni > 0 && nj > 0) {
+          const offJ = j * fCount;
+          let dot = 0;
+          for (let f = 0; f < fCount; f++) dot += mat[offI + f] * mat[offJ + f];
+          d = 1 - dot / (ni * nj);
+        }
+        dist[i * stride + j] = d;
+        dist[j * stride + i] = d;
+      }
+    }
+  } else {
+    // Only visit features with non-zero bootstrap multiplicity.
+    const activeF: number[] = [];
+    const activeW: number[] = [];
+    for (let f = 0; f < fCount; f++) {
+      const w = weights[f];
+      if (w > 0) {
+        activeF.push(f);
+        activeW.push(w);
+      }
+    }
+    const afLen = activeF.length;
+    for (let i = 0; i < n; i++) {
+      const off = i * fCount;
+      let s = 0;
+      for (let k = 0; k < afLen; k++) {
+        const x = mat[off + activeF[k]];
+        s += activeW[k] * x * x;
+      }
+      norms[i] = Math.sqrt(s);
+    }
+    for (let i = 0; i < n; i++) {
+      const offI = i * fCount;
+      const ni = norms[i];
+      for (let j = i + 1; j < n; j++) {
+        const nj = norms[j];
+        let d = 1;
+        if (ni > 0 && nj > 0) {
+          const offJ = j * fCount;
+          let dot = 0;
+          for (let k = 0; k < afLen; k++) {
+            const f = activeF[k];
+            dot += activeW[k] * mat[offI + f] * mat[offJ + f];
+          }
+          d = 1 - dot / (ni * nj);
+        }
+        dist[i * stride + j] = d;
+        dist[j * stride + i] = d;
+      }
+    }
+  }
+
+  const members: number[][] = new Array(2 * n);
+  const ids: number[] = new Array(n);
+  for (let i = 0; i < n; i++) {
+    members[i] = [i];
+    ids[i] = i;
+  }
   const merges: { a: number; b: number; height: number; members: number[] }[] =
     [];
   while (ids.length > 1) {
-    let best: [number, number] | null = null;
+    let bestAx = -1;
+    let bestBx = -1;
     let bestD = Infinity;
-    for (let x = 0; x < ids.length; x++)
+    for (let x = 0; x < ids.length; x++) {
+      const ix = ids[x];
+      const rowOff = ix * stride;
       for (let y = x + 1; y < ids.length; y++) {
-        const d = dist.get(key(ids[x], ids[y])) ?? Infinity;
+        const d = dist[rowOff + ids[y]];
         if (d < bestD - 1e-12) {
           bestD = d;
-          best = [ids[x], ids[y]];
+          bestAx = x;
+          bestBx = y;
         }
       }
-    if (!best) break;
-    const [a, b] = best;
+    }
+    if (bestAx < 0) break;
+    const a = ids[bestAx];
+    const b = ids[bestBx];
     const newId = n + merges.length;
-    const ma = members.get(a)!;
-    const mb = members.get(b)!;
+    const ma = members[a];
+    const mb = members[b];
     const merged = [...ma, ...mb].sort((x, y) => x - y);
-    members.set(newId, merged);
-    // average linkage: d(new, k) = (|a|·d(a,k) + |b|·d(b,k)) / (|a|+|b|)
-    for (const k of ids) {
+    members[newId] = merged;
+    const denom = ma.length + mb.length;
+    const rowA = a * stride;
+    const rowB = b * stride;
+    const rowNew = newId * stride;
+    for (let i = 0; i < ids.length; i++) {
+      const k = ids[i];
       if (k === a || k === b) continue;
-      const da = dist.get(key(a, k))!;
-      const db = dist.get(key(b, k))!;
-      dist.set(
-        key(newId, k),
-        (ma.length * da + mb.length * db) / (ma.length + mb.length),
-      );
+      const dNew = (ma.length * dist[rowA + k] + mb.length * dist[rowB + k]) / denom;
+      dist[rowNew + k] = dNew;
+      dist[k * stride + newId] = dNew;
     }
     merges.push({ a, b, height: bestD, members: merged });
-    ids.splice(ids.indexOf(a), 1);
-    ids.splice(ids.indexOf(b), 1);
+    ids.splice(bestBx, 1);
+    ids.splice(bestAx, 1);
     ids.push(newId);
   }
   return { merges };
@@ -266,20 +334,33 @@ export function upgmaWithBootstrap(
   const n = items.length;
   if (n < 3) return null;
   const vocab = [...new Set(items.flatMap((it) => [...it.counts.keys()]))];
-  if (vocab.length < 2) return null;
-  const ref = upgmaMerges(items, vocab);
-  // Bootstrap: resample features with replacement, recluster, and count
-  // how often each reference member-set recurs.
+  const fCount = vocab.length;
+  if (fCount < 2) return null;
+
+  // Build dense n × fCount Float64Array once so bootstrap replicates avoid
+  // millions of Map<string, number> lookups.
+  const mat = new Float64Array(n * fCount);
+  const featIdx = new Map<string, number>();
+  for (let f = 0; f < fCount; f++) featIdx.set(vocab[f], f);
+  for (let i = 0; i < n; i++) {
+    const off = i * fCount;
+    for (const [feat, val] of items[i].counts) {
+      const fi = featIdx.get(feat);
+      if (fi !== undefined) mat[off + fi] = val;
+    }
+  }
+
+  const ref = upgmaMergesDense(n, mat, fCount, null);
   const iters = opts.iters ?? 100;
   const rand = mulberry32(opts.seed ?? 42);
   const want = new Map<string, number>(); // memberKey → hits
   const memberKey = (m: number[]) => m.join(",");
   for (const mg of ref.merges) want.set(memberKey(mg.members), 0);
+  const weights = new Int32Array(fCount);
   for (let it = 0; it < iters; it++) {
-    const sample: string[] = new Array(vocab.length);
-    for (let i = 0; i < vocab.length; i++)
-      sample[i] = vocab[Math.floor(rand() * vocab.length)];
-    const rep = upgmaMerges(items, sample);
+    weights.fill(0);
+    for (let i = 0; i < fCount; i++) weights[Math.floor(rand() * fCount)]++;
+    const rep = upgmaMergesDense(n, mat, fCount, weights);
     const seen = new Set(rep.merges.map((m) => memberKey(m.members)));
     for (const k of want.keys()) if (seen.has(k)) want.set(k, want.get(k)! + 1);
   }

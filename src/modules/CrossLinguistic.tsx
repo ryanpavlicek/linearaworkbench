@@ -430,23 +430,18 @@ export default function CrossLinguistic() {
             marginTop: 8,
             paddingTop: 8,
             borderTop: "1px dashed var(--border)",
-            fontSize: 15,
-            lineHeight: 1.6,
+            fontSize: 13,
+            lineHeight: 1.55,
             color: "var(--text-dim)",
-            fontWeight: 700,
           }}
         >
-          <b style={{ color: "var(--am)" }}>Read this before trusting a match.</b>{" "}
-          Linear A is undeciphered. Sign phonetic values follow the Linear B
-          convention for AB-shared signs — a working assumption, not a fact —
-          and the bundled reference wordlists are short editorial samples
-          (~340 entries total) that have <b>not</b> been peer-reviewed by
-          specialists in each language. Mycenaean Greek is the only genuinely
-          apples-to-apples comparison (same syllabic values); the rest are
-          phonetic systems being forced into a common edit-distance metric.
-          Treat ranked matches as exploratory leads against a noisy null
-          model, not as evidence of language affinity. The full methodology
-          and limitations are in the{" "}
+          <b style={{ color: "var(--am)" }}>Limits:</b> Linear A readings assume
+          Linear B phonetic values for AB-shared signs, and the bundled
+          reference wordlists (~340 entries across 9 languages) are small
+          editorial samples without specialist peer review. Only Mycenaean Greek
+          shares the same syllabary; other languages are mapped onto one
+          heuristic edit distance. Ranked matches are leads for investigation
+          rather than evidence of linguistic affiliation (see{" "}
           <a
             href="#cross-linguistic-distance"
             onClick={(e) => {
@@ -458,8 +453,8 @@ export default function CrossLinguistic() {
             style={{ color: "var(--ac)", cursor: "pointer" }}
           >
             Methodology
-          </a>{" "}
-          page.
+          </a>
+          ).
         </p>
       </div>
       <div className="tab-row">

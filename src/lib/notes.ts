@@ -39,7 +39,12 @@ export function parseRefUrl(url: string): { kind: RefKind; value: string } | nul
   const slash = rest.indexOf("/");
   if (slash < 0) return null;
   const kind = rest.slice(0, slash);
-  const value = decodeURIComponent(rest.slice(slash + 1));
+  let value: string;
+  try {
+    value = decodeURIComponent(rest.slice(slash + 1));
+  } catch {
+    return null;
+  }
   if (
     kind === "ins" ||
     kind === "word" ||
@@ -122,12 +127,21 @@ function renderInline(text: string, opts: InlineOpts): string {
   return html;
 }
 
-// Bold / italic / inline code on already-escaped text.
+// Bold / italic / inline code on already-escaped text. Protect `code` spans
+// before running bold/italic, and require italic spans not to start with a
+// digit so unread Linear A sign labels like "*301 and *306" are never turned
+// into <em>301 and </em>306.
 function inlineFormat(s: string): string {
-  return s
-    .replace(/`([^`]+)`/g, "<code>$1</code>")
+  const codes: string[] = [];
+  const protectedStr = s.replace(/`([^`]+)`/g, (_m, inner: string) => {
+    const idx = codes.length;
+    codes.push(`<code>${inner}</code>`);
+    return `\u0000CODE${idx}\u0000`;
+  });
+  const formatted = protectedStr
     .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
-    .replace(/(^|[^\\])\*([^*\n]+)\*/g, "$1<em>$2</em>");
+    .replace(/(^|[^\\\w*])\*(?!\d)([^*\n]+?)\*(?!\d)/g, "$1<em>$2</em>");
+  return formatted.replace(/\u0000CODE(\d+)\u0000/g, (_m, idx: string) => codes[Number(idx)] ?? "");
 }
 
 /**

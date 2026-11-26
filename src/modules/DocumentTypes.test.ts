@@ -28,14 +28,13 @@ describe("isCountableNumeral — the 'with numerals' predicate", () => {
   it("recovers the fraction-only documents corpus-wide", () => {
     const docs = corpus();
     const withNumerals = docs.filter((d) => d.words.some(isCountableNumeral));
-    // 349 documents carry an integer numeral; 29 more record quantities
-    // only as built-up metrological fractions ("¹⁄₂") and were invisible
-    // while the numeral regex lacked the U+2044 fraction slash.
-    expect(withNumerals.length).toBe(378);
+    // 349 documents carry an integer numeral; 32 more record quantities only
+    // as built-up, approximate ("≈ ¹⁄₆"), ASCII ("13/20"), or vulgar fractions.
+    expect(withNumerals.length).toBe(381);
     const fractionOnly = withNumerals.filter((d) =>
       d.words.filter(isCountableNumeral).every((w) => w.includes("⁄")),
     );
-    expect(fractionOnly.length).toBe(29);
+    expect(fractionOnly.length).toBe(31);
     const ids = fractionOnly.map((d) => d.id);
     expect(ids).toContain("HT147");
     expect(ids).toContain("KH80");

@@ -1,44 +1,68 @@
 import { useWorkbench } from "../store/workbench";
 
-// The front door for working with this corpus in Python. pyaegean is the
-// companion package built alongside the workbench: same bundled corpus,
-// same query field ids, parity-tested in both projects' CI. This page is
-// the in-app pointer to it — install line, runnable snippets, and the
-// other programmatic doors into the site (data API, embeds, BYO corpus).
+// Programmatic entry point for working with Linear A and the wider Aegean/Greek
+// corpus in Python via pyaegean. Both projects share the same 1,721-entry
+// GORILA corpus, query field IDs, and parity checksums.
 
 const PYPI_URL = "https://pypi.org/project/pyaegean/";
 const GITHUB_URL = "https://github.com/ryanpavlicek/pyaegean";
-const DOCS_URL = "https://ryanpavlicek.github.io/pyaegean/";
+const DOCS_URL = "https://pyaegean.xyz/";
+const DEMO_URL = "https://pyaegean.xyz/demo/";
 const COLAB_URL =
-  "https://colab.research.google.com/github/ryanpavlicek/pyaegean/blob/main/notebooks/getting-started.ipynb";
+  "https://colab.research.google.com/github/ryanpavlicek/pyaegean/blob/main/notebooks/walkthrough-aegean.ipynb";
+
+const INSTALL = `# Core package (zero heavy dependencies; Python 3.10+)
+pip install pyaegean
+
+# Add CLI / local Workbench launcher, pandas DataFrames, or interactive TUI
+pip install "pyaegean[cli,data]"
+pip install "pyaegean[tui]"`;
 
 const QUICKSTART = `import aegean
 from aegean.analysis import FilterRow
 
-corpus = aegean.load("lineara")          # the same 1,721 inscriptions
+corpus = aegean.open("lineara")          # same 1,721-entry GORILA corpus
 print(len(corpus), corpus.provenance.cite())
 
-# the Query Builder, as code — identical field ids
-results = corpus.query(
-    [
-        FilterRow("site", "Haghia Triada"),
-        FilterRow("has-image", True),
-    ],
-)
+# Compound Query Builder in Python (identical field IDs)
+results = corpus.query([
+    FilterRow("site-is", "Haghia Triada"),
+    FilterRow("has-image", True),
+])
 for doc in results.inscriptions[:5]:
     print(doc.id, doc.meta.site, len(doc.words))
 
-# pandas at document / word / token level
+# Full-text / sign search, exact accounting, and pandas export (needs [data])
+hits = corpus.search("KU-RO")
 df = corpus.to_dataframe("token")`;
 
-const ROUNDTRIP = `from aegean.io import to_workbench, from_workbench_export
+const LOCAL_BRIDGE = `# Launch this exact Workbench locally (with cached GORILA plates if installed)
+aegean workbench
 
-# open ANY corpus in this workbench: write the JSON, host it anywhere
-# CORS-readable, then visit  ?corpus=<url-to-json>
+# Pre-scope to a site, tablet, or custom corpus from pyaegean
+aegean workbench --site "Haghia Triada" --module arith
+aegean workbench --corpus sigla          # inspect 802 SigLA Linear A docs
+aegean workbench --doc HT13              # jump directly to HT13
+
+# Manage corpora, images, and the Workbench bundle from one place
+aegean library status
+aegean library install lineara-images`;
+
+const ROUNDTRIP = `from aegean.io import (
+    to_workbench,
+    from_workbench_export,
+    load_workbench_backup,
+)
+
+# Send any pyaegean corpus (SigLA, Linear B, filtered slice) to the Workbench
 to_workbench(my_corpus, "my_corpus.json")
 
-# and the reverse: load this site's Data Export (or api/v1) in Python
-corpus = from_workbench_export("linear_a_corpus.json")`;
+# Load a Workbench Data Export or api/v1 JSON back into Python
+corpus = from_workbench_export("linear_a_corpus.json")
+
+# Read your Workbench backup (hypotheses, annotations, saved queries, collections)
+state = load_workbench_backup("linear-a-workbench-backup.json")
+print(state["hypotheses"])`;
 
 const API_CURL = `curl -s https://linearaworkbench.xyz/api/v1/inscriptions/HT13.json \\
   | jq '.derived.balance'`;
@@ -106,15 +130,14 @@ export default function PythonToolkit() {
     <div className="panel">
       <h2>Python Toolkit — pyaegean</h2>
       <p className="panel-desc">
-        Everything this workbench analyzes in the browser is also a Python
-        package: <b>pyaegean</b> carries the same 1,721-inscription corpus,
-        the same compound-query engine, and the analysis layer (sign-pattern
-        search, phonetic alignment, collocation statistics, accounting
-        reconciliation) — plus things a browser can't do well: pandas
-        DataFrames, geopandas maps, EpiDoc/CSV/Parquet export, and a deep
-        Ancient Greek NLP pipeline. The two projects are built together, and
-        a parity checksum verified in both CIs keeps their corpora
-        byte-identical.
+        <b>pyaegean</b> is the companion Python, CLI, TUI, and MCP toolkit built
+        alongside this workbench. It ships the same 1,721-entry Linear A corpus
+        and compound-query engine, plus multi-script corpora (SigLA Linear A,
+        ~5,900 Linear B DAMOS tablets, Cypriot, Cypro-Minoan, and Ancient Greek),
+        exact rational accounting, distributional embeddings, Procrustes
+        cross-script alignment, Harris morpheme segmentation, Brainerd–Robinson
+        seriation, Monte Carlo null models, EpiDoc/RDF/Parquet export, and a
+        29-tool MCP server (<code>aegean-mcp</code>).
       </p>
 
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap", marginTop: 4 }}>
@@ -125,49 +148,56 @@ export default function PythonToolkit() {
           GitHub ↗
         </a>
         <a className="btn btn-outline btn-sm" href={DOCS_URL} target="_blank" rel="noopener noreferrer">
-          API reference ↗
+          Docs &amp; API ↗
+        </a>
+        <a className="btn btn-outline btn-sm" href={DEMO_URL} target="_blank" rel="noopener noreferrer">
+          Browser Demo ↗
         </a>
         <a
           className="btn btn-outline btn-sm"
           href={COLAB_URL}
           target="_blank"
           rel="noopener noreferrer"
-          title="Run the guided tour in your browser — nothing to install"
+          title="Run the Aegean walkthrough notebook in Colab"
         >
-          Try it in Colab ↗
+          Colab Notebook ↗
         </a>
       </div>
 
       <CodeCard
         title="Install"
-        sub="Python 3.10+; the core install has zero heavy dependencies."
-        code="pip install pyaegean"
+        sub="Python 3.10+. Core installs with zero third-party dependencies."
+        code={INSTALL}
       />
 
       <CodeCard
         title="Quick start"
-        sub="Load the corpus, run a workbench query, get a DataFrame."
+        sub="Open the corpus, run a Workbench query, search, and build a DataFrame."
         code={QUICKSTART}
       />
 
       <CodeCard
-        title="Round-trip with this site"
-        sub="Your Python corpus in these modules, or this site's exports in Python."
+        title="Run this Workbench locally via CLI"
+        sub="Serve offline with cached GORILA plates, pre-scope to any site or corpus, or jump straight to a tablet."
+        code={LOCAL_BRIDGE}
+      />
+
+      <CodeCard
+        title="Round-trip with Python"
+        sub="Load Python corpora into these modules, or bring Workbench exports and backups back into Python."
         code={ROUNDTRIP}
       />
 
       <div className="card" style={{ marginTop: 12 }}>
-        <h4>You don't have to leave the browser, either</h4>
+        <h4>Other programmatic doors</h4>
         <p className="sub" style={{ marginTop: 4 }}>
-          Snippets like these are generated for you all over the app: the
-          Query Builder's <b>Py ⧉</b> button translates your current query,
-          and every tablet's detail view copies the code that fetches it.
-          Three more programmatic doors into the site:
+          Use the Query Builder&apos;s <b>Copy pyaegean code</b> button to export
+          any active query as Python, or click <b>Py ⧉</b> inside any tablet
+          detail modal. Three additional entry points:
         </p>
         <ul className="sub" style={{ marginTop: 8, paddingLeft: 18, lineHeight: 1.8 }}>
           <li>
-            <b>Static data API</b> — the corpus as versioned JSON at stable
-            URLs, no app required:
+            <b>Static data API</b> — versioned JSON endpoints at stable URLs:
             <pre
               style={{
                 font: "11px/1.5 var(--mono)",
@@ -188,8 +218,8 @@ export default function PythonToolkit() {
             chromeless tablet card for iframes.
           </li>
           <li>
-            <b>Bring your own corpus</b> — <code>?corpus=&lt;url&gt;</code>{" "}
-            or{" "}
+            <b>Bring your own corpus</b> — pass <code>?corpus=&lt;url&gt;</code>{" "}
+            (same-origin or HTTPS) or use{" "}
             <button
               className="btn btn-outline btn-sm"
               onClick={() => setActive("export")}
@@ -197,8 +227,8 @@ export default function PythonToolkit() {
             >
               Data Export
             </button>{" "}
-            → <i>Bring your own corpus</i> loads any inscription JSON into
-            every module for the session.
+            → <i>Bring your own corpus</i> to load any inscription JSON for the
+            session.
           </li>
         </ul>
       </div>

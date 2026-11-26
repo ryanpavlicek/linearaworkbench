@@ -394,6 +394,11 @@ describe("KU-RA total marker", () => {
       if (checks.some((c) => c.marker === "KU-RA")) kuraTablets.push(d.id);
     }
     expect(kuraTablets).toEqual(["ZA20"]);
-    expect(total).toBe(35); // 34 KU-RO/PO-TO-KU-RO checks + ZA20's KU-RA
+    // 33 verifiable total checks (32 KU-RO/PO-TO-KU-RO + ZA20's KU-RA).
+    // Damaged KU-RO lines with no legible numeral (HT40, HT130) are skipped
+    // rather than checked against a synthetic statedTotal of 0.
+    expect(total).toBe(33);
+    expect(checkBalances(parseAccountLines(doc("HT40").lines))).toEqual([]);
+    expect(checkBalances(parseAccountLines(doc("HT130").lines))).toEqual([]);
   });
 });

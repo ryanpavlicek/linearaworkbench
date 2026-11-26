@@ -192,18 +192,21 @@ export default function Network() {
     setRenderVersion((v) => v + 1);
   }
 
-  // Animation loop — uses refs so React state isn't bashed each frame.
+  // Physics simulation — halts once kinetic energy settles (and respects
+  // prefers-reduced-motion via synchronous layout without RAF animation).
   useEffect(() => {
     let raf = 0;
     let running = true;
     let renderTick = 0;
-    function step() {
+    const reduced =
+      typeof window !== "undefined" &&
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    function tickPhysics(): number {
       const nodes = nodesRef.current;
       const edges = edgesRef.current;
-      if (!nodes.length) {
-        raf = requestAnimationFrame(step);
-        return;
-      }
+      if (!nodes.length) return 0;
       // Repulsion (O(n²))
       for (let i = 0; i < nodes.length; i++) {
         for (let j = i + 1; j < nodes.length; j++) {
@@ -238,6 +241,7 @@ export default function Network() {
         b.vy -= fy;
       }
       // Center + damping + integrate
+      let energy = 0;
       for (const n of nodes) {
         if (n.fixed) continue;
         n.vx -= n.x * CENTER;
@@ -246,11 +250,31 @@ export default function Network() {
         n.vy *= DAMPING;
         n.x += n.vx;
         n.y += n.vy;
+        energy += n.vx * n.vx + n.vy * n.vy;
       }
-      // Render every other frame to lighten DOM work
+      return energy;
+    }
+
+    if (!nodesRef.current.length) return;
+    if (reduced) {
+      for (let k = 0; k < 180; k++) {
+        if (tickPhysics() < 1e-4) break;
+      }
+      renderToDOM();
+      return;
+    }
+
+    function step() {
+      if (!running || !nodesRef.current.length) return;
+      const energy = tickPhysics();
       renderTick++;
       if (renderTick % 2 === 0) renderToDOM();
-      if (running) raf = requestAnimationFrame(step);
+      const anyFixed = nodesRef.current.some((n) => n.fixed);
+      if (anyFixed || renderTick < 30 || energy > 1e-4) {
+        raf = requestAnimationFrame(step);
+      } else {
+        renderToDOM();
+      }
     }
     raf = requestAnimationFrame(step);
     return () => {

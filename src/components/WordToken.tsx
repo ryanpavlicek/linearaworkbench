@@ -42,7 +42,8 @@ export const WordToken = memo(function WordToken({
     : "";
 
   const link = (
-    <span
+    <button
+      type="button"
       className={`word-link ${freqClass ?? ""} ${matches ? "hl" : ""}`}
       onClick={(e) => {
         e.stopPropagation();
@@ -70,7 +71,7 @@ export const WordToken = memo(function WordToken({
           /{wordToPhonetic(word, hypothesis)}/
         </span>
       )}
-    </span>
+    </button>
   );
 
   return (

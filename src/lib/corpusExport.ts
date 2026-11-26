@@ -26,6 +26,8 @@ import {
   checkBalances,
   formatValue,
   hasValue,
+  TOTAL_MARKERS,
+  GRAND_TOTAL_MARKERS,
 } from "./numerals";
 import type { PhoneticOverrides, WordEntry } from "./types";
 
@@ -46,11 +48,13 @@ export function heuristicCategory(ins: Inscription): StructCategory {
   // hasValue catches fractions too — a tablet of fraction-only quantities
   // is still an accounting document.
   const hasNums = hasValue(ws);
-  const hasKuro = ws.includes("KU-RO");
+  const hasTotal = ws.some(
+    (w) => TOTAL_MARKERS.has(w) || GRAND_TOTAL_MARKERS.has(w),
+  );
   const hasLib = ws.some((w) => LIBATION_WORD_SET.has(w));
   const multi = ws.filter((w) => w.includes("-")).length;
   const sep = ws.filter((w) => w === "𐄁").length;
-  if (hasKuro || (hasNums && multi > 2)) return "accounting";
+  if (hasTotal || (hasNums && multi > 2)) return "accounting";
   if (hasLib) return "libation";
   if (sep > 3 && !hasNums) return "list";
   if (multi > 4 && !hasNums) return "text";

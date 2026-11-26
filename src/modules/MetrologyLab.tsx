@@ -187,16 +187,13 @@ export default function MetrologyLab() {
       <div className="callout">
         <h4>Counted or measured?</h4>
         <p>
-          Linear A numbers are decimal and non-positional; quantities below
-          one whole unit are written with fraction signs (the
-          klasmatograms). <b>Read this first:</b> the source transcription
-          has already resolved those signs into numeric values following
-          the conventional readings — the workbench sees <code>¾</code>,
-          not the sign that wrote it. So this module analyzes the{" "}
-          <em>value system</em>: which fractions occur, with which goods,
-          and which commodities are counted whole (sheep, people) versus
-          measured in fractional units (oil, wine, grain) — it cannot test
-          alternative sign-value assignments.
+          Linear A numerals are decimal and non-positional, with sub-unit
+          quantities written using fraction signs (klasmatograms). Because the
+          source transcription already resolves those signs to conventional
+          numeric values (such as <code>¾</code>), this view analyzes the{" "}
+          <em>value system</em> — which fractions occur, with which goods, and
+          which commodities are counted whole versus measured fractionally —
+          rather than testing alternative fraction-sign readings.
         </p>
       </div>
 

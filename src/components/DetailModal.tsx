@@ -551,7 +551,15 @@ function InscriptionDetailBody({ id }: { id: string }) {
             {describeInscription(ins)} · {ins.words.length} tokens
           </div>
         </div>
-        <div style={{ display: "flex", gap: 6, alignItems: "flex-start" }}>
+        <div
+          style={{
+            display: "flex",
+            gap: 6,
+            alignItems: "flex-start",
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
           <InscriptionNavigator id={ins.id} />
           <a
             className="btn btn-outline btn-sm"

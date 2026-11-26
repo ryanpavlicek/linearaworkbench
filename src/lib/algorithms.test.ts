@@ -426,9 +426,13 @@ describe("alignPhonetic — per-position operation labels", () => {
 });
 
 describe("isNumeralToken", () => {
-  it("accepts digit/approx tokens and rejects words and empties", () => {
+  it("accepts digit and approximate-fraction tokens and rejects bare approx/separators/words", () => {
     expect(isNumeralToken("123")).toBe(true);
-    expect(isNumeralToken("≈")).toBe(true);
+    expect(isNumeralToken("≈ ¹⁄₆")).toBe(true);
+    expect(isNumeralToken("13/20")).toBe(true);
+    expect(isNumeralToken("⅝")).toBe(true);
+    expect(isNumeralToken("≈")).toBe(false);
+    expect(isNumeralToken("𐄁")).toBe(false);
     expect(isNumeralToken("KU-RO")).toBe(false);
     expect(isNumeralToken("")).toBe(false);
   });

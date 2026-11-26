@@ -4,6 +4,79 @@ Notable changes to the Linear A Research Workbench. Released versions pin
 citations — `package.json`, `CITATION.cff`, and `WORKBENCH_VERSION` in
 [`src/lib/citations.ts`](src/lib/citations.ts) stay in sync.
 
+## 2.0.0 — 2026-11-26
+
+A full-stack hardening, accuracy, UX consolidation, offline PWA, and
+`pyaegean` integration release.
+
+### Security & hardening
+- **Closed stored XSS in exported HTML research reports** (`ResearchReport.tsx`):
+  annotation confidence values, image `src` attributes, and finding snapshots
+  are validated/escaped and note fragments pass through DOMPurify before
+  embedding. Exported HTML now embeds the self-hosted `Noto Sans Linear A`
+  woff2 font instead of calling Google Fonts CDN at runtime.
+- **URL and HTML boundary hardening** (`src/lib/urlSafety.ts`): strict
+  `http:`/`https:`/relative-path allowlists for `imageRightsURL`, Markdown
+  links, `?corpus=`/`?damos=` URLs, and report images; `rel="noopener noreferrer"`
+  on external links; entity-preserving `highlightHtml` and anchor-safe,
+  keyboard-focusable `linkifyTabletRefs`; `Content-Security-Policy` meta
+  header in `index.html`.
+- **Backup & storage resilience**: strict schema validation in `isBackupFile`,
+  prototype-pollution key guard, atomic rollback on `QuotaExceededError` in
+  `replace` mode, and `notes` + `custom-languages` counts in `summarizeBackup`.
+- **CI / release workflow hardening**: `deploy.yml` restricts `workflow_run`
+  triggers to same-repo `push` events; `release-app.yml` validates tag format,
+  `package.json` version alignment, and runs `typecheck`, `lint`, and `test`
+  before packaging.
+
+### Epigraphic, statistical & algorithmic accuracy
+- **Syllabogram `NI` inside hyphenated words** (`src/data/commodities.ts`):
+  `isLexicalWord()` now distinguishes standalone `NI` (figs logogram) from
+  the syllabogram `NI` inside multi-sign words, recovering 45 clean Linear A
+  lexical words (57 tokens) and fixing `NI = 0` in Linear A vs. Linear B
+  frequency divergence.
+- **Numeral & accounting fixes**: `isNumeralToken()` aligns with `parseValue()`
+  (accepting `≈ ¹⁄₆`, ASCII fractions, and vulgar fractions; rejecting bare
+  `≈` and separators); `checkBalances()` skips damaged numeral-less `KU-RO` /
+  `PO-TO-KU-RO` total lines (`HT40`, `HT130`) rather than comparing against
+  `statedTotal: 0`; `heuristicCategory()` checks `KU-RA` and `PO-TO-KU-RO`
+  alongside `KU-RO`.
+- **Statistical & numerical fixes**: direct `erfcTail()` eliminates
+  catastrophic cancellation in `chi2PValue` at `chi² ≥ 75`; epsilon + index
+  guard fixes an infinite loop in `alignPhonetic()` at `indel = 0.3`;
+  `benjaminiHochberg()` and `holmBonferroni()` added alongside Bonferroni;
+  exact multi-transition leave-one-out in `surprisal.ts`; normalized,
+  post-orthogonalized CA power iteration and dense `Float64Array` UPGMA
+  bootstrap in `multivariate.ts`; blank neutral rows skipped before `negate`
+  in `queryEngine.ts`; cached `log(r + β)` in `fitZipfMandelbrotMLE`.
+- **Markdown note parser**: protects inline code spans and guards italic
+  matching against GORILA `*301`-style sign labels.
+
+### UX, accessibility & offline PWA
+- **Workspace consolidation (51 → 34 sidebar entries)**: related tools are
+  grouped into URL-synced tabbed workspaces (`Accounting`, `Signs`,
+  `Chronology`, `Morphology`, `Document Typology`, `Cross-Linguistic`,
+  `Corpus Explorer`, `Data Export`, and `My Research` with `My Lexicon`),
+  while all 57 legacy `#/m/<id>` module routes remain valid via aliases.
+- **Accessibility & navigation**: sidebar module filter, `⌘K Search` top-bar
+  trigger, semantic `<button>` controls for `WordToken` and `InscriptionLink`,
+  ARIA tabpanels with arrow/Home/End navigation, layered `Escape` handling,
+  WCAG AA contrast adjustments, theme-color meta sync, and convergence-halting
+  force layouts honoring `prefers-reduced-motion`.
+- **Offline service worker**: build-time precaching of all hashed lazy module
+  chunks (`__PRECACHE_ASSETS__`), cache-first immutable assets/fonts,
+  `event.waitUntil()` SWR for corpus JSON, and `/api/local/` passthrough.
+- **`pyaegean` bidirectional bridge**: added loopback `?localState=1` sync
+  (`/api/local/backup`) for `aegean workbench --state <workspace.json>`,
+  `?damos=` auto-load for `aegean workbench --damos`, and updated Python
+  Toolkit snippets and docs (`FilterRow("site-is", ...)`).
+
+### Documentation & prose
+- Updated sign counts (`97` aligned signs, `68` AB-shared), hapax share
+  (`83.9%`), sequence-pattern tokens, libation formula words, and help
+  sections to match the current codebase; edited UI callouts, Help, and
+  Methodology prose for clarity and directness.
+
 ## 1.6.1 — 2026-07-03
 
 ### Data

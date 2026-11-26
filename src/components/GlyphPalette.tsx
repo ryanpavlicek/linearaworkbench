@@ -65,6 +65,9 @@ export function GlyphPalette({ open, onClose, onPick, initialQuery }: Props) {
     <div className="modal-scrim" onClick={onClose}>
       <div
         className="modal"
+        role="dialog"
+        aria-modal="true"
+        aria-label="Search by glyph"
         ref={rootRef}
         onClick={(e) => e.stopPropagation()}
         style={{ maxWidth: 760, maxHeight: "90vh" }}
@@ -77,7 +80,12 @@ export function GlyphPalette({ open, onClose, onPick, initialQuery }: Props) {
               into Corpus Search.
             </div>
           </div>
-          <button className="modal-close" onClick={onClose}>
+          <button
+            type="button"
+            className="modal-close"
+            onClick={onClose}
+            aria-label="Close"
+          >
             ✕
           </button>
         </div>

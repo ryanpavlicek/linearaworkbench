@@ -101,13 +101,12 @@ export default function Notes() {
     <div className="panel">
       <h2>Notes</h2>
       <div className="callout">
-        <h4>Connective tissue for your research</h4>
+        <h4>Markdown research notes</h4>
         <p>
-          Free-form Markdown notes for the long-form thinking that ties your
-          structured work together. Click <b>+ Reference</b> to insert a link to
-          any inscription, word, sign, annotation, collection, finding, or
-          other note — rendered as a clickable chip in the preview and in the
-          research report.
+          Free-form Markdown notes with structured links back to the corpus.
+          Click <b>+ Reference</b> to insert a clickable link to any
+          inscription, word, sign, annotation, collection, finding, or note
+          (rendered in both preview and exported reports).
         </p>
       </div>
 

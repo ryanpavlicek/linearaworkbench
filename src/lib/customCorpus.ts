@@ -16,6 +16,7 @@
 // than failing the whole load.
 
 import type { Inscription } from "./types";
+import { safeHref } from "./urlSafety";
 
 export interface NormalizedCorpus {
   inscriptions: Inscription[];
@@ -114,7 +115,7 @@ export function normalizeCorpusJson(raw: unknown): NormalizedCorpus {
         : strArray(r.facsimileImages),
       images: img ? strArray(img.photograph) : strArray(r.images),
       imageRights: img ? str(img.rights) : str(r.imageRights),
-      imageRightsURL: img ? str(img.rightsUrl) : str(r.imageRightsURL),
+      imageRightsURL: safeHref(img ? img.rightsUrl : r.imageRightsURL) ?? "",
     });
   }
 

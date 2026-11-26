@@ -18,20 +18,20 @@
   --border-strong: #2d3550;
   --border-focus: #4a90e2;
 
-  /* Text */
+  /* Text (WCAG AA >= 4.5:1 on --surface-0 / --surface-1) */
   --text: #e4e7ed;
-  --text-dim: #a0a8b8;
-  --text-muted: #6a7286;
-  --text-faint: #454c5e;
+  --text-dim: #aeb7c9;
+  --text-muted: #8a94ab;
+  --text-faint: #758099;
 
   /* Accents */
   --ac: #5b9eff;
-  --ac-2: #3470c0;
+  --ac-2: #2b65b8;
   --ac-soft: #5b9eff14;
   --gn: #3ddc91;
   --am: #f0b14b;
   --rd: #ef5a5a;
-  --pu: #9b7cf0;
+  --pu: #7c5cd6;
   --cy: #4ad8d0;
   --mg: #d568b4;
 
@@ -84,9 +84,9 @@
   --border-focus: #2563eb;
 
   --text: #1a1d23;
-  --text-dim: #4b5563;
-  --text-muted: #6b7280;
-  --text-faint: #9ca3af;
+  --text-dim: #374151;
+  --text-muted: #4b5563;
+  --text-faint: #6b7280;
 
   --ac: #2563eb;
   --ac-2: #1d4ed8;
@@ -407,7 +407,7 @@ select optgroup {
   border: 1px solid transparent;
 }
 .btn:hover {
-  background: var(--ac);
+  background: #3b7be0;
 }
 .btn:active {
   transform: translateY(1px);
@@ -418,7 +418,7 @@ select optgroup {
   color: #fff;
 }
 .btn-secondary:hover {
-  background: #ad8df5;
+  background: #6b4cc4;
 }
 
 .btn-success {
@@ -445,7 +445,14 @@ select optgroup {
 .btn:focus-visible,
 .input:focus-visible,
 .select:focus-visible,
-.sidebar-item:focus-visible {
+.sidebar-item:focus-visible,
+.sidebar-label:focus-visible,
+.tab-btn:focus-visible,
+.modal-close:focus-visible,
+.link-btn:focus-visible,
+.word-link:focus-visible,
+a:focus-visible,
+th[tabindex="0"]:focus-visible {
   outline: 2px solid var(--ac);
   outline-offset: 2px;
 }
@@ -515,6 +522,12 @@ tbody tr:last-child td {
   color: var(--ac);
   cursor: pointer;
   font: 12px var(--mono);
+  background: none;
+  border: 0;
+  padding: 0;
+  display: inline;
+  text-align: inherit;
+  text-decoration: none;
 }
 .word-link:hover {
   text-decoration: underline;
@@ -1534,9 +1547,12 @@ mark.help-hl,
    Responsive — phone ≤ 640px
    ============================================================ */
 @media (max-width: 640px) {
-  .footer span:nth-child(2),
-  .footer span:nth-child(3) {
+  .footer .footer-shortcuts,
+  .footer .footer-spacer {
     display: none;
+  }
+  .footer {
+    justify-content: space-between;
   }
   .topbar h1 {
     font-size: 13px;

@@ -1,6 +1,7 @@
 import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { createHash } from "node:crypto";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { buildCorpusExport } from "./src/lib/corpusExport";
 import type { Inscription, SignData, WordEntry } from "./src/lib/types";
@@ -89,9 +90,10 @@ function staticApiPlugin(): Plugin {
   };
 }
 
-// Stamps the service worker's cache-name placeholder with the app version
-// (package.json) at build time, so each release opens a fresh offline cache
-// and the worker's activate step prunes the previous release's entries.
+// Stamps the service worker's cache-name placeholder with package version +
+// an 8-char content hash of built assets, and injects the full list of built
+// JS/CSS chunks (including all lazy-loaded module chunks) into __PRECACHE_ASSETS__
+// so every deploy rotates caches cleanly and works offline on first visit.
 function swVersionPlugin(): Plugin {
   return {
     name: "stamp-sw-version",
@@ -100,11 +102,22 @@ function swVersionPlugin(): Plugin {
       const { version } = JSON.parse(
         readFileSync(resolve(process.cwd(), "package.json"), "utf8"),
       ) as { version: string };
+      const assetsDir = resolve(process.cwd(), "dist", "assets");
+      const assetFiles = readdirSync(assetsDir)
+        .filter((f) => /\.(?:js|css)$/.test(f))
+        .sort()
+        .map((f) => `assets/${f}`);
+      const hash = createHash("sha256")
+        .update(version)
+        .update("\n")
+        .update(assetFiles.join("\n"))
+        .digest("hex")
+        .slice(0, 8);
       const swPath = resolve(process.cwd(), "dist", "sw.js");
-      writeFileSync(
-        swPath,
-        readFileSync(swPath, "utf8").replace("__WORKBENCH_VERSION__", version),
-      );
+      const stamped = readFileSync(swPath, "utf8")
+        .replaceAll("__WORKBENCH_VERSION__", `${version}-${hash}`)
+        .replaceAll("__PRECACHE_ASSETS__", JSON.stringify(assetFiles));
+      writeFileSync(swPath, stamped);
     },
   };
 }

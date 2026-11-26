@@ -193,22 +193,19 @@ export default function Constellation() {
     <div className="panel" style={{ maxWidth: 1100 }}>
       <h2>Constellation</h2>
       <div className="callout">
-        <h4>The whole written corpus in one sky</h4>
+        <h4>Correspondence analysis of corpus vocabulary</h4>
         <p>
-          Correspondence analysis of the inscription × vocabulary table
-          (the {data.points.length ? "top 80 words" : "top words"}, each
-          attested 4+ times): documents drift toward the words they use,
-          so neighborhoods are shared vocabulary — the libation formula
-          texts cluster away from the ledgers, and site idioms form their
-          own asterisms. Scroll to zoom, drag to pan, click a legend chip
-          to dim a site, hover to identify a star, click to open the
-          tablet; documents with identical vocabulary (repeated formulas)
-          are spread in small rings so each stays reachable. The axes
-          carry{" "}
-          {((data.inertia[0] + data.inertia[1]) * 100).toFixed(0)}% of the
-          table's structure; documents under 3 word tokens (
-          {data.excluded.toLocaleString()}, mostly nodules and roundels)
-          can't be placed honestly and aren't plotted
+          Two-dimensional correspondence analysis of the inscription ×{" "}
+          {data.points.length ? "top-80-words" : "top-words"} table (words
+          attested ≥4 times). Proximity reflects shared vocabulary, separating
+          libation formulas from administrative accounts and surfacing
+          site-specific idioms. Scroll to zoom, drag to pan, click a legend chip
+          to dim a site, and click any point to open its tablet; texts with
+          identical profiles are jittered in small rings. The two axes capture{" "}
+          {((data.inertia[0] + data.inertia[1]) * 100).toFixed(0)}% of total
+          inertia. {data.excluded.toLocaleString()} inscriptions with fewer than
+          3 word tokens (mostly nodules and roundels) are excluded because
+          sparse rows distort CA coordinates
           {data.dropped > 0
             ? `, and ${data.dropped} more share no top-vocabulary word`
             : ""}

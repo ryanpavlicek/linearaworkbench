@@ -24,6 +24,7 @@ import type {
 import { COMPARISON_LANGUAGES } from "../data/languages";
 import { KEYS, loadJson, saveJson } from "../lib/persistence";
 import { normalizeCorpusJson } from "../lib/customCorpus";
+import { safeCorpusUrl } from "../lib/urlSafety";
 
 export interface CorpusIndex {
   inscriptions: Inscription[];
@@ -335,7 +336,12 @@ export const useWorkbench = create<State>((set, get) => ({
 
   async loadCorpusFromCustomUrl(url, signsUrl) {
     try {
-      const [insRes, signRes] = await Promise.all([fetch(url), fetch(signsUrl)]);
+      const check = safeCorpusUrl(url);
+      if (!check.ok) throw new Error(check.error);
+      const [insRes, signRes] = await Promise.all([
+        fetch(check.url),
+        fetch(signsUrl),
+      ]);
       if (!insRes.ok)
         throw new Error(`custom corpus fetch failed (HTTP ${insRes.status})`);
       if (!signRes.ok)
@@ -349,7 +355,9 @@ export const useWorkbench = create<State>((set, get) => ({
         corpus: buildIndex(inscriptions, signs),
         loaded: true,
         loadError: null,
-        corpusSource: url,
+        corpusSource: check.url,
+        detail: null,
+        scope: { ...EMPTY_SCOPE },
       });
     } catch (err) {
       set({ loadError: String(err), loaded: false });
@@ -663,7 +671,13 @@ export const useWorkbench = create<State>((set, get) => ({
   },
   deleteCollection: (id) => {
     const next = get().collections.filter((c) => c.id !== id);
-    set({ collections: next });
+    set((s) => ({
+      collections: next,
+      scope:
+        s.scope.collectionId === id
+          ? { ...s.scope, collectionId: null }
+          : s.scope,
+    }));
     saveJson(KEYS.collections, next);
   },
   addToCollection: (id, item) => {

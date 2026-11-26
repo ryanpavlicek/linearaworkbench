@@ -38,7 +38,7 @@ New to Linear A? Five things to try in your first five minutes:
    what you're looking at; copy the link and send it to anyone.
 
 The in-app **Help** (press `?`) includes guided recipes for real research
-questions, and the first-run welcome offers one-click starting points.
+questions, and the **Home** page offers one-click starting points.
 
 
 ## What this is
@@ -54,12 +54,11 @@ shares a core inventory of about 90 signs with the deciphered Linear B),
 but not the language. The corpus is small, fragmentary, and mostly
 administrative.
 
-This workbench gives you **50 interactive modules** for analyzing that
-corpus: searching, browsing, statistics, sign concordances, accounting verification,
+This workbench organizes **59 interactive views across 34 sidebar workspaces**:
+searching, browsing, statistics, sign concordances, accounting verification,
 cross-language phonetic alignment, hypothesis testing, annotation, mapping,
-comparison. Everything is keyboard-accessible, mostly works offline, and
-persists your work to
-the browser.
+and side-by-side comparison. Everything is keyboard-accessible, works offline
+after the first visit, and persists your work locally in the browser.
 
 ## Highlights
 
@@ -67,33 +66,41 @@ the browser.
 |---|---|
 | **Search & browse** | Full-corpus search, a page-through browser with a by-glyph index and an imagery contact sheet, a glyph-palette keyboard, and a command palette (`Ctrl+K`) that jumps to any module, tablet, word, or site. |
 | **Read the scholarship** | All 1,694 of John Younger's pre-2024 commentary docs, full-text searchable and rendered beside the tablets they discuss, plus facsimiles and photographs of nearly every inscription. |
-| **Signs & structure** | Sign inventory with SigLA paleography links, concordances, graphotactic transition heatmaps, wildcard sign-pattern search (`KU-*-RO`), positional grammar, and sequence patterns. |
+| **Signs & structure** | Sign inventory (97 aligned signs) with SigLA paleography links, concordances, graphotactic transition heatmaps, wildcard sign-pattern search (`KU-*-RO`), positional grammar, and sequence patterns. |
 | **Statistics** | Word frequency, KWIC concordance, collocation (PMI, G², χ², Fisher's exact), lexical statistics with Zipf curves, similarity clustering, stem families, minimal pairs. |
 | **Accounting & content** | Machine-verified KU-RO arithmetic on every accounting tablet, a commodity catalog, tablet-structure classification, and libation-formula analysis. |
 | **Hypothesis testing** | A cross-linguistic alignment matrix against nine reference languages with live tuning sliders, sound-shift what-ifs with match-delta scoring, and a name-candidates vetting queue. |
 | **Geography & scribes** | An interactive findspot map with word overlays, per-scribe sign profiles, pairwise comparison, and a scribal network. |
-| **Your research** | Annotate any word or tablet, build collections, save findings with their actual result tables, write cross-referenced Markdown notes, watch My Lexicon aggregate it all into a working glossary, and compile everything into an interactive single-file report with one-click citations. |
-| **Data in & out** | Permalinks to everything, CSV export on every table, a versioned full-corpus JSON export, a [static data API](docs/API.md), [live embeds](#embedding), one-file backup/restore, and folder auto-backup. Annotations export and re-import with a merge mode, so two researchers can swap and combine their readings. Take it further with an [Obsidian vault or NotebookLM bundle export](docs/FEATURES.md), or [bring your own corpus](#bring-your-own-corpus). |
+| **Your research** | Annotate any word or tablet, build collections, save findings with their actual result tables, write cross-referenced Markdown notes, aggregate them in My Lexicon, and compile everything into an interactive single-file report with one-click citations. |
+| **Data in & out** | Permalinks to everything, CSV export on every table, a versioned full-corpus JSON export, a [static data API](docs/API.md), [live embeds](#embedding), one-file backup/restore, and folder auto-backup. Annotations export and re-import with a merge mode, so two researchers can swap and combine their readings. Export an [Obsidian vault or NotebookLM bundle](docs/FEATURES.md), or [bring your own corpus](#bring-your-own-corpus). |
 
-The complete module-by-module tour — all 50 — is in
+The complete module-by-module tour is in
 [docs/FEATURES.md](docs/FEATURES.md).
 
 ## Run it locally
 
-You only need this to develop, customize, or run from source — the
-[live site](https://linearaworkbench.xyz/) is the same
-app and already works offline after your first visit.
+You can run the workbench offline in two ways — without cloning this
+repository at all via `pyaegean`, or from source with Node.js.
 
-1. **Install Node.js** (the JavaScript runtime the build tools need):
-   download the LTS version from <https://nodejs.org> and install with the
-   defaults. To confirm it worked, open a terminal (PowerShell on Windows,
-   Terminal on macOS) and run `node --version`.
-2. **Get the code** — `git clone https://github.com/ryanpavlicek/linearaworkbench.git`,
-   or, without git, use *Code → Download ZIP* on the GitHub page and unzip it.
-3. **Install and start** — in a terminal, inside the project folder:
+### Fastest way (via pyaegean, no Node.js required)
 
 ```bash
-npm install     # first time only — a few minutes
+pip install "pyaegean[cli,data]"
+aegean workbench                          # downloads & serves the pre-built release locally
+aegean workbench --site "Haghia Triada"   # open pre-scoped to a site
+aegean workbench --state workspace.json   # auto-save/restore annotations & notes to a local file
+```
+
+### From source (for development or customization)
+
+1. **Install Node.js** (22.13+ LTS) from <https://nodejs.org>. Confirm with
+   `node --version`.
+2. **Get the code** — `git clone https://github.com/ryanpavlicek/linearaworkbench.git`,
+   or use *Code → Download ZIP* on GitHub and unzip it.
+3. **Install and start** — inside the project folder:
+
+```bash
+npm install     # first time only
 npm run dev
 ```
 
@@ -105,8 +112,8 @@ commentary HTML, facsimile images, GORILA PDFs — all of it. Search, sign
 inventory, network graphs, hypothesis testing, the map, the facsimile and
 Commentary ↗ links, even the fonts (the Linear A glyph font included) all
 serve from the repo itself: zero external dependencies at runtime. After
-your first visit a service worker caches the app shell, corpus, and fonts,
-so the workbench keeps working offline.
+your first visit a service worker caches the app shell, lazy module chunks,
+corpus, and fonts, so the workbench keeps working offline.
 
 > ⚠️ Heads up: the repo is **~500 MB** because of the bundled auxiliary
 > mirror. The trade-off is that the GitHub Pages deployment carries its

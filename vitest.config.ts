@@ -37,6 +37,7 @@ export default defineConfig({
         "src/lib/useFocusTrap.ts",
         "src/lib/commentary.ts",
         "src/lib/backup.ts",
+        "src/lib/localBridge.ts",
         "src/lib/reportSnippet.ts",
         "src/lib/markdown.tsx",
         "src/lib/persistence.ts",

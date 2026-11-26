@@ -428,7 +428,7 @@ export default function DataExport() {
           <label
             className="dim"
             style={{ display: "flex", alignItems: "center", gap: 4 }}
-            title="Include the sign inventory (84 signs with Unicode glyphs, Linear B values where shared, attestation counts, mapping confidence)"
+            title="Include the sign inventory (97 signs with Unicode glyphs, Linear B values where shared, attestation counts, mapping confidence)"
           >
             <input
               type="checkbox"

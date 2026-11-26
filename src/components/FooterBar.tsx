@@ -17,14 +17,14 @@ export function FooterBar() {
   return (
     <>
       <footer className="footer">
-        <span>Ready</span>
-        <span style={{ flex: 1 }} />
-        <span>
+        <span className="footer-status">Ready</span>
+        <span className="footer-spacer" style={{ flex: 1 }} />
+        <span className="footer-attribution">
           Corpus:{" "}
           <a
             href="https://github.com/mwenge/lineara.xyz"
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             style={{ color: "var(--text-dim)" }}
           >
             mwenge/lineara.xyz
@@ -33,14 +33,15 @@ export function FooterBar() {
           <a
             href={GORILA_CEFAEL_URL}
             target="_blank"
-            rel="noreferrer"
+            rel="noopener noreferrer"
             style={{ color: "var(--text-dim)" }}
             title="The print edition, digitized — read the five GORILA volumes at CEFAEL (École française d'Athènes)"
           >
-            GORILA (Godart & Olivier)
+            GORILA (Godart &amp; Olivier)
           </a>{" "}
           ·{" "}
           <button
+            type="button"
             onClick={() => setAboutOpen(true)}
             style={{
               background: "none",
@@ -51,18 +52,22 @@ export function FooterBar() {
               font: "inherit",
               textDecoration: "underline dotted",
             }}
-            title="What's loaded, where it came from, the count distinction, and how to cite it — one click"
+            title="Corpus provenance, counts, and citations"
           >
             ⓘ About
           </button>
         </span>
-        <span style={{ flex: 1 }} />
-        <span>
+        <span className="footer-spacer" style={{ flex: 1 }} />
+        <span className="footer-shortcuts">
           Ctrl+K commands · Ctrl+/ search · Ctrl+Z undo · ? help · Esc close
         </span>
       </footer>
       {toast && (
-        <div className={`toast${toast.tone === "error" ? " error" : ""}`}>
+        <div
+          className={`toast${toast.tone === "error" ? " error" : ""}`}
+          role={toast.tone === "error" ? "alert" : "status"}
+          aria-live={toast.tone === "error" ? "assertive" : "polite"}
+        >
           {toast.message}
         </div>
       )}
